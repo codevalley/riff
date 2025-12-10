@@ -14,6 +14,7 @@ import { SlideEditor } from '@/components/SlideEditor';
 import { SlidePreview } from '@/components/SlidePreview';
 import { ThemeCustomizer } from '@/components/ThemeCustomizer';
 import { ImageStyleSelector } from '@/components/ImageStyleSelector';
+import { FormatHelpDialog } from '@/components/FormatHelpDialog';
 
 export default function Home() {
   const {
@@ -287,6 +288,8 @@ export default function Home() {
 
           {/* Right: Actions */}
           <div className="flex items-center gap-2">
+            <FormatHelpDialog />
+
             <ImageStyleSelector />
 
             <ThemeCustomizer
