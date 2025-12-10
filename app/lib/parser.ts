@@ -40,7 +40,7 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
     }
   };
 
-  const createNewSlide = () => {
+  const createNewSlide = (isSection = false) => {
     finalizeSlide();
     slideId++;
     revealOrder = 0;
@@ -50,6 +50,7 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
       speakerNotes: '',
       section: currentSection,
       imageDescriptions: [],
+      isSection,
     };
   };
 
@@ -104,6 +105,16 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
     // Slide separator
     if (trimmed === '---') {
       createNewSlide();
+      continue;
+    }
+
+    // Section header marker [section]
+    if (trimmed === '[section]') {
+      if (!currentSlide) {
+        createNewSlide(true);
+      } else {
+        (currentSlide as Slide).isSection = true;
+      }
       continue;
     }
 

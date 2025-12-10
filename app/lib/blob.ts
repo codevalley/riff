@@ -274,6 +274,24 @@ export async function getTheme(deckId: string): Promise<{ css: string; prompt: s
   }
 }
 
+/**
+ * Delete a saved theme for a deck
+ */
+export async function deleteTheme(deckId: string): Promise<boolean> {
+  try {
+    const pathname = `${THEMES_PREFIX}${encodeURIComponent(deckId)}.json`;
+    const { blobs } = await list({ prefix: pathname });
+
+    if (blobs.length > 0) {
+      await del(blobs[0].url);
+    }
+    return true;
+  } catch (error) {
+    console.error('Error deleting theme:', error);
+    return false;
+  }
+}
+
 // ============================================
 // GENERATED SLIDE HTML OPERATIONS
 // ============================================

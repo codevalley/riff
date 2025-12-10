@@ -56,6 +56,7 @@ module.exports = {
         'fade-in': 'fadeIn 0.3s ease-out forwards',
         'slide-up': 'slideUp 0.4s ease-out forwards',
         shimmer: 'shimmer 1.5s infinite',
+        grid: 'grid 15s linear infinite',
       },
       keyframes: {
         fadeIn: {
@@ -69,6 +70,10 @@ module.exports = {
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
+        },
+        grid: {
+          '0%': { transform: 'translateY(-50%)' },
+          '100%': { transform: 'translateY(0)' },
         },
       },
     },

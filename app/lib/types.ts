@@ -86,6 +86,7 @@ export interface Slide {
   speakerNotes: string;
   section?: string;
   imageDescriptions: string[];
+  isSection?: boolean; // Section header slide with special styling
 }
 
 export type SlideElementType =
@@ -177,6 +178,10 @@ export interface AppState {
   currentTheme: ThemeConfig | null;
   themePrompt: string;
 
+  // Custom system prompts (user can edit these)
+  customThemeSystemPrompt: string | null; // null = use default
+  customSlideSystemPrompt: string | null; // null = use default
+
   // Image generation
   imageStyle: ImageStyleId;
   imageCache: Record<string, string>; // description hash -> URL
@@ -202,8 +207,10 @@ export interface AppState {
   nextReveal: () => void;
   goToSlide: (index: number) => void;
 
-  setTheme: (theme: ThemeConfig) => void;
+  setTheme: (theme: ThemeConfig | null) => void;
   setThemePrompt: (prompt: string) => void;
+  setCustomThemeSystemPrompt: (prompt: string | null) => void;
+  setCustomSlideSystemPrompt: (prompt: string | null) => void;
 
   cacheImage: (description: string, url: string) => void;
   setGeneratingImage: (description: string, generating: boolean) => void;

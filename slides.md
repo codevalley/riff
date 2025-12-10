@@ -189,6 +189,7 @@ SLIDE STRUCTURE:
 <!-- SECTION 1: Who Dies in 2026?   -->
 <!-- ============================== -->
 
+[section]
 [image: Dramatic, dark, provocative — maybe a grim reaper silhouette or "RIP" tombstones]
 
 # Who Dies in 2026?
@@ -472,6 +473,7 @@ SLIDE STRUCTURE:
 <!-- SECTION 2: The New Bottleneck  -->
 <!-- ============================== -->
 
+[section]
 [image: Timeline graphic — 40 years of software evolution]
 
 # 40 Years of Software
@@ -920,6 +922,7 @@ SLIDE STRUCTURE:
 <!-- SECTION 3: Survival Rules      -->
 <!-- ============================== -->
 
+[section]
 [image: Bold "7 RULES" graphic — survival guide aesthetic]
 
 # The 7 Rules for Surviving the Vibe Era
@@ -1182,6 +1185,7 @@ SLIDE STRUCTURE:
 
 ---
 
+[section]
 [image: Warning sign or danger symbol]
 
 # The Pitfalls
@@ -1382,6 +1386,7 @@ SLIDE STRUCTURE:
 
 ---
 
+[section]
 [image: Handbook or manual visual — clean, minimal]
 
 # The Clean Handbook
@@ -1736,6 +1741,7 @@ SLIDE STRUCTURE:
 
 ---
 
+[section]
 [image: Director's chair, or conductor's baton, or captain's wheel — leadership visual]
 
 # We are entering an age where code is not written

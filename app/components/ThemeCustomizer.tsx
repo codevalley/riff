@@ -2,16 +2,19 @@
 
 // ============================================
 // VIBE SLIDES - Theme Customizer Component
-// Minimal, Vercel-inspired design
+// With editable system prompt and reset to default
 // ============================================
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Palette, Sparkles, Loader2, X } from 'lucide-react';
+import { Palette, Sparkles, Loader2, X, ChevronDown, ChevronRight, RotateCcw, Code } from 'lucide-react';
+import { DEFAULT_THEME_SYSTEM_PROMPT } from '@/lib/prompts';
+import { useStore } from '@/lib/store';
 
 interface ThemeCustomizerProps {
   currentPrompt: string;
-  onGenerate: (prompt: string) => Promise<void>;
+  onGenerate: (prompt: string, systemPrompt?: string) => Promise<void>;
+  onReset: () => void;
   isGenerating?: boolean;
 }
 
@@ -27,10 +30,26 @@ const EXAMPLE_PROMPTS = [
 export function ThemeCustomizer({
   currentPrompt,
   onGenerate,
+  onReset,
   isGenerating = false,
 }: ThemeCustomizerProps) {
+  const { customThemeSystemPrompt, setCustomThemeSystemPrompt } = useStore();
+
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState(currentPrompt);
+  const [showSystemPrompt, setShowSystemPrompt] = useState(false);
+  const [systemPrompt, setSystemPrompt] = useState(
+    customThemeSystemPrompt || DEFAULT_THEME_SYSTEM_PROMPT
+  );
+
+  // Hydrate from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('vibe-slides-theme-system-prompt');
+    if (saved) {
+      setSystemPrompt(saved);
+      setCustomThemeSystemPrompt(saved);
+    }
+  }, [setCustomThemeSystemPrompt]);
 
   useEffect(() => {
     setPrompt(currentPrompt);
@@ -38,13 +57,30 @@ export function ThemeCustomizer({
 
   const handleGenerate = async () => {
     if (prompt.trim()) {
-      await onGenerate(prompt.trim());
+      // Save custom system prompt if modified
+      const isCustom = systemPrompt !== DEFAULT_THEME_SYSTEM_PROMPT;
+      if (isCustom) {
+        setCustomThemeSystemPrompt(systemPrompt);
+      }
+      await onGenerate(prompt.trim(), isCustom ? systemPrompt : undefined);
     }
   };
 
   const handleExampleClick = (example: string) => {
     setPrompt(example);
   };
+
+  const handleResetSystemPrompt = () => {
+    setSystemPrompt(DEFAULT_THEME_SYSTEM_PROMPT);
+    setCustomThemeSystemPrompt(null);
+  };
+
+  const handleResetTheme = () => {
+    onReset();
+    setIsOpen(false);
+  };
+
+  const isSystemPromptModified = systemPrompt !== DEFAULT_THEME_SYSTEM_PROMPT;
 
   return (
     <div className="relative">
@@ -84,7 +120,7 @@ export function ThemeCustomizer({
               transition={{ duration: 0.1 }}
               className="
                 fixed right-4 top-16 z-50
-                w-80 max-h-[calc(100vh-100px)] overflow-hidden
+                w-96 max-h-[calc(100vh-100px)] overflow-hidden
                 bg-surface border border-border rounded-lg
                 shadow-xl shadow-black/20
               "
@@ -105,6 +141,23 @@ export function ThemeCustomizer({
 
               {/* Content */}
               <div className="p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-180px)]">
+                {/* Reset to Default */}
+                {currentPrompt && (
+                  <button
+                    onClick={handleResetTheme}
+                    className="
+                      w-full flex items-center justify-center gap-2 px-4 py-2
+                      bg-background hover:bg-surface-hover
+                      border border-border hover:border-border-hover
+                      rounded-md text-text-secondary hover:text-text-primary text-sm
+                      transition-colors
+                    "
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Reset to Default Theme
+                  </button>
+                )}
+
                 {/* Prompt input */}
                 <div className="space-y-2">
                   <label className="text-xs text-text-tertiary uppercase tracking-wider">
@@ -122,6 +175,73 @@ export function ThemeCustomizer({
                       outline-none resize-none
                     "
                   />
+                </div>
+
+                {/* System Prompt (collapsible) */}
+                <div className="border border-border rounded-md overflow-hidden">
+                  <button
+                    onClick={() => setShowSystemPrompt(!showSystemPrompt)}
+                    className="
+                      w-full flex items-center justify-between px-3 py-2
+                      bg-background hover:bg-surface-hover
+                      text-text-secondary text-xs
+                      transition-colors
+                    "
+                  >
+                    <div className="flex items-center gap-2">
+                      <Code className="w-3.5 h-3.5" />
+                      <span>System Prompt</span>
+                      {isSystemPromptModified && (
+                        <span className="px-1.5 py-0.5 bg-warning/20 text-warning rounded text-[10px]">
+                          Modified
+                        </span>
+                      )}
+                    </div>
+                    {showSystemPrompt ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
+                  </button>
+
+                  <AnimatePresence>
+                    {showSystemPrompt && (
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: 'auto' }}
+                        exit={{ height: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="p-3 border-t border-border space-y-2">
+                          <textarea
+                            value={systemPrompt}
+                            onChange={(e) => setSystemPrompt(e.target.value)}
+                            className="
+                              w-full h-48 px-3 py-2
+                              bg-background border border-border rounded-md
+                              text-text-primary text-xs font-mono placeholder:text-text-quaternary
+                              focus:border-border-focus
+                              outline-none resize-y
+                            "
+                          />
+                          {isSystemPromptModified && (
+                            <button
+                              onClick={handleResetSystemPrompt}
+                              className="
+                                flex items-center gap-1.5 px-2 py-1
+                                text-text-tertiary hover:text-text-secondary text-xs
+                                transition-colors
+                              "
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              Reset to default prompt
+                            </button>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 {/* Generate button */}

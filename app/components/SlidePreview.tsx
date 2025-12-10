@@ -18,6 +18,7 @@ import {
 import { useStore } from '@/lib/store';
 import { SlideRenderer } from './SlideRenderer';
 import { GeneratedSlide } from './GeneratedSlide';
+import { SlideGeneratorSettings } from './SlideGeneratorSettings';
 import { countReveals } from '@/lib/parser';
 import Link from 'next/link';
 
@@ -30,6 +31,7 @@ export function SlidePreview({ deckId }: SlidePreviewProps) {
     parsedDeck,
     presentation,
     themePrompt,
+    currentTheme,
     nextSlide,
     prevSlide,
     goToSlide,
@@ -87,6 +89,9 @@ export function SlidePreview({ deckId }: SlidePreviewProps) {
 
   return (
     <div className="flex flex-col h-full bg-background rounded-lg overflow-hidden border border-border">
+      {/* Inject theme CSS if available */}
+      {currentTheme?.css && <style dangerouslySetInnerHTML={{ __html: currentTheme.css }} />}
+
       {/* Slide view */}
       <div className="flex-1 relative overflow-hidden group">
         {isGeneratedMode ? (
@@ -193,6 +198,9 @@ export function SlidePreview({ deckId }: SlidePreviewProps) {
               Generated
             </button>
           </div>
+
+          {/* Slide generator settings (only show when in generated mode) */}
+          {isGeneratedMode && <SlideGeneratorSettings />}
 
           <div className="w-px h-5 bg-border" />
 

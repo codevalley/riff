@@ -34,6 +34,10 @@ export const useStore = create<AppState>((set, get) => ({
   currentTheme: null,
   themePrompt: '',
 
+  // Custom system prompts (hydrated from localStorage)
+  customThemeSystemPrompt: null,
+  customSlideSystemPrompt: null,
+
   imageStyle: 'none' as ImageStyleId, // Will be hydrated from localStorage
   imageCache: {},
   generatingImages: new Set(),
@@ -146,6 +150,28 @@ export const useStore = create<AppState>((set, get) => ({
   // Theme actions
   setTheme: (theme) => set({ currentTheme: theme }),
   setThemePrompt: (prompt) => set({ themePrompt: prompt }),
+
+  // Custom system prompt actions
+  setCustomThemeSystemPrompt: (prompt) => {
+    if (typeof window !== 'undefined') {
+      if (prompt) {
+        localStorage.setItem('vibe-slides-theme-system-prompt', prompt);
+      } else {
+        localStorage.removeItem('vibe-slides-theme-system-prompt');
+      }
+    }
+    set({ customThemeSystemPrompt: prompt });
+  },
+  setCustomSlideSystemPrompt: (prompt) => {
+    if (typeof window !== 'undefined') {
+      if (prompt) {
+        localStorage.setItem('vibe-slides-slide-system-prompt', prompt);
+      } else {
+        localStorage.removeItem('vibe-slides-slide-system-prompt');
+      }
+    }
+    set({ customSlideSystemPrompt: prompt });
+  },
 
   // Image cache actions
   cacheImage: (description, url) =>

@@ -86,6 +86,11 @@ export function ImagePlaceholder({
     setIsGenerating(true);
     setError(null);
 
+    // Get the current slide background color from CSS variables
+    const backgroundColor = typeof window !== 'undefined'
+      ? getComputedStyle(document.documentElement).getPropertyValue('--slide-bg').trim() || '#0a0a0a'
+      : '#0a0a0a';
+
     try {
       const response = await fetch('/api/generate-image', {
         method: 'POST',
@@ -93,6 +98,7 @@ export function ImagePlaceholder({
         body: JSON.stringify({
           description,
           styleId: imageStyle,
+          backgroundColor, // Pass the current slide background color
           forceRegenerate,
         }),
       });

@@ -37,6 +37,7 @@ export function GeneratedSlide({
     generatingSlides,
     cacheSlideHtml,
     setGeneratingSlide,
+    customSlideSystemPrompt,
   } = useStore();
 
   // Convert slide to markdown for API submission
@@ -139,6 +140,7 @@ export function GeneratedSlide({
           themePrompt,
           slideIndex,
           deckId,
+          customSystemPrompt: customSlideSystemPrompt,
         }),
       });
 
@@ -171,7 +173,7 @@ export function GeneratedSlide({
     } finally {
       setGeneratingSlide(cacheKey, false);
     }
-  }, [cacheKey, cachedHtml, isGenerating, slideMarkdown, themePrompt, deckId, slideIndex, cacheSlideHtml, setGeneratingSlide]);
+  }, [cacheKey, cachedHtml, isGenerating, slideMarkdown, themePrompt, deckId, slideIndex, cacheSlideHtml, setGeneratingSlide, customSlideSystemPrompt]);
 
   // Trigger generation when slide becomes visible and isn't cached
   useEffect(() => {

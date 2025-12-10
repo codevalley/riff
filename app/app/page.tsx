@@ -75,6 +75,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
+      // Load deck content
       const response = await fetch(`/api/decks/${encodeURIComponent(id)}`);
       if (!response.ok) {
         const errorData = await response.json();
@@ -85,6 +86,33 @@ export default function Home() {
       setCurrentDeck(data.deck.id, data.content);
       const parsed = parseSlideMarkdown(data.content);
       setParsedDeck(parsed);
+
+      // Load theme if available
+      try {
+        const themeResponse = await fetch(`/api/theme/${encodeURIComponent(id)}`);
+        if (themeResponse.ok) {
+          const themeData = await themeResponse.json();
+          if (themeData.css) {
+            setThemeCSS(themeData.css);
+            setThemePrompt(themeData.prompt || '');
+            setTheme({
+              id: 'custom',
+              name: 'Custom Theme',
+              prompt: themeData.prompt || '',
+              css: themeData.css,
+              fonts: { display: '', body: '', mono: '' },
+            });
+          }
+        } else {
+          // No theme saved - reset to defaults
+          setThemeCSS('');
+          setThemePrompt('');
+          setTheme(null as any);
+        }
+      } catch {
+        // Theme loading failed silently - use defaults
+        setThemeCSS('');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load deck');
       console.error('Load deck error:', err);
@@ -159,13 +187,17 @@ export default function Home() {
     }
   };
 
-  const generateTheme = async (prompt: string) => {
+  const generateTheme = async (prompt: string, customSystemPrompt?: string) => {
     setIsGeneratingTheme(true);
     try {
       const response = await fetch('/api/generate-theme', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, deckId: currentDeckId }),
+        body: JSON.stringify({
+          prompt,
+          deckId: currentDeckId,
+          customSystemPrompt,
+        }),
       });
 
       const data = await response.json();
@@ -185,6 +217,24 @@ export default function Home() {
       console.error(err);
     } finally {
       setIsGeneratingTheme(false);
+    }
+  };
+
+  const resetTheme = async () => {
+    // Clear theme from state
+    setThemeCSS('');
+    setThemePrompt('');
+    setTheme(null);
+
+    // Delete theme from storage if deck is selected
+    if (currentDeckId) {
+      try {
+        await fetch(`/api/theme/${encodeURIComponent(currentDeckId)}`, {
+          method: 'DELETE',
+        });
+      } catch (err) {
+        console.error('Failed to delete theme:', err);
+      }
     }
   };
 
@@ -242,6 +292,7 @@ export default function Home() {
             <ThemeCustomizer
               currentPrompt={themePrompt}
               onGenerate={generateTheme}
+              onReset={resetTheme}
               isGenerating={isGeneratingTheme}
             />
 

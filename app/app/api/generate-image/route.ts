@@ -7,19 +7,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getImageFromCache, saveImageToCache, deleteImageFromCache } from '@/lib/blob';
 import { IMAGE_STYLE_PRESETS, ImageStyleId } from '@/lib/types';
 
-// Get the prompt template for a given style
-function getPromptForStyle(description: string, styleId: ImageStyleId): string {
+// Get the prompt template for a given style, with optional background color
+function getPromptForStyle(description: string, styleId: ImageStyleId, backgroundColor?: string): string {
   const preset = IMAGE_STYLE_PRESETS.find((p) => p.id === styleId);
+
+  // Add background color instruction if provided
+  const bgInstruction = backgroundColor
+    ? ` The image should have a ${backgroundColor} background that seamlessly blends with the slide.`
+    : '';
+
   if (!preset) {
     // Fallback to default
-    return `${description}. Style: professional, high-quality, presentation-style. Create a clean, visually striking image suitable for a presentation slide. Aspect ratio 16:9.`;
+    return `${description}. Style: professional, high-quality, presentation-style. Create a clean, visually striking image suitable for a presentation slide.${bgInstruction} Aspect ratio 16:9.`;
   }
-  return preset.promptTemplate.replace('{description}', description);
+  return preset.promptTemplate.replace('{description}', description) + bgInstruction;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { description, styleId, forceRegenerate } = await request.json();
+    const { description, styleId, forceRegenerate, backgroundColor } = await request.json();
 
     if (!description || typeof description !== 'string') {
       return NextResponse.json(
@@ -28,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create a cache key that includes the style
+    // Create a cache key that includes the style (bg color changes are allowed without invalidating cache)
     const cacheKey = styleId && styleId !== 'none'
       ? `${styleId}:${description}`
       : description;
@@ -49,8 +55,8 @@ export async function POST(request: NextRequest) {
       await deleteImageFromCache(cacheKey);
     }
 
-    // Build the prompt using style preset
-    const fullPrompt = getPromptForStyle(description, styleId || 'none');
+    // Build the prompt using style preset, including background color
+    const fullPrompt = getPromptForStyle(description, styleId || 'none', backgroundColor);
 
     // Call Gemini Imagen API
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;

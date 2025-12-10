@@ -6,48 +6,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { saveTheme } from '@/lib/blob';
-
-const THEME_GENERATION_PROMPT = `You are a CSS theme generator for a presentation app. Given a natural language description of a desired visual style, generate CSS custom properties (variables) that define the theme.
-
-The theme should include:
-1. Colors (background, text, accent, muted, surface)
-2. Fonts (display, body, mono) - use Google Fonts or system fonts
-3. Spacing and sizing hints
-4. Any special effects or properties
-
-Output ONLY valid CSS with custom properties. Use this exact structure:
-
-:root {
-  /* Colors */
-  --slide-bg: <background color>;
-  --slide-text: <text color>;
-  --slide-accent: <accent color>;
-  --slide-muted: <muted text color>;
-  --slide-surface: <surface/card color>;
-
-  /* Fonts - use Google Fonts names or system fonts */
-  --font-display: '<display font>', system-ui, sans-serif;
-  --font-body: '<body font>', system-ui, sans-serif;
-  --font-mono: '<mono font>', monospace;
-
-  /* Sizing */
-  --title-size: <size>;
-  --subtitle-size: <size>;
-  --text-size: <size>;
-
-  /* Effects */
-  --glow-color: <glow color if applicable>;
-  --border-radius: <radius>;
-  --transition-speed: <speed>;
-}
-
-/* Optional: Add any additional styles needed for the theme */
-
-Be creative but ensure readability. For dark themes, use light text on dark backgrounds. For light themes, use dark text on light backgrounds. Choose fonts that match the mood - bold/modern fonts for tech themes, elegant serif for sophisticated themes, etc.`;
+import { DEFAULT_THEME_SYSTEM_PROMPT } from '@/lib/prompts';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, deckId } = await request.json();
+    const { prompt, deckId, customSystemPrompt } = await request.json();
+
+    // Use custom system prompt if provided, otherwise use default
+    const systemPrompt = customSystemPrompt || DEFAULT_THEME_SYSTEM_PROMPT;
 
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json(
@@ -72,7 +38,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'user',
-          content: `${THEME_GENERATION_PROMPT}\n\nUser's theme request: "${prompt}"\n\nGenerate the CSS theme:`,
+          content: `${systemPrompt}\n\nUser's theme request: "${prompt}"\n\nGenerate the CSS theme:`,
         },
       ],
     });

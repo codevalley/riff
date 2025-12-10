@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Slide, SlideElement } from '@/lib/types';
 import { getVisibleElements } from '@/lib/parser';
 import { ImagePlaceholder } from './ImagePlaceholder';
+import { RetroGrid } from './ui/retro-grid';
 
 interface SlideRendererProps {
   slide: Slide;
@@ -17,6 +18,44 @@ interface SlideRendererProps {
 
 export function SlideRenderer({ slide, revealStep, isPresenting = false }: SlideRendererProps) {
   const visibleElements = getVisibleElements(slide, revealStep);
+
+  // Section header slides get special treatment
+  if (slide.isSection) {
+    return (
+      <div
+        className={`
+          relative w-full h-full
+          flex flex-col items-center justify-center
+          p-8 md:p-16 lg:p-24
+          bg-slide-bg text-slide-text
+          overflow-hidden
+          ${isPresenting ? 'min-h-screen' : 'min-h-[400px] rounded-lg'}
+        `}
+      >
+        {/* Retro grid background effect */}
+        <RetroGrid angle={65} />
+
+        {/* Section content - centered with larger styling */}
+        <div className="relative z-10 w-full max-w-5xl mx-auto text-center">
+          <AnimatePresence mode="popLayout">
+            {visibleElements.map((element, index) => (
+              <SectionElementRenderer
+                key={`${slide.id}-${index}-${element.type}-${element.content.slice(0, 20)}`}
+                element={element}
+                index={index}
+                isPresenting={isPresenting}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* Slide number indicator */}
+        <div className="absolute bottom-4 right-4 text-slide-muted text-sm font-mono opacity-50">
+          {slide.id}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -165,6 +204,91 @@ function ElementRenderer({ element, index, isPresenting }: ElementRendererProps)
 
       default:
         return <span>{element.content}</span>;
+    }
+  };
+
+  return (
+    <motion.div
+      variants={variants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      layout
+    >
+      {renderContent()}
+    </motion.div>
+  );
+}
+
+// ============================================
+// Section Element Renderer (bolder/larger for section headers)
+// ============================================
+
+function SectionElementRenderer({ element, index, isPresenting }: ElementRendererProps) {
+  const variants = {
+    hidden: { opacity: 0, y: 50, scale: 0.9 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.8,
+        ease: [0.22, 1, 0.36, 1],
+        delay: index * 0.1,
+      },
+    },
+    exit: {
+      opacity: 0,
+      scale: 0.9,
+      transition: { duration: 0.4 },
+    },
+  };
+
+  const renderContent = () => {
+    switch (element.type) {
+      case 'title':
+        return (
+          <h1
+            className={`
+              font-display font-black text-slide-text
+              ${isPresenting ? 'text-6xl md:text-8xl lg:text-9xl' : 'text-4xl md:text-5xl'}
+              leading-none tracking-tighter
+              drop-shadow-2xl
+            `}
+          >
+            <HighlightedText text={element.content} />
+          </h1>
+        );
+
+      case 'subtitle':
+        return (
+          <h2
+            className={`
+              font-display font-bold text-slide-text/90
+              ${isPresenting ? 'text-4xl md:text-6xl lg:text-7xl' : 'text-2xl md:text-3xl'}
+              leading-tight tracking-tight mt-6
+            `}
+          >
+            <HighlightedText text={element.content} />
+          </h2>
+        );
+
+      case 'text':
+        return (
+          <p
+            className={`
+              font-body text-slide-muted
+              ${isPresenting ? 'text-2xl md:text-4xl lg:text-5xl' : 'text-xl md:text-2xl'}
+              leading-relaxed mt-8
+            `}
+          >
+            <HighlightedText text={element.content} />
+          </p>
+        );
+
+      default:
+        // For other elements, fall back to regular rendering
+        return <span className="text-slide-text">{element.content}</span>;
     }
   };
 
