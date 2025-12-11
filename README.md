@@ -1,4 +1,4 @@
-# Vibe Slides
+# Riff
 
 AI-powered presentation editor with prompt-driven theming and auto-generated images.
 
