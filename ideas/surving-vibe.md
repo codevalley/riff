@@ -11,9 +11,9 @@ These are the **electricity companies** of cognition:
 * Google Gemini
 * Model providers on HuggingFace
 
-They provide **raw intelligence + raw tokens**. Their job is commoditized scale.
+They provide **raw intelligence + raw tokens**.Their job is commoditized scale.
 **Key insight:**
-Competing with utilities is pointless. Companies AND individuals should not anchor their identity here.
+Competing with utilities is pointless.Companies AND individuals should not anchor their identity here.
 
 ### B. The Orchestration Layer (“System Prompts, Tooling, Horses”)
 This is where koomen.dev’s *horseless carriages* metaphor is brilliant:
@@ -26,7 +26,7 @@ This is where koomen.dev’s *horseless carriages* metaphor is brilliant:
 ⠀These are the “vehicles” that let you *steer* the model.
 This layer is **wildly changing**, and **everyone thinks it's the value**, but…
 **Key insight:**
-This layer is table stakes. Good to know, but not where the long-term advantage lies.
+This layer is table stakes.Good to know, but not where the long-term advantage lies.
 
 ### C. The Domain Libraries
 Not code libraries — **knowledge libraries**:
@@ -40,7 +40,7 @@ Not code libraries — **knowledge libraries**:
 
 ⠀This is the most underrated asset.
 **Key insight:**
-AI is only as powerful as the domain context it stands on. Whoever owns deep domain maps owns the future.
+AI is only as powerful as the domain context it stands on.Whoever owns deep domain maps owns the future.
 
 ### D. The Human Layer (“The Sauce”)
 This is where the talk lands:
@@ -83,10 +83,10 @@ It is:
 * Defining constraints
 
 ⠀This is *architecture*, not “prompt engineering.”
-Humans who shape context → AI becomes predictable Humans who do not → AI becomes chaos
+Humans who shape context → AI becomes predictableHumans who do not → AI becomes chaos
 
 # Rule 3 — Own Your Domain Knowledge
-If you know payroll compliance, card networks, risk, APM, wallets, KYC, etc… **no model can replace that**.
+If you know payroll compliance, card networks, risk, APM, wallets, KYC, etc…**no model can replace that**.
 Models can expand reasoning, but they cannot create deep institutional knowledge.
 This rule tells the engineers:
 ### “Your career value is tied to mastering domain primitives.”
@@ -98,7 +98,7 @@ Taste =
 * knowing which idea is worth building
 * knowing when something is simple enough
 
-⠀No model has consistent taste. Humans will always outperform here.
+⠀No model has consistent taste.Humans will always outperform here.
 
 # Rule 5 — Become a Director, Not a Typist
 The future engineering loop:

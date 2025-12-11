@@ -112,7 +112,18 @@ export function Presenter({
             setShowOverview(false);
           } else if (document.fullscreenElement) {
             document.exitFullscreen();
+          } else {
+            // Exit presentation - close tab or go back
+            window.close();
           }
+          break;
+        case 'x':
+        case 'q':
+          // Exit presentation
+          if (document.fullscreenElement) {
+            document.exitFullscreen();
+          }
+          window.close();
           break;
         case 'f':
           toggleFullscreen();

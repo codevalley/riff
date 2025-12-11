@@ -23,6 +23,63 @@ const FORMAT_EXAMPLES = [
   { syntax: '`keyword`', description: 'Highlighted text' },
   { syntax: '```lang\\ncode\\n```', description: 'Code block' },
   { syntax: '[section]', description: 'Section header slide' },
+  { syntax: '# Title [anvil]', description: 'Anvil drop animation' },
+  { syntax: '# Title [typewriter]', description: 'Typewriter effect' },
+  { syntax: '# Title [glow]', description: 'Pulsing glow effect' },
+  { syntax: '# Title [shake]', description: 'Attention shake' },
+];
+
+// Background effect previews with visual demonstrations
+const BACKGROUND_EFFECTS = [
+  {
+    type: 'glow',
+    name: 'Glow',
+    description: 'Radial gradient glow',
+    preview: (color: string) => ({
+      backgroundImage: `radial-gradient(125% 125% at 50% 110%, transparent 40%, ${color} 100%)`,
+    })
+  },
+  {
+    type: 'grid',
+    name: 'Grid',
+    description: 'Orthogonal grid pattern',
+    preview: (color: string) => ({
+      backgroundImage: `linear-gradient(to right, ${color} 1px, transparent 1px), linear-gradient(to bottom, ${color} 1px, transparent 1px)`,
+      backgroundSize: '8px 8px',
+    })
+  },
+  {
+    type: 'hatch',
+    name: 'Hatch',
+    description: 'Diagonal cross pattern',
+    preview: (color: string) => ({
+      backgroundImage: `linear-gradient(45deg, transparent 49%, ${color} 49%, ${color} 51%, transparent 51%), linear-gradient(-45deg, transparent 49%, ${color} 49%, ${color} 51%, transparent 51%)`,
+      backgroundSize: '10px 10px',
+    })
+  },
+  {
+    type: 'dashed',
+    name: 'Dashed',
+    description: 'Dashed grid pattern',
+    preview: (color: string) => ({
+      backgroundImage: `linear-gradient(to right, ${color} 1px, transparent 1px), linear-gradient(to bottom, ${color} 1px, transparent 1px)`,
+      backgroundSize: '6px 6px',
+    })
+  },
+];
+
+const POSITIONS = ['top', 'bottom', 'left', 'right', 'center'];
+
+const COLORS = [
+  { name: 'accent', color: 'var(--slide-accent)', preview: '#6366f1' },
+  { name: 'amber', color: '#f59e0b', preview: '#f59e0b' },
+  { name: 'blue', color: '#3b82f6', preview: '#3b82f6' },
+  { name: 'purple', color: '#a855f7', preview: '#a855f7' },
+  { name: 'rose', color: '#f43f5e', preview: '#f43f5e' },
+  { name: 'emerald', color: '#10b981', preview: '#10b981' },
+  { name: 'cyan', color: '#06b6d4', preview: '#06b6d4' },
+  { name: 'orange', color: '#f97316', preview: '#f97316' },
+  { name: 'pink', color: '#ec4899', preview: '#ec4899' },
 ];
 
 export function FormatHelpDialog() {
@@ -97,26 +154,88 @@ export function FormatHelpDialog() {
                       key={index}
                       className="flex items-start gap-3 py-2 px-3 rounded-md hover:bg-surface-hover transition-colors"
                     >
-                      <code className="flex-shrink-0 min-w-[160px] text-xs font-mono text-slide-accent bg-background px-2 py-1 rounded">
+                      <code className="flex-shrink-0 min-w-[160px] text-xs font-mono text-amber-400 bg-amber-400/10 px-2 py-1 rounded">
                         {item.syntax}
                       </code>
-                      <span className="text-sm text-text-secondary">
+                      <span className="text-sm text-text-primary">
                         {item.description}
                       </span>
                     </div>
                   ))}
                 </div>
 
+                {/* Background Effects Section */}
+                <div className="mt-6 p-4 bg-surface rounded-lg border border-border">
+                  <h3 className="text-xs font-medium text-text-primary uppercase tracking-wider mb-3">
+                    Background Effects
+                  </h3>
+                  <p className="text-xs text-text-secondary mb-3">
+                    Syntax: <code className="text-amber-400 bg-amber-400/10 px-1 rounded">[bg:type-position-color]</code>
+                  </p>
+
+                  {/* Effect Types with Previews */}
+                  <div className="mb-4">
+                    <p className="text-xs text-text-primary mb-2 font-medium">Types:</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {BACKGROUND_EFFECTS.map((effect) => (
+                        <div key={effect.type} className="text-center">
+                          <div
+                            className="w-full h-12 rounded border border-border mb-1 bg-black"
+                            style={effect.preview('rgba(99, 102, 241, 0.6)')}
+                          />
+                          <code className="text-[10px] text-amber-400">{effect.type}</code>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Positions */}
+                  <div className="mb-4">
+                    <p className="text-xs text-text-primary mb-2 font-medium">Positions:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {POSITIONS.map((pos) => (
+                        <code key={pos} className="text-[10px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
+                          {pos}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Colors with Swatches */}
+                  <div>
+                    <p className="text-xs text-text-primary mb-2 font-medium">Colors:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {COLORS.map((c) => (
+                        <div key={c.name} className="flex items-center gap-1 bg-black/30 px-2 py-0.5 rounded border border-border">
+                          <div
+                            className="w-2.5 h-2.5 rounded-full border border-white/20"
+                            style={{ backgroundColor: c.preview }}
+                          />
+                          <code className="text-[10px] text-text-primary">{c.name}</code>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Example */}
+                  <div className="mt-4 pt-3 border-t border-border">
+                    <p className="text-xs text-text-secondary">
+                      Example: <code className="text-amber-400 bg-amber-400/10 px-1 rounded">[bg:glow-bottom-amber]</code> creates an amber glow from the bottom
+                    </p>
+                  </div>
+                </div>
+
                 {/* Tips section */}
-                <div className="mt-6 p-4 bg-background rounded-lg border border-border">
+                <div className="mt-4 p-4 bg-surface rounded-lg border border-border">
                   <h3 className="text-xs font-medium text-text-primary uppercase tracking-wider mb-2">
                     Tips
                   </h3>
-                  <ul className="text-xs text-text-tertiary space-y-1.5">
-                    <li>• Use <code className="text-slide-accent">**pause**</code> to reveal content step-by-step</li>
-                    <li>• Wrap text in <code className="text-slide-accent">`backticks`</code> to highlight keywords</li>
-                    <li>• Add <code className="text-slide-accent">[section]</code> after <code className="text-slide-accent">---</code> for bold section headers</li>
-                    <li>• Speaker notes (<code className="text-slide-accent">&gt;</code>) are only visible in notes panel</li>
+                  <ul className="text-xs text-text-secondary space-y-1.5">
+                    <li>• Use <code className="text-amber-400 bg-amber-400/10 px-1 rounded">**pause**</code> to reveal content step-by-step</li>
+                    <li>• Wrap text in <code className="text-amber-400 bg-amber-400/10 px-1 rounded">`backticks`</code> to highlight keywords</li>
+                    <li>• Add <code className="text-amber-400 bg-amber-400/10 px-1 rounded">[section]</code> after <code className="text-amber-400 bg-amber-400/10 px-1 rounded">---</code> for bold section headers</li>
+                    <li>• Add <code className="text-amber-400 bg-amber-400/10 px-1 rounded">[anvil]</code> or other effects to headings for animations</li>
+                    <li>• Speaker notes (<code className="text-amber-400 bg-amber-400/10 px-1 rounded">&gt;</code>) are only visible in notes panel</li>
                   </ul>
                 </div>
               </div>

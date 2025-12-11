@@ -81,6 +81,19 @@ export function ImagePlaceholder({
     }
   }, [description, imageStyle]);
 
+  // Persist uploaded/restyled URLs to localStorage (they use random hashes in blob storage)
+  const persistSlotUrl = useCallback((slot: ImageSlot, url: string) => {
+    if (typeof window === 'undefined') return;
+    const key = `vibe-image-${slot}:${description}`;
+    localStorage.setItem(key, url);
+  }, [description]);
+
+  const getPersistedSlotUrl = useCallback((slot: ImageSlot): string | null => {
+    if (typeof window === 'undefined') return null;
+    const key = `vibe-image-${slot}:${description}`;
+    return localStorage.getItem(key);
+  }, [description]);
+
   // Get active image URL
   const activeImageUrl = activeSlot ? slots[activeSlot] : null;
 
@@ -108,50 +121,56 @@ export function ImagePlaceholder({
 
       for (const slot of slotOrder) {
         let cacheKey: string;
-        let lookupKey: string;
 
         switch (slot) {
           case 'generated':
             cacheKey = savedStyle && savedStyle !== 'none'
               ? `gen:${savedStyle}:${description}`
               : `gen:${description}`;
-            lookupKey = savedStyle && savedStyle !== 'none'
-              ? `${savedStyle}:${description}`
-              : description;
             break;
           case 'uploaded':
             cacheKey = `upload:${description}`;
-            lookupKey = `upload:${description}`;
             break;
           case 'restyled':
             cacheKey = `restyle:${description}`;
-            lookupKey = `restyle:${description}`;
             break;
         }
 
-        // Check local cache first
+        // Check Zustand cache first
         const localCached = imageCache[cacheKey];
         if (localCached) {
           newSlots[slot] = localCached;
           continue;
         }
 
-        // Check server cache
-        try {
-          const response = await fetch('/api/image-cache?' + new URLSearchParams({
-            description: slot === 'generated' ? description : `${slot}:${description}`,
-            styleId: slot === 'generated' ? savedStyle : 'none',
-          }));
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.url) {
-              newSlots[slot] = data.url;
-              cacheImage(cacheKey, data.url);
-            }
+        // For uploaded/restyled: check localStorage (they use random hashes in blob)
+        if (slot === 'uploaded' || slot === 'restyled') {
+          const persistedUrl = getPersistedSlotUrl(slot);
+          if (persistedUrl) {
+            newSlots[slot] = persistedUrl;
+            cacheImage(cacheKey, persistedUrl);
+            continue;
           }
-        } catch (err) {
-          console.error(`Cache check failed for ${slot}:`, err);
+        }
+
+        // For generated: check server cache (predictable keys in blob)
+        if (slot === 'generated') {
+          try {
+            const response = await fetch('/api/image-cache?' + new URLSearchParams({
+              description: description,
+              styleId: savedStyle,
+            }));
+
+            if (response.ok) {
+              const data = await response.json();
+              if (data.url) {
+                newSlots[slot] = data.url;
+                cacheImage(cacheKey, data.url);
+              }
+            }
+          } catch (err) {
+            console.error(`Cache check failed for ${slot}:`, err);
+          }
         }
       }
 
@@ -170,7 +189,7 @@ export function ImagePlaceholder({
     };
 
     checkAllCaches();
-  }, [description, imageCache, cacheImage]);
+  }, [description, imageCache, cacheImage, getPersistedSlotUrl]);
 
   // Generate new image
   const handleGenerate = async (forceRegenerate = false) => {
@@ -238,6 +257,7 @@ export function ImagePlaceholder({
       setSlots(prev => ({ ...prev, uploaded: data.url }));
       setActiveSlot('uploaded');
       cacheImage(cacheKey, data.url);
+      persistSlotUrl('uploaded', data.url); // Persist to localStorage for page refresh
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload image');
     } finally {
@@ -277,6 +297,7 @@ export function ImagePlaceholder({
       setSlots(prev => ({ ...prev, restyled: data.url }));
       setActiveSlot('restyled');
       cacheImage(cacheKey, data.url);
+      persistSlotUrl('restyled', data.url); // Persist to localStorage for page refresh
       setShowRestyleModal(false);
       setCustomPrompt('');
       setSelectedPreset(null);

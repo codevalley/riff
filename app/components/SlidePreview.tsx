@@ -20,13 +20,13 @@ import { SlideRenderer } from './SlideRenderer';
 import { GeneratedSlide } from './GeneratedSlide';
 import { SlideGeneratorSettings } from './SlideGeneratorSettings';
 import { countReveals } from '@/lib/parser';
-import Link from 'next/link';
 
 interface SlidePreviewProps {
   deckId: string;
+  onSave?: () => Promise<void>;
 }
 
-export function SlidePreview({ deckId }: SlidePreviewProps) {
+export function SlidePreview({ deckId, onSave }: SlidePreviewProps) {
   const {
     parsedDeck,
     presentation,
@@ -219,9 +219,14 @@ export function SlidePreview({ deckId }: SlidePreviewProps) {
             <MessageSquare className="w-4 h-4" />
           </button>
 
-          <Link
-            href={`/present/${encodeURIComponent(deckId)}`}
-            target="_blank"
+          <button
+            onClick={async () => {
+              // Save before presenting to ensure presenter has latest content
+              if (onSave) {
+                await onSave();
+              }
+              window.open(`/present/${encodeURIComponent(deckId)}`, '_blank');
+            }}
             className="
               flex items-center gap-1.5 px-3 py-1.5
               bg-text-primary hover:bg-text-secondary
@@ -231,7 +236,7 @@ export function SlidePreview({ deckId }: SlidePreviewProps) {
           >
             <Play className="w-3.5 h-3.5" />
             Present
-          </Link>
+          </button>
         </div>
       </div>
 

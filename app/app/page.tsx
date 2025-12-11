@@ -342,7 +342,7 @@ export default function Home() {
         <div className="flex-1 h-full overflow-hidden bg-background-secondary">
           <div className="h-full p-4">
             {currentDeckId ? (
-              <SlidePreview deckId={currentDeckId} />
+              <SlidePreview deckId={currentDeckId} onSave={saveDeck} />
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-text-tertiary">
                 <svg

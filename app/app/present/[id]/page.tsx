@@ -7,6 +7,10 @@ import { getDeck, getTheme } from '@/lib/blob';
 import { parseSlideMarkdown } from '@/lib/parser';
 import { PresenterClient } from './client';
 
+// Disable caching - always fetch fresh content
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 interface PageProps {
   params: { id: string };
   searchParams: { slide?: string };

@@ -3,7 +3,80 @@
 // ============================================
 // Parses the custom slide format into structured data
 
-import { Slide, SlideElement, ParsedDeck, DeckMetadata } from './types';
+import { Slide, SlideElement, ParsedDeck, DeckMetadata, TextEffect, BackgroundEffect, BackgroundEffectType, BackgroundPosition, BackgroundColor } from './types';
+
+// Valid text effects that can be applied via [effect] syntax
+const VALID_EFFECTS: TextEffect[] = ['anvil', 'typewriter', 'glow', 'shake'];
+
+// Valid background effect types
+const VALID_BG_TYPES: BackgroundEffectType[] = ['glow', 'grid', 'hatch', 'dashed'];
+const VALID_BG_POSITIONS: BackgroundPosition[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'];
+const VALID_BG_COLORS: BackgroundColor[] = ['amber', 'blue', 'purple', 'rose', 'emerald', 'cyan', 'orange', 'pink', 'accent'];
+
+/**
+ * Parse background effect from [bg:effect-position] or [bg:effect-position-color]
+ * Examples: [bg:glow-bottom-left], [bg:grid-center], [bg:hatch-top-right-amber]
+ * Position can be: top-left, top-right, bottom-left, bottom-right, center
+ */
+function parseBackgroundEffect(value: string): BackgroundEffect | null {
+  const lower = value.toLowerCase();
+
+  // Extract the effect type (first part before first -)
+  const firstDash = lower.indexOf('-');
+  if (firstDash === -1) return null;
+
+  const type = lower.substring(0, firstDash);
+  if (!VALID_BG_TYPES.includes(type as BackgroundEffectType)) return null;
+
+  const rest = lower.substring(firstDash + 1);
+
+  // Try to match position (could be 'center' or 'top-left' etc)
+  let position: BackgroundPosition | null = null;
+  let color: BackgroundColor | undefined = undefined;
+
+  for (const pos of VALID_BG_POSITIONS) {
+    if (rest === pos) {
+      // Just position, no color: grid-center, grid-top-left
+      position = pos;
+      break;
+    } else if (rest.startsWith(pos + '-')) {
+      // Position + color: grid-top-left-amber
+      position = pos;
+      const colorPart = rest.substring(pos.length + 1);
+      if (VALID_BG_COLORS.includes(colorPart as BackgroundColor)) {
+        color = colorPart as BackgroundColor;
+      } else {
+        return null; // Invalid color
+      }
+      break;
+    }
+  }
+
+  if (!position) return null;
+
+  return {
+    type: type as BackgroundEffectType,
+    position: position,
+    color: color || 'accent',
+  };
+}
+
+/**
+ * Extract effect decorator from content, e.g. "Title [anvil]" -> { content: "Title", effect: "anvil" }
+ */
+function extractEffect(content: string): { content: string; effect?: TextEffect } {
+  const effectMatch = content.match(/\s*\[(\w+)\]\s*$/);
+  if (effectMatch) {
+    const effectName = effectMatch[1].toLowerCase() as TextEffect;
+    if (VALID_EFFECTS.includes(effectName)) {
+      return {
+        content: content.replace(effectMatch[0], '').trim(),
+        effect: effectName,
+      };
+    }
+  }
+  return { content };
+}
 
 /**
  * Parse a slide markdown document into structured slides
@@ -147,6 +220,17 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
       continue;
     }
 
+    // Background effect [bg:effect-position] or [bg:effect-position-color]
+    const bgMatch = trimmed.match(/^\[bg:(.+)\]$/i);
+    if (bgMatch) {
+      const bg = parseBackgroundEffect(bgMatch[1]);
+      if (bg) {
+        if (!currentSlide) createNewSlide();
+        currentSlide!.background = bg;
+      }
+      continue;
+    }
+
     // Pause marker
     if (trimmed === '**pause**') {
       revealOrder++;
@@ -172,27 +256,30 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
       continue;
     }
 
-    // Title (h1)
+    // Title (h1) - supports [effect] decorator e.g. "# Title [anvil]"
     if (trimmed.startsWith('# ') && !trimmed.startsWith('## ')) {
       finalizeList(); // End any pending list
-      const content = trimmed.slice(2);
-      addElement('title', processInlineFormatting(content));
+      const rawContent = trimmed.slice(2);
+      const { content, effect } = extractEffect(rawContent);
+      addElement('title', processInlineFormatting(content), effect ? { effect } : undefined);
       continue;
     }
 
-    // Heading (h2)
+    // Heading (h2) - supports [effect] decorator
     if (trimmed.startsWith('## ')) {
       finalizeList(); // End any pending list
-      const content = trimmed.slice(3);
-      addElement('subtitle', processInlineFormatting(content));
+      const rawContent = trimmed.slice(3);
+      const { content, effect } = extractEffect(rawContent);
+      addElement('subtitle', processInlineFormatting(content), effect ? { effect } : undefined);
       continue;
     }
 
-    // Subtitle (h3)
+    // Subtitle (h3) - supports [effect] decorator
     if (trimmed.startsWith('### ')) {
       finalizeList(); // End any pending list
-      const content = trimmed.slice(4);
-      addElement('text', processInlineFormatting(content));
+      const rawContent = trimmed.slice(4);
+      const { content, effect } = extractEffect(rawContent);
+      addElement('text', processInlineFormatting(content), effect ? { effect } : undefined);
       continue;
     }
 
@@ -313,6 +400,20 @@ export function deckToMarkdown(deck: ParsedDeck): string {
         lines.push('');
       }
 
+      // Add [section] marker if this is a section slide
+      if (slide.isSection) {
+        lines.push('[section]');
+        lines.push('');
+      }
+
+      // Add background effect marker
+      if (slide.background) {
+        const { type, position, color } = slide.background;
+        const bgValue = color && color !== 'accent' ? `${type}-${position}-${color}` : `${type}-${position}`;
+        lines.push(`[bg:${bgValue}]`);
+        lines.push('');
+      }
+
       let lastReveal = 0;
       for (const element of slide.elements) {
         // Add pause markers
@@ -323,15 +424,19 @@ export function deckToMarkdown(deck: ParsedDeck): string {
           lastReveal++;
         }
 
+        // Helper to append effect decorator if present
+        const withEffect = (text: string, effect?: string) =>
+          effect ? `${text} [${effect}]` : text;
+
         switch (element.type) {
           case 'title':
-            lines.push(`# ${element.content}`);
+            lines.push(withEffect(`# ${element.content}`, element.metadata?.effect));
             break;
           case 'subtitle':
-            lines.push(`## ${element.content}`);
+            lines.push(withEffect(`## ${element.content}`, element.metadata?.effect));
             break;
           case 'text':
-            lines.push(`### ${element.content}`);
+            lines.push(withEffect(`### ${element.content}`, element.metadata?.effect));
             break;
           case 'image':
             lines.push(`[image: ${element.content}]`);

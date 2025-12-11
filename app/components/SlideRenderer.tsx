@@ -9,6 +9,7 @@ import { Slide, SlideElement } from '@/lib/types';
 import { getVisibleElements } from '@/lib/parser';
 import { ImagePlaceholder } from './ImagePlaceholder';
 import { RetroGrid } from './ui/retro-grid';
+import { SlideBackground } from './SlideBackground';
 
 interface SlideRendererProps {
   slide: Slide;
@@ -32,8 +33,12 @@ export function SlideRenderer({ slide, revealStep, isPresenting = false }: Slide
           ${isPresenting ? 'min-h-screen' : 'min-h-[400px] rounded-lg'}
         `}
       >
-        {/* Retro grid background effect */}
-        <RetroGrid angle={65} />
+        {/* Background effect - use custom if specified, otherwise RetroGrid */}
+        {slide.background ? (
+          <SlideBackground effect={slide.background} />
+        ) : (
+          <RetroGrid angle={65} />
+        )}
 
         {/* Section content - centered with larger styling */}
         <div className="relative z-10 w-full max-w-5xl mx-auto text-center">
@@ -68,8 +73,8 @@ export function SlideRenderer({ slide, revealStep, isPresenting = false }: Slide
         ${isPresenting ? 'min-h-screen' : 'min-h-[400px] rounded-lg'}
       `}
     >
-      {/* Background effects */}
-      <div className="absolute inset-0 bg-gradient-to-br from-slide-surface/20 to-transparent pointer-events-none" />
+      {/* Background effect from [bg:...] tag */}
+      {slide.background && <SlideBackground effect={slide.background} />}
 
       {/* Slide content */}
       <div className="relative z-10 w-full max-w-5xl mx-auto space-y-8">
@@ -104,6 +109,9 @@ interface ElementRendererProps {
 }
 
 function ElementRenderer({ element, index, isPresenting }: ElementRendererProps) {
+  // Get effect class from metadata (e.g. "effect-anvil" for [anvil] decorator)
+  const effectClass = element.metadata?.effect ? `effect-${element.metadata.effect}` : '';
+
   const variants = {
     hidden: { opacity: 0, y: 30, scale: 0.95 },
     visible: {
@@ -132,6 +140,7 @@ function ElementRenderer({ element, index, isPresenting }: ElementRendererProps)
               font-display font-bold text-slide-text
               ${isPresenting ? 'text-5xl md:text-7xl lg:text-8xl' : 'text-3xl md:text-4xl'}
               leading-tight tracking-tight
+              ${effectClass}
             `}
           >
             <HighlightedText text={element.content} />
@@ -145,6 +154,7 @@ function ElementRenderer({ element, index, isPresenting }: ElementRendererProps)
               font-display font-semibold text-slide-text
               ${isPresenting ? 'text-3xl md:text-5xl lg:text-6xl' : 'text-xl md:text-2xl'}
               leading-tight
+              ${effectClass}
             `}
           >
             <HighlightedText text={element.content} />
@@ -158,6 +168,7 @@ function ElementRenderer({ element, index, isPresenting }: ElementRendererProps)
               font-body text-slide-muted
               ${isPresenting ? 'text-2xl md:text-3xl lg:text-4xl' : 'text-lg md:text-xl'}
               leading-relaxed
+              ${effectClass}
             `}
           >
             <HighlightedText text={element.content} />
@@ -246,6 +257,9 @@ function ElementRenderer({ element, index, isPresenting }: ElementRendererProps)
 // ============================================
 
 function SectionElementRenderer({ element, index, isPresenting }: ElementRendererProps) {
+  // Get effect class from metadata (e.g. "effect-anvil" for [anvil] decorator)
+  const effectClass = element.metadata?.effect ? `effect-${element.metadata.effect}` : '';
+
   const variants = {
     hidden: { opacity: 0, y: 50, scale: 0.9 },
     visible: {
@@ -275,6 +289,7 @@ function SectionElementRenderer({ element, index, isPresenting }: ElementRendere
               ${isPresenting ? 'text-6xl md:text-8xl lg:text-9xl' : 'text-4xl md:text-5xl'}
               leading-none tracking-tighter
               drop-shadow-2xl
+              ${effectClass}
             `}
           >
             <HighlightedText text={element.content} />
@@ -288,6 +303,7 @@ function SectionElementRenderer({ element, index, isPresenting }: ElementRendere
               font-display font-bold text-slide-text/90
               ${isPresenting ? 'text-4xl md:text-6xl lg:text-7xl' : 'text-2xl md:text-3xl'}
               leading-tight tracking-tight mt-6
+              ${effectClass}
             `}
           >
             <HighlightedText text={element.content} />
@@ -301,6 +317,7 @@ function SectionElementRenderer({ element, index, isPresenting }: ElementRendere
               font-body text-slide-muted
               ${isPresenting ? 'text-2xl md:text-4xl lg:text-5xl' : 'text-xl md:text-2xl'}
               leading-relaxed mt-8
+              ${effectClass}
             `}
           >
             <HighlightedText text={element.content} />

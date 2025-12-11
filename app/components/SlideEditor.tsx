@@ -2,7 +2,7 @@
 
 // ============================================
 // VIBE SLIDES - Slide Editor Component
-// Minimal, Vercel-inspired design
+// Single textarea with slide position indicator
 // ============================================
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -18,13 +18,44 @@ interface SlideEditorProps {
   isSaving?: boolean;
 }
 
+// Find the character position where slide N starts (0-indexed)
+function getSlidePosition(content: string, slideIndex: number): number {
+  if (slideIndex === 0) return 0;
+
+  const lines = content.split('\n');
+  let slideCount = 0;
+  let charPos = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === '---') {
+      slideCount++;
+      if (slideCount === slideIndex) {
+        return charPos + lines[i].length + 1;
+      }
+    }
+    charPos += lines[i].length + 1;
+  }
+
+  return 0;
+}
+
+// Find which slide the cursor is in based on character position
+function getSlideFromPosition(content: string, cursorPos: number): number {
+  const textBefore = content.substring(0, cursorPos);
+  const separators = textBefore.match(/^---$/gm);
+  return separators ? separators.length : 0;
+}
+
 export function SlideEditor({ content, onChange, onSave, isSaving = false }: SlideEditorProps) {
   const [localContent, setLocalContent] = useState(content);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const { setParsedDeck } = useStore();
+  const [editorSlide, setEditorSlide] = useState(0);
+  const { setParsedDeck, presentation, goToSlide, parsedDeck } = useStore();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const lastSavedContent = useRef(content);
-  const isExternalUpdate = useRef(false);
+  const lastScrolledSlide = useRef(-1);
+  const isEditorDriven = useRef(false);
 
   useEffect(() => {
     if (content !== lastSavedContent.current && !hasUnsavedChanges) {
@@ -33,6 +64,53 @@ export function SlideEditor({ content, onChange, onSave, isSaving = false }: Sli
       setHasUnsavedChanges(false);
     }
   }, [content, hasUnsavedChanges]);
+
+  // Handle cursor position changes - update preview to match
+  const handleCursorChange = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || !parsedDeck) return;
+
+    const cursorPos = textarea.selectionStart;
+    // Use textarea.value directly to avoid stale state issues
+    let slideIndex = getSlideFromPosition(textarea.value, cursorPos);
+
+    // Clamp to actual parsed slide count (parser filters empty slides)
+    slideIndex = Math.min(slideIndex, parsedDeck.slides.length - 1);
+    slideIndex = Math.max(0, slideIndex);
+
+    setEditorSlide(slideIndex);
+
+    if (slideIndex !== presentation.currentSlide) {
+      isEditorDriven.current = true;
+      lastScrolledSlide.current = slideIndex;
+      goToSlide(slideIndex);
+    }
+  }, [presentation.currentSlide, goToSlide, parsedDeck]);
+
+  // Scroll editor to current slide when preview changes (don't steal focus)
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    if (isEditorDriven.current) {
+      isEditorDriven.current = false;
+      return;
+    }
+
+    if (presentation.currentSlide === lastScrolledSlide.current) return;
+    lastScrolledSlide.current = presentation.currentSlide;
+
+    const pos = getSlidePosition(localContent, presentation.currentSlide);
+
+    // Calculate scroll position
+    const textBefore = localContent.substring(0, pos);
+    const lineNumber = textBefore.split('\n').length;
+    const lineHeight = 24;
+    const scrollTarget = Math.max(0, (lineNumber - 3) * lineHeight);
+
+    textarea.scrollTop = scrollTarget;
+    setEditorSlide(presentation.currentSlide);
+  }, [presentation.currentSlide, localContent]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -74,7 +152,8 @@ export function SlideEditor({ content, onChange, onSave, isSaving = false }: Sli
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleSave]);
 
-  const slideCount = (localContent.match(/^---$/gm) || []).length;
+  // Use actual parsed slide count (parser filters empty slides)
+  const slideCount = parsedDeck?.slides.length || 1;
 
   return (
     <div className="flex flex-col h-full bg-background rounded-lg overflow-hidden border border-border">
@@ -83,8 +162,9 @@ export function SlideEditor({ content, onChange, onSave, isSaving = false }: Sli
         <div className="flex items-center gap-3">
           <FileText className="w-4 h-4 text-text-tertiary" />
           <span className="text-sm text-text-secondary">Editor</span>
-          <span className="text-xs text-text-quaternary px-1.5 py-0.5 bg-surface rounded">
-            {slideCount} slides
+          <span className="text-xs font-mono px-1.5 py-0.5 bg-surface rounded">
+            <span className="text-text-primary">{editorSlide + 1}</span>
+            <span className="text-text-quaternary"> / {slideCount}</span>
           </span>
         </div>
 
@@ -122,8 +202,12 @@ export function SlideEditor({ content, onChange, onSave, isSaving = false }: Sli
       {/* Editor */}
       <div className="flex-1 overflow-hidden">
         <textarea
+          ref={textareaRef}
           value={localContent}
           onChange={(e) => handleChange(e.target.value)}
+          onClick={handleCursorChange}
+          onKeyUp={handleCursorChange}
+          onSelect={handleCursorChange}
           className="
             w-full h-full p-4
             bg-transparent text-text-primary font-mono text-sm

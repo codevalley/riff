@@ -59,7 +59,28 @@ export const useStore = create<AppState>((set, get) => ({
       presentation: { ...get().presentation, currentSlide: 0, currentReveal: 0 },
     }),
 
-  setParsedDeck: (deck) => set({ parsedDeck: deck }),
+  setParsedDeck: (deck) => {
+    if (!deck) {
+      set({ parsedDeck: deck });
+      return;
+    }
+
+    const { presentation } = get();
+    const maxSlideIndex = deck.slides.length - 1;
+
+    // Clamp currentSlide if it's now out of bounds (e.g., slides were deleted)
+    const newCurrentSlide = Math.min(presentation.currentSlide, Math.max(0, maxSlideIndex));
+
+    set({
+      parsedDeck: deck,
+      presentation: {
+        ...presentation,
+        currentSlide: newCurrentSlide,
+        // Also reset reveal if we changed slides
+        currentReveal: newCurrentSlide !== presentation.currentSlide ? 0 : presentation.currentReveal,
+      },
+    });
+  },
 
   updateDeckContent: (content) => set({ currentDeckContent: content }),
 

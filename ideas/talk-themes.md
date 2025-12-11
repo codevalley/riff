@@ -9,10 +9,10 @@
 
 # 1. “Who Dies in 2026?” (Working title)
 ### Core Idea
-Every few months someone claims: **“PMs are dead.” “Engineers are dead.” “Design is dead.” “IDE is dead.”**
+Every few months someone claims:**“PMs are dead.”“Engineers are dead.”“Design is dead.”“IDE is dead.”**
 But what *actually* dies? Not the roles — the **bottlenecks** inside them.
 ### Tone
-Provocative. Funny. Insightful. Very high engagement. Sets you up as someone debunking lazy narratives.
+Provocative. Funny. Insightful. Very high engagement.Sets you up as someone debunking lazy narratives.
 ### What the talk explores
 * What *exactly* vibe coding murders?
 * Which skills decay? Which skills become 10x more important?
@@ -31,9 +31,9 @@ Provocative. Funny. Insightful. Very high engagement. Sets you up as someone d
 ⠀
 # 2\. “Clean Architecture for Vibe Coding”<!-- {"fold":true} -->
 ### Core Idea
-If coding becomes a conversation, then the job becomes: **How do you set up the environment so the AI behaves predictably?**
+If coding becomes a conversation, then the job becomes:**How do you set up the environment so the AI behaves predictably?**
 ### Tone
-Practical. Hands-on. Highly respected by engineers. Makes you look like a “teacher of the new craft.”
+Practical. Hands-on. Highly respected by engineers.Makes you look like a “teacher of the new craft.”
 ### What the talk explores
 * How to set up an AI-ready workstation
 * How to structure projects so vibe coding *thrives* not *chaos’es*
@@ -54,13 +54,13 @@ Practical. Hands-on. Highly respected by engineers. Makes you look like a “t
 ⠀
 # 3\. “The New Bottleneck”<!-- {"fold":true} -->
 ### Core Idea
-For 40 years, **engineering capacity** was the limiting reagent of software. Now:
+For 40 years, **engineering capacity** was the limiting reagent of software.Now:
 * Code is cheap
 * Prototyping is instant
-* Infrastructure is rented So what becomes expensive?
+* Infrastructure is rentedSo what becomes expensive?
 
 ⠀Tone
-Insightful. Strategic. Positions you as someone explaining the future of software-making.
+Insightful. Strategic.Positions you as someone explaining the future of software-making.
 ### The talk explores
 * Historically: engineering → design → research → ideas
 * Now: what is the scarce skill?
@@ -84,13 +84,13 @@ Insightful. Strategic. Positions you as someone explaining the future of softw
 ⠀
 # 4\. “Vibe Coding as the Return of the Craftsman”<!-- {"fold":true} -->
 ### Core Idea
-AI does the typing. Humans now do what humans are best at:
+AI does the typing.Humans now do what humans are best at:
 * shaping constraints
 * providing taste
 * making tradeoffs
 
 ⠀Tone
-Inspirational + thoughtful Great for giving “Inventing by Principle” vibes
+Inspirational + thoughtfulGreat for giving “Inventing by Principle” vibes
 ### Pros
 * Feels elevated
 * You can include philosophy, architecture, and demo
@@ -103,10 +103,10 @@ Inspirational + thoughtful Great for giving “Inventing by Principle” vibes
 ⠀
 # 5\. “The Adjacent Possible: How AI Expands Creation”<!-- {"fold":true} -->
 ### Core Idea
-Borrow Stuart Kauffman’s “adjacent possible”: Humans imagine → AI expands → humans choose → AI builds →
+Borrow Stuart Kauffman’s “adjacent possible”:Humans imagine → AI expands → humans choose → AI builds →
 You show how the adjacency map expands exponentially.
 ### Tone
-Inventive. Conceptual. Beautiful. Gives you that “wow, hadn’t thought about it like that” reaction.
+Inventive. Conceptual. Beautiful.Gives you that “wow, hadn’t thought about it like that” reaction.
 ### Pros
 * Intellectual + practical
 * Explains *why* vibe coding works, not just *how*
@@ -129,7 +129,7 @@ Examples:
 * Architecture becomes a conversation
 
 ⠀Tone
-Crisp. Philsophical. Memorable. Like the original talk that inspired you.
+Crisp. Philsophical. Memorable.Like the original talk that inspired you.
 ### Pros
 * Easy to embed stories
 * Zero fear of live demo failing
@@ -162,7 +162,7 @@ Below is a structured form of this theme, with clarity on:
 * Why it lands
 * What agenda it naturally shapes into
 # ⭐ Core Idea
-*Everyone is scared AI will make them irrelevant. The truth is: only the people who misunderstand the new landscape will be irrelevant.*
+*Everyone is scared AI will make them irrelevant.The truth is: only the people who misunderstand the new landscape will be irrelevant.*
 This talk teaches the **landscape** and the **rules**.
 
 # Possible Final Agendas (Combinations)
