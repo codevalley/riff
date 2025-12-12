@@ -8,7 +8,9 @@ AI-powered presentation editor with prompt-driven theming and auto-generated ima
 - **Live preview** - See your slides as you type
 - **Prompt-driven themes** - Describe your desired style in plain English, AI generates the CSS
 - **AI image generation** - Describe images, they're generated and cached automatically
+- **Document import** - Paste long-form content, AI converts it to slides
 - **Presenter mode** - Full-screen presentation with speaker notes
+- **User accounts** - Sign in with Google or GitHub, your decks are private
 - **Cloud storage** - Decks stored in Vercel Blob, accessible anywhere
 
 ## Slide Format
@@ -61,12 +63,34 @@ Copy `.env.example` to `.env.local`:
 cp .env.example .env.local
 ```
 
-Add your API keys:
+Add your configuration:
 
 ```env
-# Vercel Blob Storage (get from Vercel dashboard)
+# ===========================================
+# Database (Vercel Postgres)
+# ===========================================
+DATABASE_URL="postgresql://..."
+
+# ===========================================
+# Authentication (NextAuth.js)
+# ===========================================
+NEXTAUTH_URL="http://localhost:3000"        # Your app URL (https://www.yourdomain.com in prod)
+NEXTAUTH_SECRET="generate-with-openssl"     # Generate: openssl rand -base64 32
+
+# OAuth Providers (at least one required)
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+
+# ===========================================
+# Storage (Vercel Blob)
+# ===========================================
 BLOB_READ_WRITE_TOKEN=your_vercel_blob_token_here
 
+# ===========================================
+# AI Services
+# ===========================================
 # Vercel AI Gateway (for text generation, theme generation)
 AI_GATEWAY_API_KEY=your_ai_gateway_api_key_here
 AI_GATEWAY_MODEL=moonshotai/kimi-k2-0905
@@ -75,7 +99,14 @@ AI_GATEWAY_MODEL=moonshotai/kimi-k2-0905
 GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_api_key_here
 ```
 
-### 3. Run development server
+### 3. Set up the database
+
+```bash
+npm run db:generate   # Generate Prisma client
+npm run db:push       # Push schema to database
+```
+
+### 4. Run development server
 
 ```bash
 npm run dev
@@ -132,24 +163,34 @@ Try these prompts in the Theme Generator:
 ```
 app/
 ├── app/
-│   ├── page.tsx              # Main editor/preview UI
+│   ├── page.tsx              # Landing page
+│   ├── editor/               # Main editor UI
 │   ├── present/[id]/         # Presenter mode
+│   ├── auth/                 # Sign-in, error pages
 │   └── api/
-│       ├── decks/            # CRUD for decks
+│       ├── auth/             # NextAuth.js routes
+│       ├── decks/            # CRUD for decks (user-scoped)
+│       ├── convert-document/ # AI document → slides
 │       ├── generate-image/   # Gemini image generation
-│       └── generate-theme/   # Claude theme generation
+│       └── generate-theme/   # AI theme generation
 ├── components/
 │   ├── SlideRenderer.tsx     # Renders single slide
 │   ├── SlideEditor.tsx       # Markdown editor
 │   ├── SlidePreview.tsx      # Preview with controls
 │   ├── DeckManager.tsx       # Deck CRUD UI
 │   ├── ThemeCustomizer.tsx   # Theme prompt UI
-│   └── Presenter.tsx         # Full-screen mode
-└── lib/
-    ├── parser.ts             # Markdown → Slide AST
-    ├── blob.ts               # Vercel Blob helpers
-    ├── store.ts              # Zustand state
-    └── types.ts              # TypeScript types
+│   ├── DocumentUploader.tsx  # Document import modal
+│   ├── Presenter.tsx         # Full-screen mode
+│   └── auth/                 # Auth components
+├── lib/
+│   ├── parser.ts             # Markdown → Slide AST
+│   ├── blob.ts               # Vercel Blob helpers
+│   ├── prisma.ts             # Database client
+│   ├── auth.ts               # NextAuth config
+│   ├── store.ts              # Zustand state
+│   └── types.ts              # TypeScript types
+└── prisma/
+    └── schema.prisma         # Database schema
 ```
 
 ## Tech Stack
@@ -158,7 +199,9 @@ app/
 - **Styling**: Tailwind CSS
 - **Animations**: Framer Motion
 - **State**: Zustand
-- **Storage**: Vercel Blob
+- **Database**: PostgreSQL (Vercel Postgres) + Prisma
+- **Auth**: NextAuth.js (Google, GitHub OAuth)
+- **Storage**: Vercel Blob (user-scoped)
 - **AI**: Vercel AI Gateway (Kimi K2 for text/themes), Google Gemini (images)
 
 ---
