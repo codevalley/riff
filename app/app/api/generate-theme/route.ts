@@ -1,12 +1,18 @@
 // ============================================
 // API: /api/generate-theme
 // Generate CSS theme from natural language prompt
+// Uses AI Gateway for unified AI operations
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { generateText, createGateway } from 'ai';
 import { saveTheme } from '@/lib/blob';
 import { DEFAULT_THEME_SYSTEM_PROMPT } from '@/lib/prompts';
+
+// Create Vercel AI Gateway client
+const gateway = createGateway({
+  apiKey: process.env.AI_GATEWAY_API_KEY || '',
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,29 +28,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Anthropic API key not configured' },
-        { status: 500 }
-      );
-    }
+    const modelId = process.env.AI_GATEWAY_MODEL || 'moonshotai/kimi-k2-0905';
 
-    const client = new Anthropic({ apiKey });
-
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2048,
-      messages: [
-        {
-          role: 'user',
-          content: `${systemPrompt}\n\nUser's theme request: "${prompt}"\n\nGenerate the CSS theme:`,
-        },
-      ],
+    const { text: responseText } = await generateText({
+      model: gateway(modelId),
+      prompt: `${systemPrompt}\n\nUser's theme request: "${prompt}"\n\nGenerate the CSS theme:`,
+      maxOutputTokens: 2048,
     });
-
-    // Extract CSS from response
-    const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
 
     // Try to extract CSS from the response (it might be wrapped in code blocks)
     let css = responseText;

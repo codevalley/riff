@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Upload,
@@ -46,6 +46,40 @@ export function DocumentUploader({ onClose }: DocumentUploaderProps) {
   });
 
   const [isDragging, setIsDragging] = useState(false);
+
+  // Handle pasted text content
+  const handlePastedText = useCallback((text: string) => {
+    if (text.trim().length < 100) {
+      setError('Content too short. Please provide at least 100 characters.');
+      return;
+    }
+
+    if (text.length > 1024 * 1024) {
+      setError('Content too large. Maximum size: 1MB');
+      return;
+    }
+
+    setError(null);
+    setFileName('Pasted content');
+    setDocumentContent(text);
+  }, []);
+
+  // Listen for paste events when modal is open
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      // Don't handle paste if we already have content
+      if (documentContent) return;
+
+      const text = e.clipboardData?.getData('text');
+      if (text && text.trim().length > 0) {
+        e.preventDefault();
+        handlePastedText(text);
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [documentContent, handlePastedText]);
 
   const handleFileSelect = useCallback(async (file: File) => {
     const allowedTypes = ['text/plain', 'text/markdown', 'text/x-markdown'];
@@ -278,10 +312,10 @@ export function DocumentUploader({ onClose }: DocumentUploaderProps) {
                       </div>
                     )}
                     <p className="text-sm font-medium text-white/80 mb-1">
-                      {isDragging ? 'Drop your file here' : 'Drop a file or click to browse'}
+                      {isDragging ? 'Drop your file here' : 'Drop, paste, or click to browse'}
                     </p>
                     <p className="text-xs text-white/40">
-                      Supports .txt and .md files up to 1MB
+                      Paste text (Ctrl+V) or upload .txt/.md files
                     </p>
                   </div>
                 )}

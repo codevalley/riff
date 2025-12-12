@@ -167,7 +167,7 @@ export function Landing() {
                   className="inline-flex items-center gap-2.5 px-6 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white/70 text-[14px] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-200"
                 >
                   <Plus className="w-4 h-4" />
-                  New deck
+                  Empty deck
                 </Link>
               </div>
             </motion.div>
@@ -498,7 +498,7 @@ export function Landing() {
                   className="inline-flex items-center gap-2.5 px-6 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white/70 text-[14px] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-200"
                 >
                   <Plus className="w-4 h-4" />
-                  New deck
+                  Empty deck
                 </Link>
               </div>
             </motion.div>

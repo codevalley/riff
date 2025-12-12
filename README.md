@@ -67,15 +67,12 @@ Add your API keys:
 # Vercel Blob Storage (get from Vercel dashboard)
 BLOB_READ_WRITE_TOKEN=your_vercel_blob_token_here
 
-# Google Gemini API (for image generation)
+# Vercel AI Gateway (for text generation, theme generation)
+AI_GATEWAY_API_KEY=your_ai_gateway_api_key_here
+AI_GATEWAY_MODEL=moonshotai/kimi-k2-0905
+
+# Google Gemini API (for image generation and restyling)
 GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_api_key_here
-
-# Anthropic API (for theme generation)
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-
-# Vercel AI Gateway (optional, for slide generation)
-AI_GATEWAY_API_KEY=your_ai_gateway_key_here
-AI_GATEWAY_MODEL=your_model_id_here
 ```
 
 ### 3. Run development server
@@ -162,7 +159,7 @@ app/
 - **Animations**: Framer Motion
 - **State**: Zustand
 - **Storage**: Vercel Blob
-- **AI**: Google Gemini (images), Anthropic Claude (themes)
+- **AI**: Vercel AI Gateway (Kimi K2 for text/themes), Google Gemini (images)
 
 ---
 

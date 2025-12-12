@@ -93,6 +93,31 @@ Created an elaborate landing page for Riff with animated demos and visual flair,
 
 3. **Document conversion:** Max 100K characters, outputs up to 8192 tokens (~20 slides). Cleans markdown fences and leading `---` from AI output.
 
+### AI Provider Consolidation (Anthropic Eliminated)
+
+Removed Anthropic dependency entirely. Now using only 2 providers:
+
+| Operation | Before | After |
+|-----------|--------|-------|
+| Text/slide generation | AI Gateway (Kimi K2) | Unchanged |
+| Theme generation | **Anthropic SDK (Claude)** | AI Gateway (Kimi K2) |
+| Image generation | Google Gemini | Unchanged |
+| Image restyling | Google Gemini | Unchanged |
+
+**Files Modified:**
+- `generate-theme/route.ts` - Replaced `@anthropic-ai/sdk` with `ai` package's `createGateway`
+
+**Environment Variables (simplified):**
+```env
+AI_GATEWAY_API_KEY=xxx          # Text + themes (Kimi K2)
+AI_GATEWAY_MODEL=moonshotai/kimi-k2-0905
+GOOGLE_GENERATIVE_AI_API_KEY=xxx # Images (Gemini 3)
+```
+
+**Removed:**
+- `ANTHROPIC_API_KEY` no longer needed
+- `AI_GATEWAY_IMAGE_MODEL` removed (AI Gateway image support too limited)
+
 ## Example Patterns
 
 ```tsx
