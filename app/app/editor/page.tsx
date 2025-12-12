@@ -57,6 +57,17 @@ function EditorContent() {
   const [showNewDeckModal, setShowNewDeckModal] = useState(false);
   const [showUploader, setShowUploader] = useState(false);
   const [newDeckName, setNewDeckName] = useState('');
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
+
+  // Update page title based on current deck
+  const currentDeck = decks.find((d) => d.id === currentDeckId);
+  useEffect(() => {
+    if (currentDeck?.name) {
+      document.title = `${currentDeck.name} | Riff`;
+    } else {
+      document.title = 'Editor | Riff';
+    }
+  }, [currentDeck?.name]);
 
   const loadDeck = useCallback(async (id: string) => {
     setLoading(true);
@@ -118,6 +129,7 @@ function EditorContent() {
       sessionStorage.removeItem('riff-pending-document');
 
       setLoading(true);
+      setLoadingMessage('Converting your document to slides...');
       const response = await fetch('/api/convert-document', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -146,6 +158,7 @@ function EditorContent() {
       setError('Failed to convert document. Please try again.');
     } finally {
       setLoading(false);
+      setLoadingMessage(null);
     }
     return false;
   }, [loadDeck, setDecks, setLoading, setError]);
@@ -154,11 +167,13 @@ function EditorContent() {
   useEffect(() => {
     const loadDecks = async () => {
       setLoading(true);
+      setLoadingMessage('Loading your decks...');
       try {
         // Check for pending document conversion first (from pre-auth upload)
         const hadPending = await convertPendingDocument();
         if (hadPending) {
           setInitialDeckLoaded(true);
+          setLoadingMessage(null);
           return;
         }
 
@@ -198,6 +213,7 @@ function EditorContent() {
         setInitialDeckLoaded(true);
       } finally {
         setLoading(false);
+        setLoadingMessage(null);
       }
     };
 
@@ -373,9 +389,6 @@ function EditorContent() {
       {/* Custom theme CSS */}
       {themeCSS && <style dangerouslySetInnerHTML={{ __html: themeCSS }} />}
 
-      {/* Google Font for logo */}
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&display=swap');`}</style>
-
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border">
         <div className="flex items-center justify-between h-14 px-4">
@@ -478,7 +491,7 @@ function EditorContent() {
         </AnimatePresence>
 
         {/* Preview panel */}
-        <div className="flex-1 h-full overflow-hidden bg-background-secondary">
+        <div className="flex-1 h-full overflow-hidden bg-background-secondary relative">
           <div className="h-full p-4">
             {currentDeckId ? (
               <SlidePreview deckId={currentDeckId} onSave={saveDeck} />
@@ -501,6 +514,21 @@ function EditorContent() {
               </div>
             )}
           </div>
+
+          {/* Loading overlay */}
+          <AnimatePresence>
+            {(isLoading && loadingMessage) && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-background-secondary/90 backdrop-blur-sm flex flex-col items-center justify-center z-10"
+              >
+                <Loader2 className="w-8 h-8 text-text-tertiary animate-spin mb-4" />
+                <p className="text-sm text-text-secondary">{loadingMessage}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </main>
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
 import {
   LayoutGrid,
   PanelLeft,
@@ -10,6 +11,8 @@ import {
   Plus,
   ImageIcon,
   Play,
+  User,
+  LogIn,
 } from 'lucide-react';
 import Link from 'next/link';
 import { DocumentUploader } from './DocumentUploader';
@@ -36,10 +39,17 @@ const demoSlides = [
 ];
 
 export function Landing() {
+  const { data: session } = useSession();
   const [showUploader, setShowUploader] = useState(false);
   const [currentDemoSlide, setCurrentDemoSlide] = useState(0);
   const [typedText, setTypedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Ensure we're mounted before running animations
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Typing animation effect
   useEffect(() => {
@@ -92,12 +102,6 @@ export function Landing() {
   }, []);
 
   return (
-    <>
-      {/* Custom styles for this page */}
-      <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap');
-      `}</style>
-
       <div className="min-h-screen bg-[#030303] text-[#fafafa]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
         {/* Navigation */}
         <nav className="fixed top-0 left-0 right-0 z-50 bg-[#030303]/80 backdrop-blur-xl border-b border-white/[0.05]">
@@ -108,13 +112,37 @@ export function Landing() {
                 Riff
               </span>
             </Link>
-            <Link
-              href="/editor"
-              className="inline-flex items-center gap-2 text-[13px] text-white/50 hover:text-white transition-colors duration-200"
-            >
-              <PanelLeft className="w-4 h-4" />
-              <span>Editor</span>
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/editor"
+                className="inline-flex items-center gap-2 text-[13px] text-white/50 hover:text-white transition-colors duration-200"
+              >
+                <PanelLeft className="w-4 h-4" />
+                <span>Editor</span>
+              </Link>
+
+              {session ? (
+                <Link
+                  href="/editor"
+                  className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+                  title={session.user?.name || 'Account'}
+                >
+                  {session.user?.image ? (
+                    <img src={session.user.image} alt="" className="w-8 h-8 rounded-full" />
+                  ) : (
+                    <User className="w-4 h-4 text-white/70" />
+                  )}
+                </Link>
+              ) : (
+                <Link
+                  href="/auth/signin"
+                  className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+                  title="Sign in"
+                >
+                  <LogIn className="w-4 h-4 text-white/70" />
+                </Link>
+              )}
+            </div>
           </div>
         </nav>
 
@@ -131,7 +159,7 @@ export function Landing() {
           />
           <div className="max-w-4xl mx-auto text-center relative z-10">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={isMounted ? { opacity: 0, y: 20 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             >
@@ -519,7 +547,6 @@ export function Landing() {
         {/* Document Uploader Modal */}
         {showUploader && <DocumentUploader onClose={() => setShowUploader(false)} />}
       </div>
-    </>
   );
 }
 
