@@ -17,6 +17,7 @@ import { ThemeCustomizer } from '@/components/ThemeCustomizer';
 import { ImageStyleSelector } from '@/components/ImageStyleSelector';
 import { FormatHelpDialog } from '@/components/FormatHelpDialog';
 import { DocumentUploader } from '@/components/DocumentUploader';
+import { UserMenu } from '@/components/auth/UserMenu';
 
 // Wrapper component to handle Suspense for useSearchParams
 function EditorContent() {
@@ -362,6 +363,10 @@ function EditorContent() {
                 <PanelLeft className="w-4 h-4" />
               )}
             </button>
+
+            <div className="h-4 w-px bg-border" />
+
+            <UserMenu />
           </div>
         </div>
       </header>
