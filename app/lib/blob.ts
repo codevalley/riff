@@ -1,15 +1,26 @@
 // ============================================
-// VIBE SLIDES - Vercel Blob Utilities
+// RIFF - Vercel Blob Utilities
+// User-scoped storage for decks, themes, images
 // ============================================
 
 import { put, del, list } from '@vercel/blob';
-import { Deck } from './types';
 import { hashDescription } from './parser';
 
-const DECKS_PREFIX = 'decks/';
+// Legacy prefixes (for backward compatibility / shared content)
 const IMAGES_PREFIX = 'images/';
-const THEMES_PREFIX = 'themes/';
-const SLIDES_PREFIX = 'slides/';
+
+// User-scoped path helpers
+function userDecksPrefix(userId: string): string {
+  return `users/${userId}/decks/`;
+}
+
+function userThemesPrefix(userId: string): string {
+  return `users/${userId}/themes/`;
+}
+
+function userSlidesPrefix(userId: string): string {
+  return `users/${userId}/slides/`;
+}
 
 /**
  * Normalize deck ID for consistent storage
@@ -25,122 +36,113 @@ function normalizeDeckId(id: string): string {
 }
 
 // ============================================
-// DECK OPERATIONS
+// DECK BLOB OPERATIONS (User-scoped)
+// Note: Deck metadata is stored in Prisma, blobs store content only
 // ============================================
 
-/**
- * List all decks in blob storage
- */
-export async function listDecks(): Promise<Deck[]> {
-  try {
-    const { blobs } = await list({ prefix: DECKS_PREFIX });
-
-    return blobs
-      .filter((blob) => blob.pathname.endsWith('.md'))
-      .map((blob) => {
-        const filename = blob.pathname.replace(DECKS_PREFIX, '').replace('.md', '');
-        return {
-          id: filename,
-          name: filename.replace(/-/g, ' '), // Convert hyphens back to spaces for display
-          url: blob.url,
-          createdAt: new Date(blob.uploadedAt),
-          updatedAt: new Date(blob.uploadedAt),
-        };
-      })
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-  } catch (error) {
-    console.error('Error listing decks:', error);
-    return [];
-  }
+export interface DeckBlobData {
+  id: string;
+  name: string;
+  blobPath: string;
+  blobUrl: string;
 }
 
 /**
- * Get a specific deck's content
+ * Get deck content by blob URL (used when we already have the URL from Prisma)
  */
-export async function getDeck(id: string): Promise<{ deck: Deck; content: string } | null> {
+export async function getDeckContent(blobUrl: string): Promise<string | null> {
   try {
-    const normalizedId = normalizeDeckId(id);
-    const pathname = `${DECKS_PREFIX}${normalizedId}.md`;
-
-    // List all decks and find the matching one
-    const { blobs } = await list({ prefix: DECKS_PREFIX });
-    const blob = blobs.find((b) => b.pathname === pathname);
-
-    if (!blob) {
-      console.log('Deck not found. Looking for:', pathname);
-      console.log('Available blobs:', blobs.map((b) => b.pathname));
-      return null;
-    }
-
-    const response = await fetch(blob.url);
-    const content = await response.text();
-
-    return {
-      deck: {
-        id: normalizedId,
-        name: normalizedId.replace(/-/g, ' '),
-        url: blob.url,
-        createdAt: new Date(blob.uploadedAt),
-        updatedAt: new Date(blob.uploadedAt),
-      },
-      content,
-    };
+    const response = await fetch(blobUrl);
+    if (!response.ok) return null;
+    return await response.text();
   } catch (error) {
-    console.error('Error getting deck:', error);
+    console.error('Error getting deck content:', error);
     return null;
   }
 }
 
 /**
- * Create or update a deck
+ * Get deck content by path (for direct blob access)
  */
-export async function saveDeck(id: string, content: string): Promise<Deck> {
-  const normalizedId = normalizeDeckId(id);
-  const pathname = `${DECKS_PREFIX}${normalizedId}.md`;
+export async function getDeckByPath(blobPath: string): Promise<string | null> {
+  try {
+    const { blobs } = await list({ prefix: blobPath });
+    if (blobs.length === 0) return null;
+
+    const response = await fetch(blobs[0].url);
+    return await response.text();
+  } catch (error) {
+    console.error('Error getting deck by path:', error);
+    return null;
+  }
+}
+
+/**
+ * Create or update a deck blob (user-scoped)
+ * Returns blob path and URL for storing in Prisma
+ */
+export async function saveDeckBlob(
+  userId: string,
+  deckId: string,
+  content: string
+): Promise<{ blobPath: string; blobUrl: string }> {
+  const normalizedId = normalizeDeckId(deckId);
+  const blobPath = `${userDecksPrefix(userId)}${normalizedId}.md`;
 
   // Delete existing if updating
   try {
-    const { blobs } = await list({ prefix: DECKS_PREFIX });
-    const existing = blobs.find((b) => b.pathname === pathname);
-    if (existing) {
-      await del(existing.url);
+    const { blobs } = await list({ prefix: blobPath });
+    if (blobs.length > 0) {
+      await del(blobs[0].url);
     }
   } catch {
     // Ignore - might not exist
   }
 
-  const blob = await put(pathname, content, {
+  const blob = await put(blobPath, content, {
     access: 'public',
     contentType: 'text/markdown',
     addRandomSuffix: false,
   });
 
   return {
-    id: normalizedId,
-    name: normalizedId.replace(/-/g, ' '),
-    url: blob.url,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    blobPath,
+    blobUrl: blob.url,
   };
 }
 
 /**
- * Delete a deck
+ * Update deck content at existing blob path
  */
-export async function deleteDeck(id: string): Promise<boolean> {
+export async function updateDeckBlob(blobPath: string, content: string): Promise<string> {
+  // Delete existing
   try {
-    const normalizedId = normalizeDeckId(id);
-    const pathname = `${DECKS_PREFIX}${normalizedId}.md`;
-
-    const { blobs } = await list({ prefix: DECKS_PREFIX });
-    const blob = blobs.find((b) => b.pathname === pathname);
-
-    if (blob) {
-      await del(blob.url);
+    const { blobs } = await list({ prefix: blobPath });
+    if (blobs.length > 0) {
+      await del(blobs[0].url);
     }
+  } catch {
+    // Ignore
+  }
+
+  const blob = await put(blobPath, content, {
+    access: 'public',
+    contentType: 'text/markdown',
+    addRandomSuffix: false,
+  });
+
+  return blob.url;
+}
+
+/**
+ * Delete a deck blob by URL
+ */
+export async function deleteDeckBlob(blobUrl: string): Promise<boolean> {
+  try {
+    await del(blobUrl);
     return true;
   } catch (error) {
-    console.error('Error deleting deck:', error);
+    console.error('Error deleting deck blob:', error);
     return false;
   }
 }
@@ -217,14 +219,19 @@ export async function deleteImageFromCache(description: string): Promise<boolean
 }
 
 // ============================================
-// THEME OPERATIONS
+// THEME OPERATIONS (User-scoped)
 // ============================================
 
 /**
- * Save a generated theme
+ * Save a generated theme (user-scoped)
  */
-export async function saveTheme(deckId: string, css: string, prompt: string): Promise<string> {
-  const pathname = `${THEMES_PREFIX}${encodeURIComponent(deckId)}.json`;
+export async function saveTheme(
+  userId: string,
+  deckId: string,
+  css: string,
+  prompt: string
+): Promise<string> {
+  const pathname = `${userThemesPrefix(userId)}${encodeURIComponent(deckId)}.json`;
 
   const themeData = JSON.stringify({
     css,
@@ -252,11 +259,14 @@ export async function saveTheme(deckId: string, css: string, prompt: string): Pr
 }
 
 /**
- * Get a saved theme for a deck
+ * Get a saved theme for a deck (user-scoped)
  */
-export async function getTheme(deckId: string): Promise<{ css: string; prompt: string } | null> {
+export async function getTheme(
+  userId: string,
+  deckId: string
+): Promise<{ css: string; prompt: string } | null> {
   try {
-    const pathname = `${THEMES_PREFIX}${encodeURIComponent(deckId)}.json`;
+    const pathname = `${userThemesPrefix(userId)}${encodeURIComponent(deckId)}.json`;
     const { blobs } = await list({ prefix: pathname });
 
     if (blobs.length === 0) return null;
@@ -275,11 +285,11 @@ export async function getTheme(deckId: string): Promise<{ css: string; prompt: s
 }
 
 /**
- * Delete a saved theme for a deck
+ * Delete a saved theme for a deck (user-scoped)
  */
-export async function deleteTheme(deckId: string): Promise<boolean> {
+export async function deleteTheme(userId: string, deckId: string): Promise<boolean> {
   try {
-    const pathname = `${THEMES_PREFIX}${encodeURIComponent(deckId)}.json`;
+    const pathname = `${userThemesPrefix(userId)}${encodeURIComponent(deckId)}.json`;
     const { blobs } = await list({ prefix: pathname });
 
     if (blobs.length > 0) {
@@ -293,20 +303,21 @@ export async function deleteTheme(deckId: string): Promise<boolean> {
 }
 
 // ============================================
-// GENERATED SLIDE HTML OPERATIONS
+// GENERATED SLIDE HTML OPERATIONS (User-scoped)
 // ============================================
 
 /**
- * Get cached HTML for a generated slide
+ * Get cached HTML for a generated slide (user-scoped)
  */
 export async function getSlideHtmlFromCache(
+  userId: string,
   deckId: string,
   slideIndex: number,
   contentHash: string
 ): Promise<string | null> {
   try {
     const normalizedDeckId = normalizeDeckId(deckId);
-    const pathname = `${SLIDES_PREFIX}${normalizedDeckId}/${slideIndex}-${contentHash}.html`;
+    const pathname = `${userSlidesPrefix(userId)}${normalizedDeckId}/${slideIndex}-${contentHash}.html`;
     const { blobs } = await list({ prefix: pathname });
 
     if (blobs.length === 0) return null;
@@ -320,16 +331,17 @@ export async function getSlideHtmlFromCache(
 }
 
 /**
- * Save generated slide HTML to cache
+ * Save generated slide HTML to cache (user-scoped)
  */
 export async function saveSlideHtmlToCache(
+  userId: string,
   deckId: string,
   slideIndex: number,
   contentHash: string,
   html: string
 ): Promise<string> {
   const normalizedDeckId = normalizeDeckId(deckId);
-  const pathname = `${SLIDES_PREFIX}${normalizedDeckId}/${slideIndex}-${contentHash}.html`;
+  const pathname = `${userSlidesPrefix(userId)}${normalizedDeckId}/${slideIndex}-${contentHash}.html`;
 
   // Delete existing if regenerating
   try {
@@ -351,12 +363,12 @@ export async function saveSlideHtmlToCache(
 }
 
 /**
- * Delete all cached slide HTML for a deck
+ * Delete all cached slide HTML for a deck (user-scoped)
  */
-export async function deleteSlideCache(deckId: string): Promise<boolean> {
+export async function deleteSlideCache(userId: string, deckId: string): Promise<boolean> {
   try {
     const normalizedDeckId = normalizeDeckId(deckId);
-    const prefix = `${SLIDES_PREFIX}${normalizedDeckId}/`;
+    const prefix = `${userSlidesPrefix(userId)}${normalizedDeckId}/`;
     const { blobs } = await list({ prefix });
 
     for (const blob of blobs) {

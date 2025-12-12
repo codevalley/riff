@@ -6,8 +6,12 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText, createGateway } from 'ai';
-import { saveDeck } from '@/lib/blob';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { saveDeckBlob } from '@/lib/blob';
 import { DOCUMENT_TO_SLIDES_PROMPT } from '@/lib/prompts';
+import { nanoid } from 'nanoid';
 
 // Create Vercel AI Gateway client
 const gateway = createGateway({
@@ -16,6 +20,11 @@ const gateway = createGateway({
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { document, documentName, options } = await request.json();
 
     if (!document || typeof document !== 'string') {
@@ -63,8 +72,11 @@ export async function POST(request: NextRequest) {
 ## Document Content
 ${document}
 
-## Output
-Generate the complete markdown for the presentation now:`;
+## Output Format
+FIRST LINE: Output a suggested deck title with a relevant emoji prefix, like: "TITLE: 🚀 Product Launch Strategy" or "TITLE: 📊 Q4 Financial Review"
+THEN: Generate the complete markdown for the presentation.
+
+Begin:`;
 
     const modelId = process.env.AI_GATEWAY_MODEL || 'moonshotai/kimi-k2-0905';
 
@@ -84,6 +96,15 @@ Generate the complete markdown for the presentation now:`;
       .replace(/\s*```$/i, '')
       .trim();
 
+    // Extract suggested title with emoji (format: "TITLE: 🚀 Product Launch")
+    let suggestedTitle: string | null = null;
+    const titleMatch = cleanedMarkdown.match(/^TITLE:\s*(.+)$/im);
+    if (titleMatch) {
+      suggestedTitle = titleMatch[1].trim();
+      // Remove the TITLE line from markdown
+      cleanedMarkdown = cleanedMarkdown.replace(/^TITLE:\s*.+\n*/im, '').trim();
+    }
+
     // Ensure slides start properly (remove leading ---)
     if (cleanedMarkdown.startsWith('---')) {
       cleanedMarkdown = cleanedMarkdown.slice(3).trim();
@@ -97,19 +118,44 @@ Generate the complete markdown for the presentation now:`;
       );
     }
 
-    // Generate deck name from document name or first title
-    const deckName = documentName?.trim() ||
+    // Generate deck name: use suggested title, then document name, then first heading
+    const deckName = suggestedTitle ||
+      documentName?.trim() ||
       cleanedMarkdown.match(/^#\s+(.+)$/m)?.[1] ||
-      'Imported Presentation';
+      '📄 Imported Presentation';
 
-    // Save the deck
-    const deck = await saveDeck(deckName, cleanedMarkdown);
+    // Generate unique deck ID
+    const deckId = nanoid(10);
+
+    // Save to blob storage (user-scoped)
+    const { blobPath, blobUrl } = await saveDeckBlob(
+      session.user.id,
+      deckId,
+      cleanedMarkdown
+    );
+
+    // Create deck record in database
+    const deck = await prisma.deck.create({
+      data: {
+        id: deckId,
+        name: deckName,
+        blobPath,
+        blobUrl,
+        ownerId: session.user.id,
+      },
+    });
 
     // Count slides (number of --- separators + 1)
     const slideCountResult = (cleanedMarkdown.match(/^---$/gm) || []).length + 1;
 
     return NextResponse.json({
-      deck,
+      deck: {
+        id: deck.id,
+        name: deck.name,
+        url: deck.blobUrl,
+        createdAt: deck.createdAt,
+        updatedAt: deck.updatedAt,
+      },
       markdown: cleanedMarkdown,
       slideCount: slideCountResult,
     });

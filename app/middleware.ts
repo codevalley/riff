@@ -33,7 +33,11 @@ export default withAuth(
           path.startsWith('/editor') ||
           path.startsWith('/settings') ||
           path.startsWith('/api/decks') ||
-          path.startsWith('/api/user')
+          path.startsWith('/api/user') ||
+          path.startsWith('/api/theme') ||
+          path.startsWith('/api/generate-theme') ||
+          path.startsWith('/api/slide-cache') ||
+          path.startsWith('/api/convert-document')
         ) {
           return !!token;
         }
@@ -57,6 +61,10 @@ export const config = {
     // Protected API routes
     '/api/decks/:path*',
     '/api/user/:path*',
+    '/api/theme/:path*',
+    '/api/generate-theme',
+    '/api/slide-cache',
+    '/api/convert-document',
     // Auth routes (for custom pages)
     '/auth/:path*',
   ],

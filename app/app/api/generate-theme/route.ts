@@ -6,6 +6,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateText, createGateway } from 'ai';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { saveTheme } from '@/lib/blob';
 import { DEFAULT_THEME_SYSTEM_PROMPT } from '@/lib/prompts';
 
@@ -16,6 +18,11 @@ const gateway = createGateway({
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { prompt, deckId, customSystemPrompt } = await request.json();
 
     // Use custom system prompt if provided, otherwise use default
@@ -77,9 +84,9 @@ export async function POST(request: NextRequest) {
 
     const fullCss = fontImport + css;
 
-    // Save theme if deckId provided
+    // Save theme if deckId provided (user-scoped)
     if (deckId) {
-      await saveTheme(deckId, fullCss, prompt);
+      await saveTheme(session.user.id, deckId, fullCss, prompt);
     }
 
     return NextResponse.json({

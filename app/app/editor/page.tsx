@@ -108,12 +108,61 @@ function EditorContent() {
     }
   }, [setLoading, setError, setCurrentDeck, setParsedDeck, setThemePrompt, setTheme]);
 
+  // Convert pending document (stored in sessionStorage before auth redirect)
+  const convertPendingDocument = useCallback(async () => {
+    const pendingData = sessionStorage.getItem('riff-pending-document');
+    if (!pendingData) return false;
+
+    try {
+      const { content, name, options } = JSON.parse(pendingData);
+      sessionStorage.removeItem('riff-pending-document');
+
+      setLoading(true);
+      const response = await fetch('/api/convert-document', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          document: content,
+          documentName: name.replace(/\.(txt|md|markdown)$/i, ''),
+          options,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to convert document');
+      }
+
+      const data = await response.json();
+      if (data.deck) {
+        // Refresh deck list and load the new deck
+        const listResponse = await fetch('/api/decks');
+        const listData = await listResponse.json();
+        setDecks(listData.decks || []);
+        await loadDeck(data.deck.id);
+        return true;
+      }
+    } catch (err) {
+      console.error('Failed to convert pending document:', err);
+      setError('Failed to convert document. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+    return false;
+  }, [loadDeck, setDecks, setLoading, setError]);
+
   // Load decks on mount
   useEffect(() => {
     const loadDecks = async () => {
       setLoading(true);
       try {
-        // Check for deck query parameter first - try to load directly
+        // Check for pending document conversion first (from pre-auth upload)
+        const hadPending = await convertPendingDocument();
+        if (hadPending) {
+          setInitialDeckLoaded(true);
+          return;
+        }
+
+        // Check for deck query parameter - try to load directly
         // (handles case where deck was just created and not in cached list)
         const deckParam = searchParams.get('deck');
         if (deckParam) {
@@ -198,6 +247,24 @@ function EditorContent() {
     } catch (err) {
       setError('Failed to delete deck');
       console.error('Delete error:', err);
+    }
+  };
+
+  const renameDeck = async (id: string, newName: string) => {
+    try {
+      const response = await fetch(`/api/decks/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName }),
+      });
+
+      if (!response.ok) throw new Error('Failed to rename');
+
+      // Update deck in local state
+      setDecks(decks.map((d) => (d.id === id ? { ...d, name: newName } : d)));
+    } catch (err) {
+      setError('Failed to rename deck');
+      console.error('Rename error:', err);
     }
   };
 
@@ -287,6 +354,20 @@ function EditorContent() {
     }
   };
 
+  // Handle successful document upload from DocumentUploader
+  const handleUploadSuccess = useCallback(async (deckId: string) => {
+    // Refresh deck list and load the new deck
+    try {
+      const listResponse = await fetch('/api/decks');
+      const listData = await listResponse.json();
+      setDecks(listData.decks || []);
+      await loadDeck(deckId);
+    } catch (err) {
+      setError('Failed to load deck');
+      console.error(err);
+    }
+  }, [loadDeck, setDecks, setError]);
+
   return (
     <div className="min-h-screen bg-background text-text-primary">
       {/* Custom theme CSS */}
@@ -315,6 +396,7 @@ function EditorContent() {
               currentDeckId={currentDeckId}
               onSelect={loadDeck}
               onDelete={deleteDeck}
+              onRename={renameDeck}
               isLoading={isLoading}
             />
 
@@ -493,7 +575,12 @@ function EditorContent() {
       </AnimatePresence>
 
       {/* Document Uploader Modal */}
-      {showUploader && <DocumentUploader onClose={() => setShowUploader(false)} />}
+      {showUploader && (
+        <DocumentUploader
+          onClose={() => setShowUploader(false)}
+          onSuccess={handleUploadSuccess}
+        />
+      )}
     </div>
   );
 }

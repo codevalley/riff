@@ -117,6 +117,85 @@ GITHUB_CLIENT_SECRET=
 }
 ```
 
+## Phase 3: User-Scoped Storage (Completed)
+
+### Problem
+After Phase 1 & 2, auth was working but all decks were visible to all users regardless of account.
+
+### Implementation
+
+**Blob Storage Path Migration:**
+```
+Before: decks/{deckId}.md
+After:  users/{userId}/decks/{deckId}.md
+```
+
+**Files Modified:**
+
+1. **`lib/blob.ts`** - All functions now accept `userId` parameter
+   - `saveDeckBlob(userId, deckId, content)` - User-scoped paths
+   - `getDeckContent()`, `updateDeckBlob()`, `deleteDeckBlob()` - unchanged signatures, work with full paths
+   - Same pattern applied to themes, images, slide-cache
+
+2. **`app/api/decks/route.ts`** - Lists/creates user's decks via Prisma
+   - GET: `prisma.deck.findMany({ where: { ownerId: session.user.id } })`
+   - POST: Creates Deck record with ownership
+
+3. **`app/api/decks/[id]/route.ts`** - Ownership checks on all operations
+   - GET, PUT, PATCH, DELETE all verify `ownerId === session.user.id`
+
+4. **Other API routes updated** with auth checks:
+   - `api/theme/[id]`, `api/generate-theme`, `api/slide-cache`, `api/convert-document`
+
+5. **`middleware.ts`** - Extended protection to more routes
+   - Added `/api/generate-theme`, `/api/slide-cache`, `/api/theme`, `/api/convert-document`
+
+6. **`app/present/[id]/page.tsx`** - Added auth for owned decks (share tokens for Phase 4)
+
+## Bug Fixes
+
+### Bug 1: Lost deck after login
+**Problem:** Landing page → paste doc → login → document content lost
+
+**Solution:**
+- Store document in `sessionStorage` before auth redirect
+- On editor load, check for pending document and auto-convert
+
+**Files:** `DocumentUploader.tsx`, `editor/page.tsx`
+
+### Bug 2: Document upload success CTA not working
+**Problem:** From editor → upload → convert → success modal CTA did nothing
+
+**Solution:**
+- Added `onSuccess` callback prop to DocumentUploader
+- Editor handles it by refreshing deck list and loading new deck
+
+**Files:** `DocumentUploader.tsx`, `editor/page.tsx`
+
+### Bug 3: Delete deck breaks header icons
+**Problem:** After deleting deck, header icons became unclickable
+
+**Solution:**
+- Close dropdown after deletion: `setIsOpen(false)` in handleDelete
+
+**Files:** `DeckManager.tsx`
+
+## Aesthetic Improvements
+
+### Emoji-prefixed deck names from document import
+- AI now generates deck names like "🚀 Product Launch Strategy"
+- Prompt updated to request "TITLE: [emoji] Name" format
+- Title extracted and cleaned from markdown before saving
+
+**Files:** `app/api/convert-document/route.ts`
+
+### Deck rename functionality
+- Added PATCH endpoint for renaming decks
+- Inline edit UI in DeckManager dropdown (pencil icon → edit mode)
+- Enter/checkmark to save, Escape/X to cancel
+
+**Files:** `app/api/decks/[id]/route.ts`, `components/DeckManager.tsx`, `app/editor/page.tsx`
+
 ## Current State
 
 **Working:**
@@ -124,14 +203,10 @@ GITHUB_CLIENT_SECRET=
 - Session persistence (JWT)
 - Route protection (middleware)
 - User menu in editor header
-- Cross-device deck visibility (all decks visible to all users)
+- **User-scoped deck storage** - users only see their own decks
+- **Document import with emoji titles**
+- **Deck renaming from dropdown**
 
 **Not Yet Implemented:**
-- User-scoped deck storage (Phase 3)
-- Deck ownership in database (Phase 3)
 - Sharing system (Phase 4)
 - User preferences migration (Phase 5)
-
-## Next Session: Phase 3 - User-Scoped Storage
-
-See `sessions/session-06-plan.md` for detailed implementation plan.

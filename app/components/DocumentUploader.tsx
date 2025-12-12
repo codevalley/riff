@@ -18,6 +18,7 @@ import { useRouter } from 'next/navigation';
 
 interface DocumentUploaderProps {
   onClose: () => void;
+  onSuccess?: (deckId: string) => void;
 }
 
 type ConversionStatus = 'idle' | 'reading' | 'converting' | 'success' | 'error';
@@ -28,7 +29,7 @@ interface ConversionOptions {
   includeSpeakerNotes: boolean;
 }
 
-export function DocumentUploader({ onClose }: DocumentUploaderProps) {
+export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -160,6 +161,19 @@ export function DocumentUploader({ onClose }: DocumentUploaderProps) {
         }),
       });
 
+      // Handle authentication redirect
+      if (response.status === 401 || response.redirected) {
+        // Store document in sessionStorage for after login
+        sessionStorage.setItem('riff-pending-document', JSON.stringify({
+          content: documentContent,
+          name: fileName,
+          options,
+        }));
+        // Redirect to sign in, then back to editor
+        router.push('/auth/signin?callbackUrl=/editor');
+        return;
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -170,6 +184,17 @@ export function DocumentUploader({ onClose }: DocumentUploaderProps) {
       setSlideCount(data.slideCount);
       setStatus('success');
     } catch (err) {
+      // Handle JSON parse errors from auth redirects
+      if (err instanceof SyntaxError) {
+        // Store document in sessionStorage for after login
+        sessionStorage.setItem('riff-pending-document', JSON.stringify({
+          content: documentContent,
+          name: fileName,
+          options,
+        }));
+        router.push('/auth/signin?callbackUrl=/editor');
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Conversion failed');
       setStatus('error');
     }
@@ -177,7 +202,14 @@ export function DocumentUploader({ onClose }: DocumentUploaderProps) {
 
   const handleGoToEditor = () => {
     if (createdDeckId) {
-      router.push(`/editor?deck=${encodeURIComponent(createdDeckId)}`);
+      if (onSuccess) {
+        // If callback provided (from editor), use it to load the deck
+        onSuccess(createdDeckId);
+        onClose();
+      } else {
+        // Otherwise navigate to editor with deck param
+        router.push(`/editor?deck=${encodeURIComponent(createdDeckId)}`);
+      }
     }
   };
 

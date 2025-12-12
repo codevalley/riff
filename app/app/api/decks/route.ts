@@ -1,14 +1,35 @@
 // ============================================
 // API: /api/decks
-// List all decks, Create new deck
+// List user's decks, Create new deck
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { listDecks, saveDeck } from '@/lib/blob';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { saveDeckBlob } from '@/lib/blob';
+import { nanoid } from 'nanoid';
 
 export async function GET() {
   try {
-    const decks = await listDecks();
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get user's decks from database
+    const decks = await prisma.deck.findMany({
+      where: { ownerId: session.user.id },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        blobUrl: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
     return NextResponse.json({ decks });
   } catch (error) {
     console.error('Error listing decks:', error);
@@ -21,6 +42,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { name, content } = await request.json();
 
     if (!name || typeof name !== 'string') {
@@ -29,6 +55,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Generate unique deck ID
+    const deckId = nanoid(10);
 
     // Default content if not provided
     const deckContent = content || `# ${name}
@@ -59,7 +88,23 @@ export async function POST(request: NextRequest) {
 > Just describe what you want to see!
 `;
 
-    const deck = await saveDeck(name, deckContent);
+    // Save to blob storage (user-scoped)
+    const { blobPath, blobUrl } = await saveDeckBlob(
+      session.user.id,
+      deckId,
+      deckContent
+    );
+
+    // Create deck record in database
+    const deck = await prisma.deck.create({
+      data: {
+        id: deckId,
+        name,
+        blobPath,
+        blobUrl,
+        ownerId: session.user.id,
+      },
+    });
 
     return NextResponse.json({ deck }, { status: 201 });
   } catch (error) {
