@@ -178,6 +178,8 @@ Each slide is separated by \`---\` on its own line.
    - Aim for 3-5 bullet points maximum per slide
    - Use **pause** to reveal points progressively for complex slides
    - Break dense content into multiple slides
+   - If image is placed, keep one or two lines of text below it. Not more.
+   - Do not bother about number of slides, focus on creating a visually engaging presentation.
 
 4. **VISUAL RICHNESS (CRITICAL)**:
    - Add [image: description] on AT LEAST every 2-3 slides - presentations need visuals!

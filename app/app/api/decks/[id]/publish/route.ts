@@ -108,13 +108,17 @@ export async function POST(
     }
 
     // Update deck with published content
+    // IMPORTANT: Set both publishedAt AND updatedAt to the same timestamp
+    // This ensures hasUnpublishedChanges (updatedAt > publishedAt) is false after publish
+    const now = new Date();
     const updatedDeck = await prisma.deck.update({
       where: { id: deckId },
       data: {
         shareToken,
         publishedContent: content,
         publishedTheme: JSON.stringify(themeWithImages),
-        publishedAt: new Date(),
+        publishedAt: now,
+        updatedAt: now,
       },
     });
 
@@ -129,6 +133,52 @@ export async function POST(
     console.error('Error publishing deck:', error);
     return NextResponse.json(
       { error: 'Failed to publish deck' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE: Unpublish deck (remove from public access)
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const deckId = params.id;
+
+    // Get deck with ownership check
+    const deck = await prisma.deck.findFirst({
+      where: {
+        id: deckId,
+        ownerId: session.user.id,
+      },
+    });
+
+    if (!deck) {
+      return NextResponse.json({ error: 'Deck not found' }, { status: 404 });
+    }
+
+    // Clear published data
+    await prisma.deck.update({
+      where: { id: deckId },
+      data: {
+        shareToken: null,
+        publishedContent: null,
+        publishedTheme: null,
+        publishedAt: null,
+      },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error unpublishing deck:', error);
+    return NextResponse.json(
+      { error: 'Failed to unpublish deck' },
       { status: 500 }
     );
   }

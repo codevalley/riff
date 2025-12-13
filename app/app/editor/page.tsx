@@ -6,7 +6,7 @@
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PanelLeftClose, PanelLeft, X, Loader2, Plus, FileSymlink, Share2 } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, X, Loader2, Plus, FileSymlink } from 'lucide-react';
 import { RiffIcon } from '@/components/RiffIcon';
 import { useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
@@ -17,7 +17,7 @@ import { SlideEditor } from '@/components/SlideEditor';
 import { SlidePreview } from '@/components/SlidePreview';
 import { DocumentUploader } from '@/components/DocumentUploader';
 import { UserMenu } from '@/components/auth/UserMenu';
-import { ShareDialog } from '@/components/sharing/ShareDialog';
+import { PublishPopover, PublishStatus } from '@/components/sharing/PublishPopover';
 
 // Wrapper component to handle Suspense for useSearchParams
 function EditorContent() {
@@ -56,7 +56,7 @@ function EditorContent() {
   const [initialDeckLoaded, setInitialDeckLoaded] = useState(false);
   const [showNewDeckModal, setShowNewDeckModal] = useState(false);
   const [showUploader, setShowUploader] = useState(false);
-  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [publishStatus, setPublishStatus] = useState<PublishStatus | null>(null);
   const [newDeckName, setNewDeckName] = useState('');
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
 
@@ -85,6 +85,13 @@ function EditorContent() {
       setCurrentDeck(data.deck.id, data.content);
       const parsed = parseSlideMarkdown(data.content);
       setParsedDeck(parsed);
+
+      // Set publish status from API response
+      if (data.publishStatus) {
+        setPublishStatus(data.publishStatus);
+      } else {
+        setPublishStatus(null);
+      }
 
       // Load theme if available
       try {
@@ -297,6 +304,14 @@ function EditorContent() {
       });
 
       if (!response.ok) throw new Error('Failed to save');
+
+      // Mark as having unpublished changes if already published
+      if (publishStatus?.isPublished) {
+        setPublishStatus({
+          ...publishStatus,
+          hasUnpublishedChanges: true,
+        });
+      }
     } catch (err) {
       setError('Failed to save deck');
       console.error('Save error:', err);
@@ -486,16 +501,14 @@ function EditorContent() {
 
           {/* Right: Actions */}
           <div className="flex items-center gap-1">
-            {/* Share Button */}
-            {currentDeckId && (
-              <button
-                onClick={() => setShowShareDialog(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-surface rounded-md transition-colors"
-                title="Share presentation"
-              >
-                <Share2 className="w-4 h-4" />
-                <span>Share</span>
-              </button>
+            {/* Publish Button */}
+            {currentDeckId && currentDeck && (
+              <PublishPopover
+                deckId={currentDeckId}
+                deckName={currentDeck.name}
+                publishStatus={publishStatus}
+                onPublishStatusChange={setPublishStatus}
+              />
             )}
 
             <button
@@ -669,15 +682,6 @@ function EditorContent() {
         />
       )}
 
-      {/* Share Dialog */}
-      {currentDeckId && currentDeck && (
-        <ShareDialog
-          deckId={currentDeckId}
-          deckName={currentDeck.name}
-          isOpen={showShareDialog}
-          onClose={() => setShowShareDialog(false)}
-        />
-      )}
     </div>
   );
 }

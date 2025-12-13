@@ -39,6 +39,10 @@ export async function GET(
       return NextResponse.json({ error: 'Deck content not found' }, { status: 404 });
     }
 
+    // Determine publish status
+    const isPublished = !!deck.publishedAt;
+    const hasUnpublishedChanges = isPublished && deck.updatedAt > deck.publishedAt!;
+
     return NextResponse.json({
       deck: {
         id: deck.id,
@@ -48,6 +52,12 @@ export async function GET(
         updatedAt: deck.updatedAt,
       },
       content,
+      publishStatus: {
+        isPublished,
+        publishedAt: deck.publishedAt?.toISOString() || null,
+        hasUnpublishedChanges,
+        shareToken: deck.shareToken || null,
+      },
     });
   } catch (error) {
     console.error('Error getting deck:', error);
