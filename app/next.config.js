@@ -7,6 +7,25 @@ const nextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+
+  // Allow embed route to be loaded in iframes on any domain
+  async headers() {
+    return [
+      {
+        source: '/embed/:token*',
+        headers: [
+          {
+            key: 'X-Frame-Options',
+            value: 'ALLOWALL',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: 'frame-ancestors *',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

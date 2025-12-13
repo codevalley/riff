@@ -16,6 +16,8 @@ import {
   Link2,
   Upload,
   Trash2,
+  Code2,
+  ChevronDown,
 } from 'lucide-react';
 
 interface ShareDialogProps {
@@ -33,6 +35,14 @@ interface ShareStatus {
   publishedAt: string | null;
 }
 
+type EmbedSize = 'small' | 'medium' | 'large';
+
+const EMBED_SIZES: Record<EmbedSize, { width: number; height: number; label: string }> = {
+  small: { width: 480, height: 270, label: 'Small' },
+  medium: { width: 640, height: 360, label: 'Medium' },
+  large: { width: 960, height: 540, label: 'Large' },
+};
+
 export function ShareDialog({ deckId, deckName, isOpen, onClose }: ShareDialogProps) {
   const [status, setStatus] = useState<ShareStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,6 +50,9 @@ export function ShareDialog({ deckId, deckName, isOpen, onClose }: ShareDialogPr
   const [revoking, setRevoking] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showEmbed, setShowEmbed] = useState(false);
+  const [embedSize, setEmbedSize] = useState<EmbedSize>('medium');
+  const [embedCopied, setEmbedCopied] = useState(false);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -138,6 +151,20 @@ export function ShareDialog({ deckId, deckName, isOpen, onClose }: ShareDialogPr
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const getEmbedCode = () => {
+    if (!status?.shareToken) return '';
+    const { width, height } = EMBED_SIZES[embedSize];
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.riff.im';
+    return `<iframe src="${baseUrl}/embed/${status.shareToken}" width="${width}" height="${height}" frameborder="0" allowfullscreen style="border-radius: 8px;"></iframe>`;
+  };
+
+  const handleCopyEmbed = async () => {
+    const code = getEmbedCode();
+    await navigator.clipboard.writeText(code);
+    setEmbedCopied(true);
+    setTimeout(() => setEmbedCopied(false), 2000);
   };
 
   const formatRelativeTime = (dateStr: string) => {
@@ -311,6 +338,80 @@ export function ShareDialog({ deckId, deckName, isOpen, onClose }: ShareDialogPr
                         )}
                       </button>
                     </div>
+
+                    {/* Embed code section - only visible when published */}
+                    {status.isPublished && (
+                      <div className="pt-4 mt-4 border-t border-[#27272a]">
+                        <button
+                          onClick={() => setShowEmbed(!showEmbed)}
+                          className="flex items-center justify-between w-full text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Code2 className="w-4 h-4 text-[#a1a1aa]" />
+                            <span className="text-sm font-medium text-white">Embed this presentation</span>
+                          </div>
+                          <ChevronDown
+                            className={`w-4 h-4 text-[#a1a1aa] transition-transform ${showEmbed ? 'rotate-180' : ''}`}
+                          />
+                        </button>
+
+                        <AnimatePresence>
+                          {showEmbed && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.15 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pt-4 space-y-3">
+                                {/* Size selector */}
+                                <div className="flex gap-2">
+                                  {(Object.keys(EMBED_SIZES) as EmbedSize[]).map((size) => (
+                                    <button
+                                      key={size}
+                                      onClick={() => setEmbedSize(size)}
+                                      className={`flex-1 h-8 px-3 text-xs font-medium rounded-md transition-colors ${
+                                        embedSize === size
+                                          ? 'bg-white text-black'
+                                          : 'bg-[#18181b] text-[#a1a1aa] hover:text-white border border-[#27272a]'
+                                      }`}
+                                    >
+                                      {EMBED_SIZES[size].label}
+                                    </button>
+                                  ))}
+                                </div>
+
+                                {/* Code preview */}
+                                <div className="relative">
+                                  <pre className="p-3 bg-[#18181b] border border-[#27272a] rounded-md text-xs text-[#a1a1aa] overflow-x-auto whitespace-pre-wrap break-all font-mono">
+                                    {getEmbedCode()}
+                                  </pre>
+                                </div>
+
+                                {/* Copy button */}
+                                <button
+                                  onClick={handleCopyEmbed}
+                                  className="w-full h-9 px-4 bg-[#18181b] hover:bg-[#27272a] border border-[#27272a] rounded-md text-sm text-white transition-colors flex items-center justify-center gap-2"
+                                >
+                                  {embedCopied ? (
+                                    <>
+                                      <Check className="w-4 h-4 text-green-400" />
+                                      Copied!
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-4 h-4" />
+                                      Copy embed code
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

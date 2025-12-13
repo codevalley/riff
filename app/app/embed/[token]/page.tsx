@@ -1,13 +1,13 @@
 // ============================================
-// RIFF - Public Shared Presentation Page
-// No authentication required
+// RIFF - Embeddable Presentation View
+// Optimized for iframe embedding
 // ============================================
 
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { parseSlideMarkdown } from '@/lib/parser';
-import { PresenterClient } from '@/app/present/[id]/client';
+import { EmbedClient } from '@/components/EmbedClient';
 
 // Disable caching - always fetch fresh published content
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,6 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const token = params.token;
 
-  // Fetch deck name for metadata
   const deck = await prisma.deck.findUnique({
     where: { shareToken: token },
     select: { name: true, publishedAt: true },
@@ -29,35 +28,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!deck || !deck.publishedAt) {
     return {
-      title: 'Presentation Not Found - Riff',
+      title: 'Presentation Not Found',
+      robots: 'noindex, nofollow',
     };
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL || 'https://www.riff.im';
-  const url = `${baseUrl}/p/${token}`;
-
   return {
     title: `${deck.name} - Riff`,
-    description: `View "${deck.name}" - a presentation shared on Riff`,
-    openGraph: {
-      type: 'article',
-      url,
-      title: deck.name,
-      description: `View "${deck.name}" - a presentation shared on Riff`,
-      siteName: 'Riff',
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: deck.name,
-      description: `View "${deck.name}" on Riff`,
-    },
-    alternates: {
-      canonical: url,
-    },
+    robots: 'noindex, nofollow', // Embeds shouldn't be indexed
   };
 }
 
-export default async function SharedPresentationPage({ params, searchParams }: PageProps) {
+export default async function EmbedPresentationPage({ params, searchParams }: PageProps) {
   const token = params.token;
   const initialSlide = searchParams.slide ? parseInt(searchParams.slide, 10) : 0;
 
@@ -77,10 +59,10 @@ export default async function SharedPresentationPage({ params, searchParams }: P
   if (!deck || !deck.publishedContent || !deck.publishedAt) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-slate-200 mb-2">Presentation not found</h1>
-          <p className="text-slate-400">
-            This presentation doesn't exist or hasn't been published yet.
+        <div className="text-center p-8">
+          <h1 className="text-xl font-semibold text-slate-200 mb-2">Presentation not found</h1>
+          <p className="text-sm text-slate-400">
+            This presentation doesn't exist or hasn't been published.
           </p>
         </div>
       </div>
@@ -92,26 +74,21 @@ export default async function SharedPresentationPage({ params, searchParams }: P
 
   // Parse theme if available
   let themeCSS: string | undefined;
-  let themePrompt: string | undefined;
 
   if (deck.publishedTheme) {
     try {
       const theme = JSON.parse(deck.publishedTheme);
       themeCSS = theme.css;
-      themePrompt = theme.prompt;
     } catch {
       // Invalid theme JSON, ignore
     }
   }
 
   return (
-    <PresenterClient
+    <EmbedClient
       deck={parsedDeck}
-      deckId={deck.id}
       initialSlide={initialSlide}
       themeCSS={themeCSS}
-      themePrompt={themePrompt}
-      isSharedView={true}
     />
   );
 }

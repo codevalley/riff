@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Riff Embed Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=JetBrains+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #030303;
+      --bg-surface: #0a0a0a;
+      --bg-elevated: #111111;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.15);
+      --text-primary: #fafafa;
+      --text-secondary: rgba(255, 255, 255, 0.6);
+      --text-muted: rgba(255, 255, 255, 0.4);
+      --accent: #f59e0b;
+      --accent-glow: rgba(245, 158, 11, 0.15);
+      --success: #22c55e;
+      --font-display: 'Playfair Display', Georgia, serif;
+      --font-body: 'DM Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background grid pattern */
+    .bg-grid {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+      mask: radial-gradient(ellipse at 50% 0%, black 0%, transparent 70%);
+    }
+
+    /* Accent glow */
+    .bg-glow {
+      position: fixed;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 600px;
+      background: radial-gradient(ellipse, var(--accent-glow) 0%, transparent 60%);
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 48px 32px;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 64px;
+      animation: fadeIn 0.8s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .logo svg {
+      width: 40px;
+      height: 40px;
+    }
+
+    .logo span {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    header h1 {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      color: var(--text-secondary);
+      font-size: 16px;
+    }
+
+    /* Token Input Card */
+    .token-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 48px;
+      animation: fadeIn 0.8s ease-out 0.1s both;
+    }
+
+    .token-card label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .token-input-group {
+      display: flex;
+      gap: 12px;
+    }
+
+    .token-input-group input {
+      flex: 1;
+      padding: 16px 20px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-family: var(--font-mono);
+      font-size: 15px;
+      color: var(--text-primary);
+      transition: all 0.2s ease;
+    }
+
+    .token-input-group input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .token-input-group input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .btn-primary {
+      padding: 16px 32px;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 600;
+      color: #000;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary:hover {
+      background: #fbbf24;
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    /* Section headers */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .section-header h2 {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .section-header .badge {
+      padding: 6px 12px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .section-header .divider {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--border) 0%, transparent 100%);
+    }
+
+    /* OG Preview Section */
+    .og-section {
+      margin-bottom: 64px;
+      animation: fadeIn 0.8s ease-out 0.2s both;
+    }
+
+    .og-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 24px;
+    }
+
+    .og-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .og-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+
+    .og-card .image-wrapper {
+      position: relative;
+      aspect-ratio: 1200 / 630;
+      background: var(--bg-elevated);
+      overflow: hidden;
+    }
+
+    .og-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+
+    .og-card:hover img {
+      transform: scale(1.02);
+    }
+
+    .og-card .refresh-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 36px;
+      height: 36px;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: var(--text-primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: all 0.2s ease;
+    }
+
+    .og-card:hover .refresh-btn {
+      opacity: 1;
+    }
+
+    .og-card .refresh-btn:hover {
+      background: rgba(0, 0, 0, 0.9);
+      border-color: var(--accent);
+    }
+
+    .og-card .refresh-btn.spinning svg {
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .og-card .meta {
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .og-card .meta-info h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .og-card .meta-info span {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .og-card .meta a {
+      font-size: 12px;
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .og-card .meta a:hover {
+      color: #fbbf24;
+    }
+
+    /* Embed Section */
+    .embed-section {
+      margin-bottom: 64px;
+      animation: fadeIn 0.8s ease-out 0.3s both;
+    }
+
+    .embed-grid {
+      display: grid;
+      gap: 32px;
+    }
+
+    .embed-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .embed-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      transition: all 0.3s ease;
+    }
+
+    .embed-card:hover {
+      border-color: var(--border-hover);
+    }
+
+    .embed-card.featured {
+      grid-column: 1 / -1;
+    }
+
+    .embed-card .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .embed-card .card-header h3 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .embed-card .size-badge {
+      padding: 4px 10px;
+      background: var(--bg-elevated);
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .embed-wrapper {
+      background: var(--bg-primary);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+    }
+
+    .embed-wrapper.featured {
+      min-height: 400px;
+    }
+
+    .embed-wrapper iframe {
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Responsive embed */
+    .responsive-wrapper {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%;
+      height: 0;
+      overflow: hidden;
+      background: var(--bg-primary);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+    }
+
+    .responsive-wrapper iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 8px;
+    }
+
+    /* Code Block */
+    .code-block {
+      margin-top: 16px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      overflow-x: auto;
+      line-height: 1.6;
+    }
+
+    .code-block .tag {
+      color: #7dd3fc;
+    }
+
+    .code-block .attr {
+      color: #fbbf24;
+    }
+
+    .code-block .value {
+      color: #86efac;
+    }
+
+    /* Quick Links Section */
+    .links-section {
+      animation: fadeIn 0.8s ease-out 0.4s both;
+    }
+
+    .links-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .link-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .link-card:hover {
+      border-color: var(--accent);
+      background: var(--bg-elevated);
+    }
+
+    .link-card .icon {
+      width: 44px;
+      height: 44px;
+      background: var(--bg-elevated);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .link-card .link-info h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .link-card .link-info span {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      word-break: break-all;
+    }
+
+    /* Status indicator */
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 80px;
+      padding-top: 32px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      animation: fadeIn 0.8s ease-out 0.5s both;
+    }
+
+    footer a {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      color: var(--accent);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        padding: 32px 20px;
+      }
+
+      .token-input-group {
+        flex-direction: column;
+      }
+
+      .og-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .embed-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+
+  <div class="container">
+    <header>
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
+        </svg>
+        <span>Riff</span>
+      </div>
+      <h1>Embed Lab</h1>
+      <p>Test embed sizes, OG images, and social sharing previews</p>
+    </header>
+
+    <!-- Token Input -->
+    <div class="token-card">
+      <label>Share Token</label>
+      <div class="token-input-group">
+        <input type="text" id="tokenInput" value="1vRDmiSPFae9" placeholder="Enter share token..." spellcheck="false">
+        <button class="btn-primary" onclick="updateAll()">
+          Update All
+        </button>
+      </div>
+    </div>
+
+    <!-- OG Images Section -->
+    <section class="og-section">
+      <div class="section-header">
+        <h2>Social Previews</h2>
+        <span class="badge">1200 × 630</span>
+        <div class="divider"></div>
+      </div>
+
+      <div class="og-grid">
+        <div class="og-card">
+          <div class="image-wrapper">
+            <img id="og-image" src="http://localhost:3000/p/1vRDmiSPFae9/opengraph-image" alt="Open Graph Image">
+            <button class="refresh-btn" onclick="refreshOG('og-image', this)" title="Refresh">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/>
+              </svg>
+            </button>
+          </div>
+          <div class="meta">
+            <div class="meta-info">
+              <h3>Open Graph</h3>
+              <span>Facebook, LinkedIn, Slack</span>
+            </div>
+            <a id="og-link" href="http://localhost:3000/p/1vRDmiSPFae9/opengraph-image" target="_blank">Open →</a>
+          </div>
+        </div>
+
+        <div class="og-card">
+          <div class="image-wrapper">
+            <img id="twitter-image" src="http://localhost:3000/p/1vRDmiSPFae9/twitter-image" alt="Twitter Card Image">
+            <button class="refresh-btn" onclick="refreshOG('twitter-image', this)" title="Refresh">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/>
+              </svg>
+            </button>
+          </div>
+          <div class="meta">
+            <div class="meta-info">
+              <h3>Twitter Card</h3>
+              <span>X / Twitter</span>
+            </div>
+            <a id="twitter-link" href="http://localhost:3000/p/1vRDmiSPFae9/twitter-image" target="_blank">Open →</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Embeds Section -->
+    <section class="embed-section">
+      <div class="section-header">
+        <h2>Embed Sizes</h2>
+        <div class="status-dot"></div>
+        <div class="divider"></div>
+      </div>
+
+      <div class="embed-grid">
+        <div class="embed-row">
+          <div class="embed-card">
+            <div class="card-header">
+              <h3>Small</h3>
+              <span class="size-badge">480 × 270</span>
+            </div>
+            <div class="embed-wrapper">
+              <iframe id="embed-small" src="http://localhost:3000/embed/1vRDmiSPFae9" width="480" height="270" frameborder="0" allowfullscreen></iframe>
+            </div>
+          </div>
+
+          <div class="embed-card">
+            <div class="card-header">
+              <h3>Medium</h3>
+              <span class="size-badge">640 × 360</span>
+            </div>
+            <div class="embed-wrapper">
+              <iframe id="embed-medium" src="http://localhost:3000/embed/1vRDmiSPFae9" width="640" height="360" frameborder="0" allowfullscreen></iframe>
+            </div>
+          </div>
+        </div>
+
+        <div class="embed-card featured">
+          <div class="card-header">
+            <h3>Large</h3>
+            <span class="size-badge">960 × 540</span>
+          </div>
+          <div class="embed-wrapper featured">
+            <iframe id="embed-large" src="http://localhost:3000/embed/1vRDmiSPFae9" width="960" height="540" frameborder="0" allowfullscreen></iframe>
+          </div>
+        </div>
+
+        <div class="embed-card featured">
+          <div class="card-header">
+            <h3>Responsive</h3>
+            <span class="size-badge">16:9 fluid</span>
+          </div>
+          <div class="responsive-wrapper">
+            <iframe id="embed-responsive" src="http://localhost:3000/embed/1vRDmiSPFae9" frameborder="0" allowfullscreen></iframe>
+          </div>
+          <div class="code-block">
+<span class="tag">&lt;div</span> <span class="attr">style</span>=<span class="value">"position: relative; padding-bottom: 56.25%; height: 0;"</span><span class="tag">&gt;</span>
+  <span class="tag">&lt;iframe</span> <span class="attr">src</span>=<span class="value">"https://riff.im/embed/{token}"</span>
+    <span class="attr">style</span>=<span class="value">"position: absolute; top: 0; left: 0; width: 100%; height: 100%;"</span>
+    <span class="attr">frameborder</span>=<span class="value">"0"</span> <span class="attr">allowfullscreen</span><span class="tag">&gt;&lt;/iframe&gt;</span>
+<span class="tag">&lt;/div&gt;</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Links Section -->
+    <section class="links-section">
+      <div class="section-header">
+        <h2>Quick Links</h2>
+        <div class="divider"></div>
+      </div>
+
+      <div class="links-grid">
+        <a id="link-public" class="link-card" href="http://localhost:3000/p/1vRDmiSPFae9" target="_blank">
+          <div class="icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+              <path d="M2 12h20"/>
+            </svg>
+          </div>
+          <div class="link-info">
+            <h4>Public Page</h4>
+            <span>/p/1vRDmiSPFae9</span>
+          </div>
+        </a>
+
+        <a id="link-embed" class="link-card" href="http://localhost:3000/embed/1vRDmiSPFae9" target="_blank">
+          <div class="icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+            </svg>
+          </div>
+          <div class="link-info">
+            <h4>Embed Page</h4>
+            <span>/embed/1vRDmiSPFae9</span>
+          </div>
+        </a>
+
+        <a id="link-oembed" class="link-card" href="http://localhost:3000/api/oembed?url=http://localhost:3000/p/1vRDmiSPFae9" target="_blank">
+          <div class="icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+          </div>
+          <div class="link-info">
+            <h4>oEmbed API</h4>
+            <span>/api/oembed?url=...</span>
+          </div>
+        </a>
+
+        <a id="link-api" class="link-card" href="http://localhost:3000/api/shared/1vRDmiSPFae9" target="_blank">
+          <div class="icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="7.5 4.21 12 6.81 16.5 4.21"/>
+              <polyline points="7.5 19.79 7.5 14.6 3 12"/>
+              <polyline points="21 12 16.5 14.6 16.5 19.79"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <div class="link-info">
+            <h4>Shared API</h4>
+            <span>/api/shared/1vRDmiSPFae9</span>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <footer>
+      <p>Riff Embed Lab · <a href="http://localhost:3000" target="_blank">Back to App</a></p>
+    </footer>
+  </div>
+
+  <script>
+    const baseUrl = 'http://localhost:3000';
+
+    function updateAll() {
+      const token = document.getElementById('tokenInput').value.trim();
+      if (!token) return;
+
+      // Update iframes
+      document.getElementById('embed-small').src = `${baseUrl}/embed/${token}`;
+      document.getElementById('embed-medium').src = `${baseUrl}/embed/${token}`;
+      document.getElementById('embed-large').src = `${baseUrl}/embed/${token}`;
+      document.getElementById('embed-responsive').src = `${baseUrl}/embed/${token}`;
+
+      // Update OG images with cache bust
+      const cacheBust = Date.now();
+      document.getElementById('og-image').src = `${baseUrl}/p/${token}/opengraph-image?t=${cacheBust}`;
+      document.getElementById('twitter-image').src = `${baseUrl}/p/${token}/twitter-image?t=${cacheBust}`;
+
+      // Update links
+      document.getElementById('og-link').href = `${baseUrl}/p/${token}/opengraph-image`;
+      document.getElementById('twitter-link').href = `${baseUrl}/p/${token}/twitter-image`;
+
+      document.getElementById('link-public').href = `${baseUrl}/p/${token}`;
+      document.getElementById('link-public').querySelector('span').textContent = `/p/${token}`;
+
+      document.getElementById('link-embed').href = `${baseUrl}/embed/${token}`;
+      document.getElementById('link-embed').querySelector('span').textContent = `/embed/${token}`;
+
+      document.getElementById('link-oembed').href = `${baseUrl}/api/oembed?url=${baseUrl}/p/${token}`;
+
+      document.getElementById('link-api').href = `${baseUrl}/api/shared/${token}`;
+      document.getElementById('link-api').querySelector('span').textContent = `/api/shared/${token}`;
+    }
+
+    function refreshOG(imgId, btn) {
+      const token = document.getElementById('tokenInput').value.trim();
+      const type = imgId === 'og-image' ? 'opengraph-image' : 'twitter-image';
+      const img = document.getElementById(imgId);
+
+      btn.classList.add('spinning');
+      img.src = `${baseUrl}/p/${token}/${type}?t=${Date.now()}`;
+
+      img.onload = () => {
+        btn.classList.remove('spinning');
+      };
+    }
+
+    // Enter key to update
+    document.getElementById('tokenInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') updateAll();
+    });
+  </script>
+</body>
+</html>
