@@ -133,6 +133,12 @@ export function Landing() {
                 >
                   Syntax
                 </a>
+                <Link
+                  href="/docs"
+                  className="px-3 py-1.5 rounded-md text-[13px] text-white/50 hover:text-white hover:bg-white/5 transition-all duration-200"
+                >
+                  Docs
+                </Link>
               </div>
 
               {/* Editor button - always visible */}
