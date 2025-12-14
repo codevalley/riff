@@ -178,3 +178,30 @@ Added badge in bottom-left corner:
 |------|---------|
 | `components/Landing.tsx` | Nav links, section IDs, restructure, reduced gaps |
 | `components/EmbedClient.tsx` | Fonts, scaling, Riff badge |
+
+---
+
+## Theme Studio UI Polish
+**File:** `components/ThemeCustomizer.tsx`
+
+### Button Styling
+Matched Theme button to ImageStyleSelector for consistent toolbar appearance:
+- Smaller padding: `px-2.5 py-1.5` (was `px-3 py-2`)
+- Smaller font: `text-xs` (was `text-sm`)
+- Smaller icon: `w-3.5 h-3.5` (was `w-4 h-4`)
+- Added `ChevronDown` indicator with rotation animation
+- Added tooltip on hover
+
+### Dropdown Positioning
+Changed from fixed overlay to proper dropdown menu:
+- Position: `absolute right-0 bottom-full mb-1.5` (was `fixed right-4 top-16`)
+- Opens upward from button (matches Style dropdown behavior)
+- Slightly narrower: `w-[340px]` (was `360px`)
+- Animation slides up instead of down
+- Max height: `70vh` for better viewport fit
+
+### Active Theme
+Retained "Active theme" section at bottom of panel:
+- Green pulsing indicator
+- Copy button with confirmation feedback
+- Displays current theme prompt

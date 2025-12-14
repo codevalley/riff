@@ -11,14 +11,15 @@ import {
   ImageIcon,
   Loader2,
   RefreshCw,
-  Sparkles,
   Upload,
   Wand2,
   X,
   Layers,
   ChevronDown,
+  Brush,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import { DancingPixels } from './DancingPixels';
 import { IMAGE_STYLE_PRESETS, ImageManifestEntry, ImageSlot } from '@/lib/types';
 
 interface ImagePlaceholderProps {
@@ -773,13 +774,14 @@ export function ImagePlaceholder({
           </>
         ) : isGenerating || isUploading ? (
           <>
-            <div className="relative">
-              <Loader2 className={`${isPresenting ? 'w-16 h-16' : 'w-10 h-10'} text-slide-accent animate-spin`} />
-              <Sparkles className="w-6 h-6 text-slide-accent absolute -top-1 -right-1 animate-pulse" />
+            {/* Full container dancing pixels */}
+            <DancingPixels color="var(--slide-accent, #06b6d4)" />
+            {/* Centered status text */}
+            <div className="relative z-10 flex flex-col items-center gap-2">
+              <p className={`text-slide-muted ${isPresenting ? 'text-lg' : 'text-sm'} font-medium`}>
+                {isUploading ? 'Uploading...' : 'Creating image...'}
+              </p>
             </div>
-            <p className={`text-slide-muted ${isPresenting ? 'text-xl' : 'text-sm'}`}>
-              {isUploading ? 'Uploading...' : 'Generating image...'}
-            </p>
           </>
         ) : error ? (
           <>
@@ -828,7 +830,7 @@ export function ImagePlaceholder({
                     onClick={() => handleGenerate(false)}
                     className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 text-white hover:bg-white/10 rounded-l-md text-xs font-medium transition-colors"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Brush className="w-3.5 h-3.5" />
                     Generate
                   </button>
                   <button

@@ -14,8 +14,7 @@ import {
   Grid,
   Maximize,
   Minimize,
-  Sparkles,
-  Layout,
+  RotateCcw,
 } from 'lucide-react';
 import { ParsedDeck, SlideRenderMode, ImageSlot } from '@/lib/types';
 import { SlideRenderer } from './SlideRenderer';
@@ -141,9 +140,6 @@ export function Presenter({
         case 'o':
           setShowOverview((o) => !o);
           break;
-        case 'v':
-          setRenderMode((m) => m === 'standard' ? 'generated' : 'standard');
-          break;
         case 'Home':
           goToSlide(0);
           break;
@@ -204,7 +200,7 @@ export function Presenter({
       </div>
 
       {/* Progress bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-slide-surface/30">
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-slide-surface/30 z-50">
         <motion.div
           className="h-full bg-slide-accent"
           initial={false}
@@ -215,8 +211,8 @@ export function Presenter({
         />
       </div>
 
-      {/* Controls (visible on hover) */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-0 hover:opacity-100 transition-opacity">
+      {/* Controls - always visible */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50">
         <div className="flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full">
           <button
             onClick={(e) => {
@@ -241,6 +237,22 @@ export function Presenter({
           >
             <ChevronRight className="w-5 h-5" />
           </button>
+
+          {currentSlide > 0 && (
+            <>
+              <div className="w-px h-6 bg-white/20 mx-2" />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToSlide(0);
+                }}
+                className="p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
+                title="Go to start (Home)"
+              >
+                <RotateCcw className="w-5 h-5" />
+              </button>
+            </>
+          )}
 
           <div className="w-px h-6 bg-white/20 mx-2" />
 
@@ -268,21 +280,6 @@ export function Presenter({
             title="Overview (G)"
           >
             <Grid className="w-5 h-5" />
-          </button>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setRenderMode((m) => m === 'standard' ? 'generated' : 'standard');
-            }}
-            className={`p-2 rounded-full transition-colors ${
-              isGeneratedMode
-                ? 'bg-gradient-to-r from-purple-500/30 to-cyan-500/30 text-cyan-300'
-                : 'hover:bg-white/10 text-white/70 hover:text-white'
-            }`}
-            title="Toggle AI-generated mode (V)"
-          >
-            {isGeneratedMode ? <Sparkles className="w-5 h-5" /> : <Layout className="w-5 h-5" />}
           </button>
 
           <button
@@ -388,10 +385,10 @@ export function Presenter({
         className="absolute top-4 right-4 text-white/40 text-xs space-y-1 pointer-events-none"
       >
         <div><kbd className="px-1.5 py-0.5 bg-white/10 rounded">Space</kbd> Next</div>
+        <div><kbd className="px-1.5 py-0.5 bg-white/10 rounded">Home</kbd> Restart</div>
         <div><kbd className="px-1.5 py-0.5 bg-white/10 rounded">F</kbd> Fullscreen</div>
         <div><kbd className="px-1.5 py-0.5 bg-white/10 rounded">N</kbd> Notes</div>
         <div><kbd className="px-1.5 py-0.5 bg-white/10 rounded">G</kbd> Overview</div>
-        <div><kbd className="px-1.5 py-0.5 bg-white/10 rounded">V</kbd> AI Mode</div>
       </motion.div>
     </div>
   );

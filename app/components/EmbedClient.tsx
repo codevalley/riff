@@ -7,7 +7,7 @@
 
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { ParsedDeck } from '@/lib/types';
 import { SlideRenderer } from './SlideRenderer';
@@ -27,7 +27,6 @@ export function EmbedClient({
 }: EmbedClientProps) {
   const [currentSlide, setCurrentSlide] = useState(initialSlide);
   const [currentReveal, setCurrentReveal] = useState(0);
-  const [showControls, setShowControls] = useState(false);
   const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
   const slideRef = useRef<HTMLDivElement>(null);
@@ -77,6 +76,11 @@ export function EmbedClient({
     }
   }, [currentReveal, currentSlide, deck.slides]);
 
+  const goToStart = useCallback(() => {
+    setCurrentSlide(0);
+    setCurrentReveal(0);
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -92,12 +96,16 @@ export function EmbedClient({
           e.preventDefault();
           goPrev();
           break;
+        case 'Home':
+          e.preventDefault();
+          goToStart();
+          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [goNext, goPrev]);
+  }, [goNext, goPrev, goToStart]);
 
   // Touch/swipe support
   const touchStartX = useRef<number | null>(null);
@@ -135,8 +143,6 @@ export function EmbedClient({
       <div
         ref={containerRef}
         className="relative w-full h-screen bg-slide-bg overflow-hidden"
-        onMouseEnter={() => setShowControls(true)}
-        onMouseLeave={() => setShowControls(false)}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -179,27 +185,22 @@ export function EmbedClient({
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-slide-surface/30">
-          <motion.div
-            className="h-full bg-slide-accent"
-            initial={false}
-            animate={{
-              width: `${((currentSlide + (currentReveal / (maxReveals + 1))) / totalSlides) * 100}%`,
-            }}
-            transition={{ duration: 0.3 }}
-          />
-        </div>
+        {/* Controls overlay - always visible, on top of content */}
+        <div className="absolute inset-0 pointer-events-none z-50">
+          {/* Progress bar */}
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-slide-surface/30">
+            <motion.div
+              className="h-full bg-slide-accent"
+              initial={false}
+              animate={{
+                width: `${((currentSlide + (currentReveal / (maxReveals + 1))) / totalSlides) * 100}%`,
+              }}
+              transition={{ duration: 0.3 }}
+            />
+          </div>
 
-        {/* Navigation arrows - visible on hover */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: showControls ? 1 : 0 }}
-          transition={{ duration: 0.15 }}
-          className="pointer-events-none"
-        >
-          {/* Left arrow */}
-          {currentSlide > 0 || currentReveal > 0 ? (
+          {/* Navigation arrows */}
+          {(currentSlide > 0 || currentReveal > 0) && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -209,10 +210,9 @@ export function EmbedClient({
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-          ) : null}
+          )}
 
-          {/* Right arrow */}
-          {currentSlide < totalSlides - 1 || currentReveal < maxReveals ? (
+          {(currentSlide < totalSlides - 1 || currentReveal < maxReveals) && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -222,24 +222,38 @@ export function EmbedClient({
             >
               <ChevronRight className="w-5 h-5" />
             </button>
-          ) : null}
-        </motion.div>
+          )}
 
-        {/* Slide counter */}
-        <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/40 backdrop-blur-sm rounded text-xs text-white/60 font-mono">
-          {currentSlide + 1} / {totalSlides}
+          {/* Slide counter with reset button */}
+          <div className="absolute bottom-3 right-3 flex items-center gap-2">
+            {currentSlide > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goToStart();
+                }}
+                className="pointer-events-auto p-1.5 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded text-white/50 hover:text-white transition-all"
+                title="Go to start"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <div className="px-2 py-1 bg-black/40 backdrop-blur-sm rounded text-xs text-white/60 font-mono">
+              {currentSlide + 1} / {totalSlides}
+            </div>
+          </div>
+
+          {/* Riff Badge */}
+          <Link
+            href="https://www.riff.im"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pointer-events-auto absolute bottom-3 left-8 flex items-center gap-1.5 px-2 py-1 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded text-white/60 hover:text-white transition-all"
+          >
+            <RiffIcon size={14} primaryColor="currentColor" secondaryColor="currentColor" />
+            <span className="text-xs" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>Riff</span>
+          </Link>
         </div>
-
-        {/* Riff Badge */}
-        <Link
-          href="https://www.riff.im"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="absolute bottom-3 left-3 flex items-center gap-1.5 px-2 py-1 bg-black/40 backdrop-blur-sm rounded text-xs text-white/60 hover:text-white hover:bg-black/60 transition-all"
-        >
-          <RiffIcon size={14} primaryColor="currentColor" secondaryColor="currentColor" />
-          <span style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>Riff</span>
-        </Link>
       </div>
     </>
   );

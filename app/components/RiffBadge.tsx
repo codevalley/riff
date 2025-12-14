@@ -21,7 +21,7 @@ export function RiffBadge({ className = '' }: RiffBadgeProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 1.5, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
       className={`
-        fixed bottom-5 right-5 z-50
+        fixed bottom-5 right-10 z-50
         group
         ${className}
       `}
