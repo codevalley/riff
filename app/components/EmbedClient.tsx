@@ -126,9 +126,9 @@ export function EmbedClient({
 
   return (
     <>
-      {/* Fonts via our proxy to bypass CSP restrictions in embeds */}
+      {/* Fonts - use Google Fonts directly, with proxy as future enhancement */}
       <link
-        href="/api/fonts?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap"
         rel="stylesheet"
       />
 
