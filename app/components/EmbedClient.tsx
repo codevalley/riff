@@ -8,9 +8,11 @@
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 import { ParsedDeck } from '@/lib/types';
 import { SlideRenderer } from './SlideRenderer';
 import { countReveals } from '@/lib/parser';
+import { RiffIcon } from './RiffIcon';
 
 interface EmbedClientProps {
   deck: ParsedDeck;
@@ -26,7 +28,28 @@ export function EmbedClient({
   const [currentSlide, setCurrentSlide] = useState(initialSlide);
   const [currentReveal, setCurrentReveal] = useState(0);
   const [showControls, setShowControls] = useState(false);
+  const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const slideRef = useRef<HTMLDivElement>(null);
+
+  // Design dimensions (16:9 aspect ratio)
+  const DESIGN_WIDTH = 1280;
+  const DESIGN_HEIGHT = 720;
+
+  // Calculate scale to fit content
+  useEffect(() => {
+    const updateScale = () => {
+      if (!containerRef.current) return;
+      const { clientWidth, clientHeight } = containerRef.current;
+      const scaleX = clientWidth / DESIGN_WIDTH;
+      const scaleY = clientHeight / DESIGN_HEIGHT;
+      setScale(Math.min(scaleX, scaleY, 1)); // Don't scale up, only down
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, []);
 
   const slide = deck.slides[currentSlide];
   const totalSlides = deck.slides.length;
@@ -101,86 +124,114 @@ export function EmbedClient({
   };
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full h-screen bg-slide-bg overflow-hidden"
-      onMouseEnter={() => setShowControls(true)}
-      onMouseLeave={() => setShowControls(false)}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* Inject theme CSS */}
-      {themeCSS && <style dangerouslySetInnerHTML={{ __html: themeCSS }} />}
+    <>
+      {/* Google Fonts for embeds */}
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap');
+      `}</style>
 
-      {/* Main slide - click to advance */}
       <div
-        className="w-full h-full cursor-pointer"
-        onClick={goNext}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          goPrev();
-        }}
+        ref={containerRef}
+        className="relative w-full h-screen bg-slide-bg overflow-hidden"
+        onMouseEnter={() => setShowControls(true)}
+        onMouseLeave={() => setShowControls(false)}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
-        {slide && (
-          <SlideRenderer
-            slide={slide}
-            revealStep={currentReveal}
-            isPresenting={true}
-            imageManifest={deck.imageManifest}
-          />
-        )}
-      </div>
+        {/* Inject theme CSS */}
+        {themeCSS && <style dangerouslySetInnerHTML={{ __html: themeCSS }} />}
 
-      {/* Progress bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-slide-surface/30">
-        <motion.div
-          className="h-full bg-slide-accent"
-          initial={false}
-          animate={{
-            width: `${((currentSlide + (currentReveal / (maxReveals + 1))) / totalSlides) * 100}%`,
+        {/* Main slide - scaled to fit, click to advance */}
+        <div
+          ref={slideRef}
+          className="w-full h-full cursor-pointer flex items-center justify-center"
+          onClick={goNext}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            goPrev();
           }}
-          transition={{ duration: 0.3 }}
-        />
-      </div>
-
-      {/* Navigation arrows - visible on hover */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: showControls ? 1 : 0 }}
-        transition={{ duration: 0.15 }}
-        className="pointer-events-none"
-      >
-        {/* Left arrow */}
-        {currentSlide > 0 || currentReveal > 0 ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              goPrev();
+        >
+          <div
+            style={{
+              width: DESIGN_WIDTH,
+              height: DESIGN_HEIGHT,
+              transform: `scale(${scale})`,
+              transformOrigin: 'center center',
             }}
-            className="pointer-events-auto absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full text-white/70 hover:text-white transition-all"
           >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-        ) : null}
+            {slide && (
+              <SlideRenderer
+                slide={slide}
+                revealStep={currentReveal}
+                isPresenting={true}
+                imageManifest={deck.imageManifest}
+              />
+            )}
+          </div>
+        </div>
 
-        {/* Right arrow */}
-        {currentSlide < totalSlides - 1 || currentReveal < maxReveals ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              goNext();
+        {/* Progress bar */}
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-slide-surface/30">
+          <motion.div
+            className="h-full bg-slide-accent"
+            initial={false}
+            animate={{
+              width: `${((currentSlide + (currentReveal / (maxReveals + 1))) / totalSlides) * 100}%`,
             }}
-            className="pointer-events-auto absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full text-white/70 hover:text-white transition-all"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        ) : null}
-      </motion.div>
+            transition={{ duration: 0.3 }}
+          />
+        </div>
 
-      {/* Slide counter - always visible, subtle */}
-      <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/40 backdrop-blur-sm rounded text-xs text-white/60 font-mono">
-        {currentSlide + 1} / {totalSlides}
+        {/* Navigation arrows - visible on hover */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: showControls ? 1 : 0 }}
+          transition={{ duration: 0.15 }}
+          className="pointer-events-none"
+        >
+          {/* Left arrow */}
+          {currentSlide > 0 || currentReveal > 0 ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goPrev();
+              }}
+              className="pointer-events-auto absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full text-white/70 hover:text-white transition-all"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          ) : null}
+
+          {/* Right arrow */}
+          {currentSlide < totalSlides - 1 || currentReveal < maxReveals ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                goNext();
+              }}
+              className="pointer-events-auto absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full text-white/70 hover:text-white transition-all"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          ) : null}
+        </motion.div>
+
+        {/* Slide counter */}
+        <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/40 backdrop-blur-sm rounded text-xs text-white/60 font-mono">
+          {currentSlide + 1} / {totalSlides}
+        </div>
+
+        {/* Riff Badge */}
+        <Link
+          href="https://www.riff.im"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute bottom-3 left-3 flex items-center gap-1.5 px-2 py-1 bg-black/40 backdrop-blur-sm rounded text-xs text-white/60 hover:text-white hover:bg-black/60 transition-all"
+        >
+          <RiffIcon size={14} primaryColor="currentColor" secondaryColor="currentColor" />
+          <span style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>Riff</span>
+        </Link>
       </div>
-    </div>
+    </>
   );
 }

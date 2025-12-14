@@ -112,7 +112,25 @@ export function Landing() {
                 Riff
               </span>
             </Link>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6">
+              <a
+                href="#demo"
+                className="text-[13px] text-white/50 hover:text-white transition-colors duration-200"
+              >
+                Demo
+              </a>
+              <a
+                href="#features"
+                className="text-[13px] text-white/50 hover:text-white transition-colors duration-200"
+              >
+                Features
+              </a>
+              <a
+                href="#syntax"
+                className="text-[13px] text-white/50 hover:text-white transition-colors duration-200"
+              >
+                Syntax
+              </a>
               <Link
                 href="/editor"
                 className="inline-flex items-center gap-2 text-[13px] text-white/50 hover:text-white transition-colors duration-200"
@@ -146,8 +164,8 @@ export function Landing() {
           </div>
         </nav>
 
-        {/* Hero Section */}
-        <section className="relative pt-36 pb-24 px-6 overflow-hidden">
+        {/* Hero Section with Live Preview */}
+        <section className="relative pt-32 pb-20 px-6 overflow-hidden">
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
@@ -163,10 +181,6 @@ export function Landing() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             >
-              {/* <span className="inline-flex items-center px-3.5 py-1.5 mb-10 text-[11px] uppercase tracking-[0.15em] text-white/40 bg-white/[0.03] border border-white/[0.06] rounded-full">
-                Documents to slides
-              </span> */}
-
               <h1
                 style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
                 className="text-[clamp(3rem,8vw,6rem)] font-bold leading-[0.95] mb-8 tracking-tight"
@@ -176,12 +190,12 @@ export function Landing() {
                 <span className="text-white/25">to a stunning deck.</span>
               </h1>
 
-              <p className="text-[20px] text-white/50 mb-14 max-w-lg mx-auto leading-relaxed font-normal" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
-                Turn your notes, document, scribbles and ideas into polished presentations.
+              <p className="text-[20px] text-white/50 mb-12 max-w-lg mx-auto leading-relaxed font-normal" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+                Turn your notes, documents, and ideas into polished presentations.
                 Simple markdown syntax, beautiful output.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-16">
                 <button
                   onClick={() => setShowUploader(true)}
                   className="inline-flex items-center gap-2.5 px-6 py-3 bg-white text-black rounded-xl font-medium text-[14px] hover:bg-white/90 transition-all duration-200"
@@ -200,20 +214,16 @@ export function Landing() {
               </div>
             </motion.div>
           </div>
-        </section>
 
-        {/* Live Demo Section */}
-        <section className="py-20 px-6">
-          <div className="max-w-5xl mx-auto">
+          {/* Live Editor Preview */}
+          <div className="max-w-5xl mx-auto relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             >
-              {/* Browser mockup */}
               <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/50">
-                {/* Browser chrome */}
                 <div className="flex items-center gap-2 px-4 py-3 bg-[#080808] border-b border-white/[0.05]">
                   <div className="flex gap-2">
                     <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
@@ -227,9 +237,7 @@ export function Landing() {
                   </div>
                 </div>
 
-                {/* Editor mockup */}
                 <div className="flex min-h-[400px]">
-                  {/* Markdown editor side */}
                   <div className="w-[42%] border-r border-white/[0.05] p-6 bg-[#050505]">
                     <div className="text-[10px] text-white/30 mb-4 uppercase tracking-[0.2em] font-medium">
                       Markdown
@@ -240,7 +248,6 @@ export function Landing() {
                     </pre>
                   </div>
 
-                  {/* Preview side */}
                   <div className="flex-1 p-6 bg-[#080808]">
                     <div className="text-[10px] text-white/30 mb-4 uppercase tracking-[0.2em] font-medium">
                       Preview
@@ -269,7 +276,6 @@ export function Landing() {
                       </motion.div>
                     </div>
 
-                    {/* Slide indicators */}
                     <div className="flex justify-center gap-2 mt-5">
                       {demoSlides.map((_, i) => (
                         <div
@@ -287,8 +293,65 @@ export function Landing() {
           </div>
         </section>
 
+        {/* Demo Section - Embedded Riff Deck */}
+        <section id="demo" className="relative py-20 px-6 bg-[#050505] overflow-hidden">
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage: 'radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
+              mask: 'linear-gradient(to bottom, black 0%, transparent 70%)',
+              WebkitMask: 'linear-gradient(to bottom, black 0%, transparent 70%)',
+            }}
+          />
+          <div className="max-w-5xl mx-auto relative z-10">
+            <motion.div
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              className="text-center mb-12"
+            >
+              <h2
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                className="text-[clamp(2.25rem,5vw,3.5rem)] font-semibold tracking-tight mb-5"
+              >
+                See it in action
+              </h2>
+              <p className="text-[20px] text-white/50 max-w-md mx-auto" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+                This presentation was made with Riff
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="aspect-video max-w-4xl mx-auto rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50"
+            >
+              <iframe
+                src="https://www.riff.im/embed/8uAo54Y_eFy-"
+                className="w-full h-full bg-[#0a0a0a]"
+                frameBorder="0"
+                allowFullScreen
+                title="How Riff Works"
+              />
+            </motion.div>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="text-center mt-6 text-sm text-white/30"
+            >
+              Use arrow keys or click to navigate
+            </motion.p>
+          </div>
+        </section>
+
         {/* Features Section */}
-        <section className="relative py-32 px-6 overflow-hidden">
+        <section id="features" className="relative py-20 px-6 overflow-hidden">
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
@@ -345,65 +408,8 @@ export function Landing() {
           </div>
         </section>
 
-        {/* Riff Showcase Section - "Riff used to present Riff" */}
-        <section className="relative py-32 px-6 bg-[#050505] overflow-hidden">
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              backgroundImage: 'radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1px)',
-              backgroundSize: '24px 24px',
-              mask: 'linear-gradient(to bottom, black 0%, transparent 70%)',
-              WebkitMask: 'linear-gradient(to bottom, black 0%, transparent 70%)',
-            }}
-          />
-          <div className="max-w-5xl mx-auto relative z-10">
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              className="text-center mb-12"
-            >
-              <h2
-                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-                className="text-[clamp(2.25rem,5vw,3.5rem)] font-semibold tracking-tight mb-5"
-              >
-                See it in action
-              </h2>
-              <p className="text-[20px] text-white/50 max-w-md mx-auto" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
-                This presentation was made with Riff
-              </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="aspect-video max-w-4xl mx-auto rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50"
-            >
-              <iframe
-                src="/embed/8uAo54Y_eFy-"
-                className="w-full h-full bg-[#0a0a0a]"
-                frameBorder="0"
-                allowFullScreen
-                title="How Riff Works"
-              />
-            </motion.div>
-
-            <motion.p
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="text-center mt-6 text-sm text-white/30"
-            >
-              Use arrow keys or click to navigate
-            </motion.p>
-          </div>
-        </section>
-
         {/* Capabilities Section */}
-        <section className="relative py-32 px-6 bg-[#050505] overflow-hidden">
+        <section className="relative py-20 px-6 bg-[#050505] overflow-hidden">
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
@@ -467,7 +473,7 @@ export function Landing() {
         </section>
 
         {/* Syntax Preview Section */}
-        <section className="relative py-32 px-6 overflow-hidden">
+        <section id="syntax" className="relative py-20 px-6 overflow-hidden">
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
@@ -546,7 +552,7 @@ export function Landing() {
         </section>
 
         {/* CTA Section */}
-        <section className="relative py-32 px-6 bg-[#050505] overflow-hidden">
+        <section className="relative py-20 px-6 bg-[#050505] overflow-hidden">
           <div
             className="absolute inset-0 pointer-events-none"
             style={{

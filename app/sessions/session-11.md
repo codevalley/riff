@@ -123,3 +123,58 @@ Decks are fully portable - copying markdown (including YAML) to a new deck prese
 - **Edit**: Saves with bottom format (auto-migrates on any image change)
 - **Publish**: Explicitly normalizes to bottom (forced migration)
 - **Multiple blocks**: Merges all into single clean block
+
+---
+
+## Landing Page Polish
+
+### Navigation Links
+Added header nav links for key sections:
+- Demo → `#demo` (embedded deck)
+- Features → `#features`
+- Syntax → `#syntax`
+- Editor → `/editor`
+
+### Section Restructure
+- **Hero section**: Now includes live editor preview (merged)
+- **Demo section**: Embedded Riff deck ("See it in action")
+- Reduced section gaps: `py-32` → `py-20`
+- Grammar fix: "notes, documents, and ideas"
+
+### Embed URL
+Changed from relative to absolute URL for cross-environment support:
+```tsx
+src="https://www.riff.im/embed/8uAo54Y_eFy-"
+```
+
+---
+
+## Embed Improvements
+**File:** `components/EmbedClient.tsx`
+
+### 1. Font Loading
+Added Google Fonts import directly in embed:
+```tsx
+<style jsx global>{`
+  @import url('https://fonts.googleapis.com/css2?family=Inter...&family=Playfair+Display...');
+`}</style>
+```
+
+### 2. Smart Scaling
+Content now scales to fit iframe dimensions:
+- Design size: 1280x720 (16:9)
+- Calculates `Math.min(scaleX, scaleY, 1)`
+- Uses CSS `transform: scale()` centered
+
+### 3. Riff Badge
+Added badge in bottom-left corner:
+- RiffIcon + "Riff" text
+- Links to https://www.riff.im
+- Matches style of slide counter
+
+## Files Modified (Additional)
+
+| File | Changes |
+|------|---------|
+| `components/Landing.tsx` | Nav links, section IDs, restructure, reduced gaps |
+| `components/EmbedClient.tsx` | Fonts, scaling, Riff badge |
