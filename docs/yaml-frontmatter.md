@@ -4,7 +4,16 @@ Riff uses YAML frontmatter to store image URLs directly in the markdown file. Th
 
 ## Format
 
+The frontmatter is placed at the **bottom** of the document (after all slide content), keeping your content at the top for easier editing:
+
 ```yaml
+# Your slide content here
+[image: description of image]
+
+---
+
+# More slides...
+
 ---
 images:
   "description of image":
@@ -13,9 +22,6 @@ images:
     restyled: https://blob.url/restyled/ghi789.png
     active: uploaded
 ---
-
-# Your slide content here
-[image: description of image]
 ```
 
 ## Image Slots
@@ -42,6 +48,14 @@ The `active` field indicates which slot is currently displayed.
 A deck with two images:
 
 ```yaml
+# The Future of Work
+[image: a futuristic city skyline]
+
+---
+
+# AI Assistants
+[image: a robot working at a desk]
+
 ---
 images:
   "a futuristic city skyline":
@@ -52,14 +66,6 @@ images:
     generated: https://abc.blob.vercel-storage.com/images/d4e5f6a7.png
     active: generated
 ---
-
-# The Future of Work
-[image: a futuristic city skyline]
-
----
-
-# AI Assistants
-[image: a robot working at a desk]
 ```
 
 ## Benefits

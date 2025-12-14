@@ -10,7 +10,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getDeckContent, getTheme, updateDeckBlob } from '@/lib/blob';
 import { nanoid } from 'nanoid';
-import { extractFrontmatter, updateImageInManifest } from '@/lib/parser';
+import { extractFrontmatter, updateImageInManifest, normalizeFrontmatter } from '@/lib/parser';
 import { ImageSlot } from '@/lib/types';
 
 // POST: Publish current deck state
@@ -91,6 +91,20 @@ export async function POST(
           data: { blobUrl: newBlobUrl, updatedAt: new Date() },
         });
       }
+    }
+
+    // === NORMALIZE FRONTMATTER ===
+    // Ensure frontmatter is at bottom of document (migrates legacy top-frontmatter)
+    const originalContent = content;
+    content = normalizeFrontmatter(content);
+
+    // Save normalized content back to blob if it changed
+    if (content !== originalContent) {
+      const newBlobUrl = await updateDeckBlob(deck.blobPath, content);
+      await prisma.deck.update({
+        where: { id: deckId },
+        data: { blobUrl: newBlobUrl },
+      });
     }
 
     // Get current theme (may be null)

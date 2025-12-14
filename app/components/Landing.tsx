@@ -345,6 +345,63 @@ export function Landing() {
           </div>
         </section>
 
+        {/* Riff Showcase Section - "Riff used to present Riff" */}
+        <section className="relative py-32 px-6 bg-[#050505] overflow-hidden">
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage: 'radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
+              mask: 'linear-gradient(to bottom, black 0%, transparent 70%)',
+              WebkitMask: 'linear-gradient(to bottom, black 0%, transparent 70%)',
+            }}
+          />
+          <div className="max-w-5xl mx-auto relative z-10">
+            <motion.div
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              className="text-center mb-12"
+            >
+              <h2
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                className="text-[clamp(2.25rem,5vw,3.5rem)] font-semibold tracking-tight mb-5"
+              >
+                See it in action
+              </h2>
+              <p className="text-[20px] text-white/50 max-w-md mx-auto" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+                This presentation was made with Riff
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="aspect-video max-w-4xl mx-auto rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50"
+            >
+              <iframe
+                src="/embed/8uAo54Y_eFy-"
+                className="w-full h-full bg-[#0a0a0a]"
+                frameBorder="0"
+                allowFullScreen
+                title="How Riff Works"
+              />
+            </motion.div>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="text-center mt-6 text-sm text-white/30"
+            >
+              Use arrow keys or click to navigate
+            </motion.p>
+          </div>
+        </section>
+
         {/* Capabilities Section */}
         <section className="relative py-32 px-6 bg-[#050505] overflow-hidden">
           <div

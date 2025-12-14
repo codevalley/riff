@@ -16,30 +16,71 @@ interface Frontmatter {
 
 /**
  * Extract YAML frontmatter from markdown content
+ * Handles multiple blocks by merging them, cleans up orphaned blocks
  */
 export function extractFrontmatter(content: string): { frontmatter: Frontmatter; body: string } {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-  if (!match) {
-    return { frontmatter: {}, body: content };
+  // Find ALL yaml image blocks in the content and merge them
+  const yamlBlockRegex = /\n---\n(images:[\s\S]*?)\n---/g;
+  const mergedImages: ImageManifest = {};
+  let match;
+
+  // Also check for TOP frontmatter (legacy)
+  const topMatch = content.match(/^---\n([\s\S]*?)\n---\n/);
+  if (topMatch) {
+    try {
+      const topFrontmatter = yaml.load(topMatch[1]) as Frontmatter || {};
+      if (topFrontmatter.images) {
+        Object.assign(mergedImages, topFrontmatter.images);
+      }
+    } catch {
+      // Invalid YAML, skip
+    }
   }
 
-  try {
-    const frontmatter = yaml.load(match[1]) as Frontmatter || {};
-    return { frontmatter, body: match[2] };
-  } catch {
-    // Invalid YAML, return content as-is
-    return { frontmatter: {}, body: content };
+  // Find all bottom/inline yaml blocks and merge
+  while ((match = yamlBlockRegex.exec(content)) !== null) {
+    try {
+      const blockFrontmatter = yaml.load(match[1]) as Frontmatter || {};
+      if (blockFrontmatter.images) {
+        // Merge - later blocks override earlier ones for same key
+        Object.assign(mergedImages, blockFrontmatter.images);
+      }
+    } catch {
+      // Invalid YAML block, skip
+    }
   }
+
+  // Remove all yaml blocks from content to get clean body
+  let body = content;
+
+  // Remove top frontmatter if present
+  body = body.replace(/^---\n[\s\S]*?\n---\n/, '');
+
+  // Remove all bottom/inline yaml blocks
+  body = body.replace(/\n---\nimages:[\s\S]*?\n---/g, '');
+
+  // Also remove empty slide separators that might be left (--- followed by ---)
+  body = body.replace(/\n---\s*\n---/g, '\n---');
+
+  // Trim trailing whitespace/newlines
+  body = body.trimEnd();
+
+  const frontmatter: Frontmatter = Object.keys(mergedImages).length > 0
+    ? { images: mergedImages }
+    : {};
+
+  return { frontmatter, body };
 }
 
 /**
- * Serialize frontmatter back to YAML string
+ * Serialize frontmatter to YAML string (for appending at bottom of document)
  */
 function serializeFrontmatter(frontmatter: Frontmatter): string {
   if (!frontmatter || Object.keys(frontmatter).length === 0) {
     return '';
   }
-  return `---\n${yaml.dump(frontmatter, { lineWidth: -1 })}---\n`;
+  // Format: newline + --- + yaml + --- (at end of document)
+  return `\n---\n${yaml.dump(frontmatter, { lineWidth: -1 })}---`;
 }
 
 /**
@@ -70,7 +111,7 @@ export function updateImageInManifest(
     frontmatter.images[description].active = slot;
   }
 
-  return serializeFrontmatter(frontmatter) + body;
+  return body + serializeFrontmatter(frontmatter);
 }
 
 /**
@@ -87,7 +128,23 @@ export function setActiveImageSlot(
     frontmatter.images[description].active = slot;
   }
 
-  return serializeFrontmatter(frontmatter) + body;
+  return body + serializeFrontmatter(frontmatter);
+}
+
+/**
+ * Normalize frontmatter position to bottom of document
+ * Use this to migrate legacy top-frontmatter to bottom
+ */
+export function normalizeFrontmatter(content: string): string {
+  const { frontmatter, body } = extractFrontmatter(content);
+
+  // If no frontmatter, return as-is
+  if (!frontmatter || Object.keys(frontmatter).length === 0) {
+    return body;
+  }
+
+  // Re-serialize with frontmatter at bottom
+  return body + serializeFrontmatter(frontmatter);
 }
 
 /**
@@ -108,7 +165,7 @@ export function removeImageFromManifest(
     delete frontmatter.images;
   }
 
-  return serializeFrontmatter(frontmatter) + body;
+  return body + serializeFrontmatter(frontmatter);
 }
 
 // Valid text effects that can be applied via [effect] syntax

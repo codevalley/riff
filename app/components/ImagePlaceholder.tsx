@@ -589,7 +589,7 @@ export function ImagePlaceholder({
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`relative w-full aspect-video rounded-xl overflow-hidden group ${
+          className={`relative w-full aspect-video rounded-xl overflow-hidden group bg-slide-bg ${
             isDragging ? 'ring-2 ring-slide-accent' : ''
           }`}
         >
