@@ -9,8 +9,8 @@ import { generateText, createGateway } from 'ai';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { saveDeckBlob } from '@/lib/blob';
-import { DOCUMENT_TO_SLIDES_PROMPT } from '@/lib/prompts';
+import { saveDeckBlob, saveTheme } from '@/lib/blob';
+import { DOCUMENT_TO_SLIDES_PROMPT, DEFAULT_THEME_SYSTEM_PROMPT } from '@/lib/prompts';
 import { requireCredits, deductCredits, CREDIT_COSTS } from '@/lib/credits';
 import { nanoid } from 'nanoid';
 
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(creditCheck.error, { status: 402 });
     }
 
-    const { document, documentName, options } = await request.json();
+    const { document, documentName, options, context } = await request.json();
 
     if (!document || typeof document !== 'string') {
       return NextResponse.json(
@@ -62,13 +62,18 @@ export async function POST(request: NextRequest) {
       slideCountInstruction = `Target approximately ${slideCount} slides`;
     }
 
+    // Build optional context section
+    const contextSection = context && typeof context === 'string' && context.trim()
+      ? `\n## User Instructions\n${context.trim()}\n`
+      : '';
+
     const userPrompt = `Convert the following document into a Riff presentation.
 
 ## Conversion Settings
 - Slide count: ${slideCountInstruction}
 - Style preference: ${style}
 - Include speaker notes: ${options?.includeSpeakerNotes !== false ? 'Yes' : 'No'}
-
+${contextSection}
 ## IMPORTANT: Visual Requirements
 - Add [image: description] placeholders generously - at least every 2-3 slides
 - Use descriptive, specific image descriptions (e.g., "[image: A confident speaker presenting to an engaged audience in a modern conference room]")
@@ -80,7 +85,8 @@ export async function POST(request: NextRequest) {
 ${document}
 
 ## Output Format
-FIRST LINE: Output a suggested deck title with a relevant emoji prefix, like: "TITLE: 🚀 Product Launch Strategy" or "TITLE: 📊 Q4 Financial Review"
+LINE 1: Output a short deck title (MAX 4-5 words) with a relevant emoji prefix, like: "TITLE: 🚀 Product Launch Strategy" or "TITLE: 📊 Q4 Review". Keep it punchy!
+LINE 2: Output a theme description for the visual style, like: "THEME: Modern tech startup with electric blue accents and clean geometric patterns" or "THEME: Warm and approachable with soft gradients and friendly rounded elements". Be specific and creative!
 THEN: Generate the complete markdown for the presentation.
 
 Begin:`;
@@ -110,6 +116,15 @@ Begin:`;
       suggestedTitle = titleMatch[1].trim();
       // Remove the TITLE line from markdown
       cleanedMarkdown = cleanedMarkdown.replace(/^TITLE:\s*.+\n*/im, '').trim();
+    }
+
+    // Extract suggested theme (format: "THEME: Modern tech with blue accents")
+    let suggestedTheme: string | null = null;
+    const themeMatch = cleanedMarkdown.match(/^THEME:\s*(.+)$/im);
+    if (themeMatch) {
+      suggestedTheme = themeMatch[1].trim();
+      // Remove the THEME line from markdown
+      cleanedMarkdown = cleanedMarkdown.replace(/^THEME:\s*.+\n*/im, '').trim();
     }
 
     // Ensure slides start properly (remove leading ---)
@@ -155,13 +170,77 @@ Begin:`;
     // Count slides (number of --- separators + 1)
     const slideCountResult = (cleanedMarkdown.match(/^---$/gm) || []).length + 1;
 
-    // Deduct credits after successful conversion
+    // Deduct credits for document conversion
     await deductCredits(
       session.user.id,
       CREDIT_COSTS.DOCUMENT_CONVERSION,
       'Document to slides conversion',
       { deckId: deck.id, documentName, slideCount: slideCountResult }
     );
+
+    // Generate theme if we have a suggestion
+    let themeData: { css: string; prompt: string; fonts: string[] } | null = null;
+    if (suggestedTheme) {
+      try {
+        // Check credits for theme generation
+        const themeCredits = await requireCredits(session.user.id, CREDIT_COSTS.THEME_GENERATION);
+        if (themeCredits.allowed) {
+          // Generate theme CSS
+          const { text: themeResponse } = await generateText({
+            model: gateway(modelId),
+            prompt: `${DEFAULT_THEME_SYSTEM_PROMPT}\n\nUser's theme request: "${suggestedTheme}"\n\nGenerate the CSS theme:`,
+            maxOutputTokens: 2048,
+          });
+
+          // Extract CSS from response
+          let css = themeResponse;
+          const codeBlockMatch = css.match(/```css?\s*([\s\S]*?)```/);
+          if (codeBlockMatch) {
+            css = codeBlockMatch[1];
+          }
+          css = css.trim();
+
+          // Validate CSS
+          if (css.includes(':root') || css.includes('--')) {
+            // Extract Google Font names
+            const fontMatches = Array.from(css.matchAll(/--font-\w+:\s*'([^']+)'/g));
+            const fonts: string[] = [];
+            for (const match of fontMatches) {
+              const fontName = match[1];
+              if (!['system-ui', 'sans-serif', 'serif', 'monospace'].includes(fontName.toLowerCase())) {
+                fonts.push(fontName);
+              }
+            }
+
+            // Generate Google Fonts import
+            const uniqueFonts = Array.from(new Set(fonts));
+            const fontImport = uniqueFonts.length > 0
+              ? `@import url('https://fonts.googleapis.com/css2?${uniqueFonts
+                  .map((f) => `family=${encodeURIComponent(f)}:wght@400;500;600;700`)
+                  .join('&')}&display=swap');\n\n`
+              : '';
+
+            const fullCss = fontImport + css;
+
+            // Save theme
+            await saveTheme(session.user.id, deckId, fullCss, suggestedTheme);
+
+            // Deduct theme credits
+            await deductCredits(
+              session.user.id,
+              CREDIT_COSTS.THEME_GENERATION,
+              'Auto theme generation',
+              { prompt: suggestedTheme, deckId }
+            );
+
+            themeData = { css: fullCss, prompt: suggestedTheme, fonts: uniqueFonts };
+          }
+        }
+      } catch (themeError) {
+        // Theme generation failed - continue without theme
+        console.error('Auto theme generation failed:', themeError);
+      }
+    }
 
     return NextResponse.json({
       deck: {
@@ -173,6 +252,7 @@ Begin:`;
       },
       markdown: cleanedMarkdown,
       slideCount: slideCountResult,
+      theme: themeData,
     });
 
   } catch (error) {

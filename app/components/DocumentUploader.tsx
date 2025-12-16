@@ -16,6 +16,8 @@ import {
   Wand2,
   Check,
   Lightbulb,
+  Clipboard,
+  Plus,
 } from 'lucide-react';
 import { RiffIcon } from '@/components/RiffIcon';
 import { useRouter } from 'next/navigation';
@@ -192,6 +194,9 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
   });
 
   const [isDragging, setIsDragging] = useState(false);
+  const [pasteError, setPasteError] = useState<string | null>(null);
+  const [customContext, setCustomContext] = useState('');
+  const [showContextField, setShowContextField] = useState(false);
 
   // Handle pasted text content
   const handlePastedText = useCallback((text: string) => {
@@ -214,17 +219,54 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       if (documentContent) return;
+      setPasteError(null);
 
-      const text = e.clipboardData?.getData('text');
-      if (text && text.trim().length > 0) {
-        e.preventDefault();
-        handlePastedText(text);
+      try {
+        const text = e.clipboardData?.getData('text');
+        if (text && text.trim().length > 0) {
+          e.preventDefault();
+          handlePastedText(text);
+        }
+      } catch (err) {
+        console.error('Paste error:', err);
+        setPasteError('Unable to access clipboard. Try the paste button instead.');
       }
     };
 
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
   }, [documentContent, handlePastedText]);
+
+  // Handle explicit paste button click (fallback for browsers with issues)
+  const handlePasteFromClipboard = async () => {
+    setPasteError(null);
+
+    try {
+      // Check if clipboard API is available
+      if (!navigator.clipboard || !navigator.clipboard.readText) {
+        setPasteError('Clipboard not supported. Try Ctrl/Cmd+V instead.');
+        return;
+      }
+
+      const text = await navigator.clipboard.readText();
+
+      if (!text || text.trim().length === 0) {
+        setPasteError('Clipboard is empty. Copy some text first.');
+        return;
+      }
+
+      handlePastedText(text);
+    } catch (err) {
+      console.error('Clipboard access error:', err);
+
+      // Provide specific error messages
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        setPasteError('Clipboard permission denied. Allow access or use Ctrl/Cmd+V.');
+      } else {
+        setPasteError('Unable to access clipboard. Try Ctrl/Cmd+V instead.');
+      }
+    }
+  };
 
   const handleFileSelect = useCallback(async (file: File) => {
     const allowedTypes = ['text/plain', 'text/markdown', 'text/x-markdown'];
@@ -283,6 +325,7 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
     setDocumentContent(null);
     setFileName(null);
     setError(null);
+    setPasteError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -302,6 +345,7 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
           document: documentContent,
           documentName: fileName.replace(/\.(txt|md|markdown)$/i, ''),
           options,
+          context: customContext.trim() || undefined,
         }),
       });
 
@@ -626,7 +670,7 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
                     </motion.div>
                   ) : (
                     // Empty state
-                    <div className="py-12 px-6 text-center">
+                    <div className="py-10 px-6 text-center">
                       {status === 'reading' ? (
                         <motion.div
                           animate={{ rotate: 360 }}
@@ -643,11 +687,37 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
                         </motion.div>
                       )}
                       <p className="text-sm font-medium text-white/80 mb-1.5">
-                        {isDragging ? 'Drop your file here' : 'Drop, paste, or browse'}
+                        {isDragging ? 'Drop your file here' : 'Drop or browse'}
                       </p>
-                      <p className="text-xs text-white/40">
-                        Supports .txt and .md files, or paste text directly
+                      <p className="text-xs text-white/40 mb-4">
+                        Supports .txt and .md files
                       </p>
+
+                      {/* Paste button fallback */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePasteFromClipboard();
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 text-sm text-white/60 hover:text-white/80 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] rounded-lg transition-all duration-200"
+                      >
+                        <Clipboard className="w-4 h-4" />
+                        <span>Paste from clipboard</span>
+                      </button>
+
+                      {/* Paste error message */}
+                      <AnimatePresence>
+                        {pasteError && (
+                          <motion.p
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            className="mt-3 text-xs text-amber-400"
+                          >
+                            {pasteError}
+                          </motion.p>
+                        )}
+                      </AnimatePresence>
                     </div>
                   )}
                 </div>
@@ -735,6 +805,57 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
                           Include speaker notes
                         </span>
                       </label>
+
+                      {/* Additional Context - Collapsible */}
+                      <AnimatePresence mode="wait">
+                        {!showContextField ? (
+                          <motion.button
+                            key="trigger"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0, height: 0 }}
+                            onClick={() => setShowContextField(true)}
+                            className="flex items-center gap-2 text-sm text-white/40 hover:text-white/60 transition-colors duration-200 py-1"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Add instructions</span>
+                          </motion.button>
+                        ) : (
+                          <motion.div
+                            key="field"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="relative p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+                              <div className="flex items-center justify-between mb-2">
+                                <label className="text-[11px] font-medium text-white/40 uppercase tracking-wider">
+                                  Instructions
+                                </label>
+                                <button
+                                  onClick={() => {
+                                    setShowContextField(false);
+                                    setCustomContext('');
+                                  }}
+                                  className="p-1 -mr-1 hover:bg-white/5 rounded text-white/30 hover:text-white/60 transition-all duration-200"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                              <textarea
+                                value={customContext}
+                                onChange={(e) => setCustomContext(e.target.value)}
+                                placeholder="e.g., This is for a tech-savvy startup audience. Keep it punchy and minimal..."
+                                rows={2}
+                                className="w-full bg-transparent text-sm text-white/80 placeholder:text-white/25 resize-none outline-none border-none focus:ring-0 leading-relaxed"
+                                style={{ boxShadow: 'none' }}
+                              />
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </motion.div>
                   )}
                 </AnimatePresence>

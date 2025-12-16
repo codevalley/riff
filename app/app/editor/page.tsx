@@ -16,6 +16,7 @@ import { DeckManager } from '@/components/DeckManager';
 import { SlideEditor } from '@/components/SlideEditor';
 import { SlidePreview } from '@/components/SlidePreview';
 import { DocumentUploader } from '@/components/DocumentUploader';
+import { RevampDeckDialog } from '@/components/RevampDeckDialog';
 import { UserMenu } from '@/components/auth/UserMenu';
 import { PublishPopover, PublishStatus } from '@/components/sharing/PublishPopover';
 import { CreditsDisplay } from '@/components/CreditsDisplay';
@@ -31,6 +32,7 @@ function EditorContent() {
     currentDeckContent,
     setCurrentDeck,
     updateDeckContent,
+    parsedDeck,
     setParsedDeck,
     isEditorOpen,
     toggleEditor,
@@ -62,6 +64,8 @@ function EditorContent() {
   const [newDeckName, setNewDeckName] = useState('');
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showRevampDialog, setShowRevampDialog] = useState(false);
+  const [isRevamping, setIsRevamping] = useState(false);
 
   // Update page title based on current deck
   const currentDeck = decks.find((d) => d.id === currentDeckId);
@@ -451,6 +455,56 @@ function EditorContent() {
     }
   }, [currentDeckId, currentDeckContent, updateDeckContent, setParsedDeck]);
 
+  // Handle deck revamp with AI
+  const handleRevamp = useCallback(async (instructions: string) => {
+    if (!currentDeckId || !currentDeckContent) return;
+
+    setIsRevamping(true);
+    try {
+      const response = await fetch('/api/revamp-deck', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deckId: currentDeckId,
+          currentContent: currentDeckContent,
+          instructions,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to revamp deck');
+      }
+
+      // Update content with revamped version
+      updateDeckContent(data.content);
+      const parsed = parseSlideMarkdown(data.content);
+      setParsedDeck(parsed);
+
+      // Auto-save the revamped content
+      await fetch(`/api/decks/${encodeURIComponent(currentDeckId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: data.content }),
+      });
+
+      // Mark as having unpublished changes if already published
+      if (publishStatus?.isPublished) {
+        setPublishStatus({
+          ...publishStatus,
+          hasUnpublishedChanges: true,
+        });
+      }
+
+      setShowRevampDialog(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to revamp deck');
+    } finally {
+      setIsRevamping(false);
+    }
+  }, [currentDeckId, currentDeckContent, updateDeckContent, setParsedDeck, publishStatus]);
+
   return (
     <div className="min-h-screen bg-background text-text-primary">
       {/* Custom theme CSS */}
@@ -554,6 +608,7 @@ function EditorContent() {
                   content={currentDeckContent}
                   onChange={handleContentChange}
                   onSave={saveDeck}
+                  onRevamp={() => setShowRevampDialog(true)}
                   isSaving={isSaving}
                 />
               </div>
@@ -693,6 +748,15 @@ function EditorContent() {
       <PurchaseCreditsModal
         isOpen={showPurchaseModal}
         onClose={() => setShowPurchaseModal(false)}
+      />
+
+      {/* Revamp Deck Dialog */}
+      <RevampDeckDialog
+        isOpen={showRevampDialog}
+        onClose={() => setShowRevampDialog(false)}
+        onRevamp={handleRevamp}
+        slideCount={parsedDeck?.slides.length || 0}
+        isRevamping={isRevamping}
       />
     </div>
   );

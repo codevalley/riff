@@ -7,7 +7,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Save, FileText, Circle } from 'lucide-react';
+import { Save, FileText, Circle, Wand2 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { parseSlideMarkdown } from '@/lib/parser';
 import { FormatHelpDialog } from '@/components/FormatHelpDialog';
@@ -16,6 +16,7 @@ interface SlideEditorProps {
   content: string;
   onChange: (content: string) => void;
   onSave: () => void;
+  onRevamp?: () => void;
   isSaving?: boolean;
 }
 
@@ -47,7 +48,7 @@ function getSlideFromPosition(content: string, cursorPos: number): number {
   return separators ? separators.length : 0;
 }
 
-export function SlideEditor({ content, onChange, onSave, isSaving = false }: SlideEditorProps) {
+export function SlideEditor({ content, onChange, onSave, onRevamp, isSaving = false }: SlideEditorProps) {
   const [localContent, setLocalContent] = useState(content);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [editorSlide, setEditorSlide] = useState(0);
@@ -169,7 +170,16 @@ export function SlideEditor({ content, onChange, onSave, isSaving = false }: Sli
         </div>
 
         <div className="flex items-center gap-2">
-          <FormatHelpDialog />
+          {onRevamp && (
+            <button
+              onClick={onRevamp}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm text-text-secondary hover:text-amber-400 hover:bg-amber-500/10 transition-all duration-fast"
+              title="Revamp deck with AI"
+            >
+              <Wand2 className="w-3.5 h-3.5" />
+              <span>Revamp</span>
+            </button>
+          )}
 
           <div className="h-4 w-px bg-border" />
 
@@ -242,7 +252,7 @@ export function SlideEditor({ content, onChange, onSave, isSaving = false }: Sli
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2 border-t border-border">
+      <div className="px-4 py-2 border-t border-border flex items-center justify-between">
         <p className="text-xs text-text-quaternary">
           <code className="text-text-tertiary">---</code> separate slides
           <span className="mx-2 text-border">·</span>
@@ -250,6 +260,7 @@ export function SlideEditor({ content, onChange, onSave, isSaving = false }: Sli
           <span className="mx-2 text-border">·</span>
           <code className="text-text-tertiary">`text`</code> to highlight
         </p>
+        <FormatHelpDialog />
       </div>
     </div>
   );

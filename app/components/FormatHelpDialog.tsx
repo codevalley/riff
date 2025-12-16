@@ -94,7 +94,7 @@ export function FormatHelpDialog() {
         title="Markdown format help"
       >
         <Lightbulb className="w-4 h-4" />
-        <span>Handbook</span>
+        
       </button>
 
       {/* Dialog */}
