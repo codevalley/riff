@@ -95,18 +95,23 @@ export interface Slide {
   imageDescriptions: string[];
   isSection?: boolean; // Section header slide with special styling
   background?: BackgroundEffect; // Optional background effect via [bg:effect-position-color]
+  alignment?: SlideAlignment; // Slide content alignment via [horizontal, vertical]
+  imagePosition?: ImagePosition; // Image split position via [image: desc, position]
+  footer?: string; // Optional footer text via $<footer content>
 }
 
 export type SlideElementType =
   | 'title'
   | 'subtitle'
   | 'text'
+  | 'body'
   | 'image'
   | 'pause'
   | 'code'
   | 'quote'
   | 'highlight'
-  | 'list';
+  | 'list'
+  | 'spacer';
 
 // Available text effects
 export type TextEffect = 'anvil' | 'typewriter' | 'glow' | 'shake';
@@ -122,6 +127,39 @@ export interface BackgroundEffect {
   color?: BackgroundColor; // defaults to 'accent' (theme color)
 }
 
+// ============================================
+// Layout System v2 - Alignment & Positioning
+// ============================================
+
+// Slide alignment: [horizontal, vertical] at slide start
+export type HorizontalAlign = 'left' | 'center' | 'right';
+export type VerticalAlign = 'top' | 'center' | 'bottom';
+
+export interface SlideAlignment {
+  horizontal: HorizontalAlign;
+  vertical: VerticalAlign;
+}
+
+// Image position for split layouts (1 image per deck)
+// left/right = portrait split, top/bottom = landscape split
+export type ImagePosition = 'left' | 'right' | 'top' | 'bottom';
+
+// ============================================
+// Grid Component Types
+// ============================================
+
+// Single item in a grid (parsed from list under [grid])
+export interface GridItem {
+  rows: GridItemRow[]; // All rows stack vertically, any type in any order
+  revealOrder?: number; // For progressive reveal with **pause** between grid items
+}
+
+// A row in a grid item - can be text (h1/h2/h3/body) or visual (icon/image)
+export type GridItemRow =
+  | { type: 'text'; level: 'h1' | 'h2' | 'h3' | 'body'; content: string }
+  | { type: 'icon'; value: string }
+  | { type: 'image'; value: string };
+
 // Image manifest entry for frontmatter storage
 export type ImageSlot = 'generated' | 'uploaded' | 'restyled';
 
@@ -135,6 +173,14 @@ export interface ImageManifestEntry {
 // Image manifest maps description to its URLs
 export type ImageManifest = Record<string, ImageManifestEntry>;
 
+// List item with optional heading style
+// Use # prefix in list items: - # Title, - ## H1, - ### H2, - body (default)
+export type ListItemStyle = 'title' | 'h1' | 'h2' | 'body';
+export interface ListItem {
+  content: string;
+  style: ListItemStyle;
+}
+
 export interface SlideElement {
   type: SlideElementType;
   content: string;
@@ -144,8 +190,13 @@ export interface SlideElement {
     imageUrl?: string; // cached image URL
     imageStatus?: 'pending' | 'generating' | 'ready' | 'error';
     listType?: 'ordered' | 'unordered'; // for list elements
-    listItems?: string[]; // individual list items
+    listItems?: ListItem[]; // individual list items with optional styling
     effect?: TextEffect; // text animation effect e.g. [anvil]
+    // Grid support
+    isGrid?: boolean; // true if this list is a grid (preceded by [grid])
+    gridItems?: GridItem[]; // parsed grid items with visual + rows
+    // Spacer support
+    spaceMultiplier?: number; // for [space:n] - multiplier for spacing (default 1)
   };
 }
 

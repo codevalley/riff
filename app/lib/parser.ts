@@ -4,50 +4,80 @@
 // Parses the custom slide format into structured data
 
 import yaml from 'js-yaml';
-import { Slide, SlideElement, ParsedDeck, DeckMetadata, TextEffect, BackgroundEffect, BackgroundEffectType, BackgroundPosition, BackgroundColor, ImageManifest, ImageManifestEntry, ImageSlot } from './types';
+import {
+  Slide,
+  SlideElement,
+  ParsedDeck,
+  DeckMetadata,
+  TextEffect,
+  BackgroundEffect,
+  BackgroundEffectType,
+  BackgroundPosition,
+  BackgroundColor,
+  ImageManifest,
+  ImageSlot,
+  // Layout v2 types
+  HorizontalAlign,
+  VerticalAlign,
+  SlideAlignment,
+  ImagePosition,
+  GridItem,
+  GridItemRow,
+  ListItem,
+  ListItemStyle,
+} from './types';
 
 // ============================================
 // Frontmatter Extraction
 // ============================================
 
 interface Frontmatter {
+  v?: number;  // Version marker (2 = v2 format)
   images?: ImageManifest;
 }
 
 /**
  * Extract YAML frontmatter from markdown content
  * Handles multiple blocks by merging them, cleans up orphaned blocks
+ * Preserves both v (version) and images metadata
  */
 export function extractFrontmatter(content: string): { frontmatter: Frontmatter; body: string } {
-  // Find ALL yaml image blocks in the content and merge them
-  const yamlBlockRegex = /\n---\n(images:[\s\S]*?)\n---/g;
   const mergedImages: ImageManifest = {};
-  let match;
+  let version: number | undefined;
 
-  // Also check for TOP frontmatter (legacy)
-  const topMatch = content.match(/^---\n([\s\S]*?)\n---\n/);
-  if (topMatch) {
+  // Helper to extract frontmatter fields from a YAML block
+  const extractFields = (yamlContent: string) => {
     try {
-      const topFrontmatter = yaml.load(topMatch[1]) as Frontmatter || {};
-      if (topFrontmatter.images) {
-        Object.assign(mergedImages, topFrontmatter.images);
+      const parsed = yaml.load(yamlContent) as Frontmatter || {};
+      if (parsed.v) {
+        version = parsed.v;
+      }
+      if (parsed.images) {
+        Object.assign(mergedImages, parsed.images);
       }
     } catch {
       // Invalid YAML, skip
     }
+  };
+
+  // Check for TOP frontmatter (legacy position)
+  const topMatch = content.match(/^---\n([\s\S]*?)\n---\n/);
+  if (topMatch) {
+    extractFields(topMatch[1]);
   }
 
-  // Find all bottom/inline yaml blocks and merge
-  while ((match = yamlBlockRegex.exec(content)) !== null) {
-    try {
-      const blockFrontmatter = yaml.load(match[1]) as Frontmatter || {};
-      if (blockFrontmatter.images) {
-        // Merge - later blocks override earlier ones for same key
-        Object.assign(mergedImages, blockFrontmatter.images);
-      }
-    } catch {
-      // Invalid YAML block, skip
-    }
+  // Find all END frontmatter blocks (modern position)
+  // Match any yaml block at the end that contains v: or images:
+  const endBlockRegex = /\n---\n((?:v:\s*\d+\n?|images:[\s\S]*?)+)\n?---/g;
+  let match;
+  while ((match = endBlockRegex.exec(content)) !== null) {
+    extractFields(match[1]);
+  }
+
+  // Also check for standalone v: 2 block without closing ---
+  const standaloneV2Match = content.match(/\n---\n(v:\s*2)\s*$/);
+  if (standaloneV2Match) {
+    extractFields(standaloneV2Match[1]);
   }
 
   // Remove all yaml blocks from content to get clean body
@@ -56,8 +86,11 @@ export function extractFrontmatter(content: string): { frontmatter: Frontmatter;
   // Remove top frontmatter if present
   body = body.replace(/^---\n[\s\S]*?\n---\n/, '');
 
-  // Remove all bottom/inline yaml blocks
-  body = body.replace(/\n---\nimages:[\s\S]*?\n---/g, '');
+  // Remove all end frontmatter blocks (with v: and/or images:)
+  body = body.replace(/\n---\n(?:v:\s*\d+\n?|images:[\s\S]*?)+\n?---/g, '');
+
+  // Remove standalone v: 2 block at end (no closing ---)
+  body = body.replace(/\n---\nv:\s*2\s*$/, '');
 
   // Also remove empty slide separators that might be left (--- followed by ---)
   body = body.replace(/\n---\s*\n---/g, '\n---');
@@ -65,22 +98,44 @@ export function extractFrontmatter(content: string): { frontmatter: Frontmatter;
   // Trim trailing whitespace/newlines
   body = body.trimEnd();
 
-  const frontmatter: Frontmatter = Object.keys(mergedImages).length > 0
-    ? { images: mergedImages }
-    : {};
+  // Build frontmatter object
+  const frontmatter: Frontmatter = {};
+  if (version) {
+    frontmatter.v = version;
+  }
+  if (Object.keys(mergedImages).length > 0) {
+    frontmatter.images = mergedImages;
+  }
 
   return { frontmatter, body };
 }
 
 /**
  * Serialize frontmatter to YAML string (for appending at bottom of document)
+ * Always outputs v: 2 first (if present), then images
  */
 function serializeFrontmatter(frontmatter: Frontmatter): string {
   if (!frontmatter || Object.keys(frontmatter).length === 0) {
     return '';
   }
+
+  // Build YAML manually to control order: v first, then images
+  let yamlContent = '';
+
+  if (frontmatter.v) {
+    yamlContent += `v: ${frontmatter.v}\n`;
+  }
+
+  if (frontmatter.images && Object.keys(frontmatter.images).length > 0) {
+    yamlContent += yaml.dump({ images: frontmatter.images }, { lineWidth: -1 });
+  }
+
+  if (!yamlContent) {
+    return '';
+  }
+
   // Format: newline + --- + yaml + --- (at end of document)
-  return `\n---\n${yaml.dump(frontmatter, { lineWidth: -1 })}---`;
+  return `\n---\n${yamlContent}---`;
 }
 
 /**
@@ -94,6 +149,9 @@ export function updateImageInManifest(
   setActive: boolean = true
 ): string {
   const { frontmatter, body } = extractFrontmatter(content);
+
+  // Always set v: 2 when adding images (marks as v2 format)
+  frontmatter.v = 2;
 
   // Initialize images if not present
   frontmatter.images = frontmatter.images || {};
@@ -123,6 +181,11 @@ export function setActiveImageSlot(
   slot: ImageSlot
 ): string {
   const { frontmatter, body } = extractFrontmatter(content);
+
+  // Preserve v: 2 if present, or set it
+  if (!frontmatter.v) {
+    frontmatter.v = 2;
+  }
 
   if (frontmatter.images?.[description]) {
     frontmatter.images[description].active = slot;
@@ -175,6 +238,102 @@ const VALID_EFFECTS: TextEffect[] = ['anvil', 'typewriter', 'glow', 'shake'];
 const VALID_BG_TYPES: BackgroundEffectType[] = ['glow', 'grid', 'hatch', 'dashed'];
 const VALID_BG_POSITIONS: BackgroundPosition[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'];
 const VALID_BG_COLORS: BackgroundColor[] = ['amber', 'blue', 'purple', 'rose', 'emerald', 'cyan', 'orange', 'pink', 'accent'];
+
+// Layout v2: Alignment values
+const VALID_H_ALIGN: HorizontalAlign[] = ['left', 'center', 'right'];
+const VALID_V_ALIGN: VerticalAlign[] = ['top', 'center', 'bottom'];
+const VALID_IMAGE_POSITIONS: ImagePosition[] = ['left', 'right', 'top', 'bottom'];
+
+/**
+ * Parse alignment marker from [horizontal, vertical]
+ * Examples: [center, center], [left, top], [right, bottom]
+ */
+function parseAlignment(value: string): SlideAlignment | null {
+  const parts = value.split(',').map(s => s.trim().toLowerCase());
+  if (parts.length !== 2) return null;
+
+  const [h, v] = parts;
+  if (!VALID_H_ALIGN.includes(h as HorizontalAlign)) return null;
+  if (!VALID_V_ALIGN.includes(v as VerticalAlign)) return null;
+
+  return {
+    horizontal: h as HorizontalAlign,
+    vertical: v as VerticalAlign,
+  };
+}
+
+/**
+ * Parse image with optional position from [image: description, position]
+ * Examples: [image: mountain landscape], [image: product screenshot, right]
+ */
+function parseImageWithPosition(value: string): { description: string; position?: ImagePosition } {
+  const lastComma = value.lastIndexOf(',');
+  if (lastComma === -1) {
+    return { description: value.trim() };
+  }
+
+  const afterComma = value.slice(lastComma + 1).trim().toLowerCase();
+  if (VALID_IMAGE_POSITIONS.includes(afterComma as ImagePosition)) {
+    return {
+      description: value.slice(0, lastComma).trim(),
+      position: afterComma as ImagePosition,
+    };
+  }
+
+  // Not a position, treat whole thing as description
+  return { description: value.trim() };
+}
+
+/**
+ * Parse a single line in a grid item
+ * Can be: [icon: name], [image: desc], # h1, ## h2, ### h3, or body text
+ */
+function parseGridLine(line: string): GridItemRow {
+  const trimmed = line.trim();
+
+  // Check for icon
+  const iconMatch = trimmed.match(/^\[icon:\s*(.+?)\]$/i);
+  if (iconMatch) {
+    return { type: 'icon', value: iconMatch[1].trim() };
+  }
+
+  // Check for image
+  const imageMatch = trimmed.match(/^\[image:\s*(.+?)\]$/i);
+  if (imageMatch) {
+    return { type: 'image', value: imageMatch[1].trim() };
+  }
+
+  // Check for headings
+  if (trimmed.startsWith('### ')) {
+    return { type: 'text', level: 'h3', content: processInlineFormatting(trimmed.slice(4)) };
+  }
+  if (trimmed.startsWith('## ')) {
+    return { type: 'text', level: 'h2', content: processInlineFormatting(trimmed.slice(3)) };
+  }
+  if (trimmed.startsWith('# ')) {
+    return { type: 'text', level: 'h1', content: processInlineFormatting(trimmed.slice(2)) };
+  }
+
+  // Default to body text
+  return { type: 'text', level: 'body', content: processInlineFormatting(trimmed) };
+}
+
+/**
+ * Parse a raw grid item (first line + continuation lines) into structured GridItem
+ * All rows stack vertically - icons/images can appear anywhere
+ */
+function parseGridItem(rawLines: string[]): GridItem {
+  const item: GridItem = { rows: [] };
+
+  for (const line of rawLines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    item.rows.push(parseGridLine(trimmed));
+  }
+
+  return item;
+}
 
 /**
  * Parse background effect from [bg:effect-position] or [bg:effect-position-color]
@@ -281,8 +440,34 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
   // List tracking
   let inList = false;
   let listType: 'ordered' | 'unordered' | null = null;
-  let listItems: string[] = [];
+  let listItems: ListItem[] = [];
   let listRevealOrder = 0;
+
+  // Helper: parse heading style from list item content
+  // - # Title text → { content: 'Title text', style: 'title' }
+  // - ## H1 text → { content: 'H1 text', style: 'h1' }
+  // - ### H2 text → { content: 'H2 text', style: 'h2' }
+  // - Regular text → { content: 'Regular text', style: 'body' }
+  const parseListItemStyle = (content: string): ListItem => {
+    const trimmed = content.trim();
+    if (trimmed.startsWith('### ')) {
+      return { content: processInlineFormatting(trimmed.slice(4)), style: 'h2' };
+    }
+    if (trimmed.startsWith('## ')) {
+      return { content: processInlineFormatting(trimmed.slice(3)), style: 'h1' };
+    }
+    if (trimmed.startsWith('# ')) {
+      return { content: processInlineFormatting(trimmed.slice(2)), style: 'title' };
+    }
+    return { content: processInlineFormatting(trimmed), style: 'body' };
+  };
+
+  // Grid tracking - NEW FORMAT:
+  // [grid] + bullets = grid items, **pause** separates reveal order
+  let inGridMode = false;           // Currently collecting grid boxes
+  let currentGridBox: string[] = []; // Current box's rows
+  let currentGridBoxRevealOrder = 0; // Reveal order for current box
+  let allGridBoxes: { lines: string[], revealOrder: number }[] = []; // All boxes with their reveal orders
 
   const finalizeSlide = () => {
     finalizeList(); // Finalize any pending list before slide ends
@@ -315,7 +500,55 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
     });
   };
 
+  // Helper to check if we should add a spacer (for empty lines)
+  const shouldAddSpacer = (): boolean => {
+    if (!currentSlide || currentSlide.elements.length === 0) return false;
+    if (inList || inCodeBlock || inGridMode) return false;
+    const lastEl = currentSlide.elements[currentSlide.elements.length - 1];
+    return lastEl?.type !== 'spacer';
+  };
+
+  // Finalize current grid box (called on empty line, new bullet, or pause)
+  const finalizeCurrentGridBox = () => {
+    if (currentGridBox.length > 0) {
+      allGridBoxes.push({ lines: [...currentGridBox], revealOrder: currentGridBoxRevealOrder });
+      currentGridBox = [];
+    }
+  };
+
+  // Finalize all grid boxes and add as element
+  const finalizeGrid = () => {
+    finalizeCurrentGridBox();
+    if (allGridBoxes.length > 0) {
+      if (!currentSlide) createNewSlide();
+      // Map each box to a GridItem, preserving its individual revealOrder
+      const gridItems = allGridBoxes.map(box => {
+        const item = parseGridItem(box.lines);
+        item.revealOrder = box.revealOrder;
+        return item;
+      });
+      currentSlide!.elements.push({
+        type: 'list',
+        content: '',
+        revealOrder: 0, // Grid container always visible, items control their own reveal
+        metadata: {
+          listType: 'unordered',
+          listItems: [],
+          isGrid: true,
+          gridItems: gridItems,
+        },
+      });
+      allGridBoxes = [];
+    }
+    inGridMode = false;
+  };
+
   const finalizeList = () => {
+    // Finalize grid if in grid mode
+    if (inGridMode) {
+      finalizeGrid();
+    }
+
     if (inList && listItems.length > 0) {
       if (!currentSlide) createNewSlide();
       currentSlide!.elements.push({
@@ -325,6 +558,7 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
         metadata: {
           listType: listType!,
           listItems: [...listItems],
+          isGrid: false,
         },
       });
       inList = false;
@@ -355,8 +589,16 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
       continue;
     }
 
-    // Skip empty lines
-    if (!trimmed) continue;
+    // Empty lines
+    if (!trimmed) {
+      // In grid mode: empty line finalizes current box but stays in grid mode
+      if (inGridMode) {
+        finalizeCurrentGridBox();
+      } else if (shouldAddSpacer()) {
+        addElement('spacer', '');
+      }
+      continue;
+    }
 
     // HTML comments (section markers)
     const commentMatch = trimmed.match(/<!--\s*(.+?)\s*-->/);
@@ -398,9 +640,67 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
       continue;
     }
 
-    // Pause marker
+    // Alignment marker [horizontal, vertical] e.g. [center, top]
+    const alignMatch = trimmed.match(/^\[(\w+)\s*,\s*(\w+)\]$/);
+    if (alignMatch) {
+      const alignment = parseAlignment(`${alignMatch[1]}, ${alignMatch[2]}`);
+      if (alignment) {
+        if (!currentSlide) createNewSlide();
+        currentSlide!.alignment = alignment;
+        continue;
+      }
+      // If not a valid alignment, fall through to check other patterns
+    }
+
+    // Grid marker [grid] - starts a new grid box
+    if (trimmed.toLowerCase() === '[grid]') {
+      // Finalize any regular list first
+      if (inList) {
+        finalizeList();
+      }
+      // Finalize current grid box (if any) and start a new one
+      finalizeCurrentGridBox();
+      inGridMode = true;
+      continue;
+    }
+
+    // Grid item: bullet while in grid mode
+    // Note: Empty lines are handled earlier (line ~555) and finalize current card
+    if (inGridMode) {
+      // Bullet = add row to current card (don't finalize!)
+      const gridBulletMatch = trimmed.match(/^[-*]\s+(.+)$/);
+      if (gridBulletMatch) {
+        // If this is the first row of a new card, capture revealOrder
+        if (currentGridBox.length === 0) {
+          currentGridBoxRevealOrder = revealOrder;
+        }
+        currentGridBox.push(gridBulletMatch[1]);
+        continue;
+      }
+
+      // Pause = finalize current card, increment reveal for next card
+      if (trimmed === '**pause**') {
+        finalizeCurrentGridBox();
+        revealOrder++;
+        continue;
+      }
+
+      // Any other content ends grid mode and gets processed normally
+      finalizeGrid();
+      // Don't continue - let the line be processed by subsequent handlers
+    }
+
+    // Pause marker (outside grid mode)
     if (trimmed === '**pause**') {
       revealOrder++;
+      continue;
+    }
+
+    // Explicit spacer marker [space] or [space:n]
+    const spaceMatch = trimmed.match(/^\[space(?::(\d+))?\]$/i);
+    if (spaceMatch) {
+      const multiplier = spaceMatch[1] ? parseInt(spaceMatch[1], 10) : 1;
+      addElement('spacer', '', { spaceMultiplier: multiplier });
       continue;
     }
 
@@ -412,13 +712,25 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
       continue;
     }
 
-    // Image placeholder
+    // Footer: $<footer content>
+    const footerMatch = trimmed.match(/^\$<(.+)>$/);
+    if (footerMatch) {
+      if (!currentSlide) createNewSlide();
+      currentSlide!.footer = processInlineFormatting(footerMatch[1]);
+      continue;
+    }
+
+    // Image placeholder with optional position: [image: description, position]
     const imageMatch = trimmed.match(/^\[image:\s*(.+?)\]$/);
     if (imageMatch) {
       finalizeList(); // End any pending list
-      const description = imageMatch[1];
+      const { description, position } = parseImageWithPosition(imageMatch[1]);
       if (!currentSlide) createNewSlide();
       currentSlide!.imageDescriptions.push(description);
+      // Set image position on slide if specified
+      if (position) {
+        currentSlide!.imagePosition = position;
+      }
       addElement('image', description, { imageStatus: 'pending' });
       continue;
     }
@@ -467,7 +779,7 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
         listRevealOrder = revealOrder;
         listItems = [];
       }
-      listItems.push(processInlineFormatting(itemContent));
+      listItems.push(parseListItemStyle(itemContent));
       continue;
     }
 
@@ -488,7 +800,8 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
         listRevealOrder = revealOrder;
         listItems = [];
       }
-      listItems.push(processInlineFormatting(itemContent));
+
+      listItems.push(parseListItemStyle(itemContent));
       continue;
     }
 
@@ -497,9 +810,9 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
       finalizeList();
     }
 
-    // Regular text (anything else)
+    // Regular text (anything else) - body text, smaller than ### headings
     if (trimmed) {
-      addElement('text', processInlineFormatting(trimmed));
+      addElement('body', processInlineFormatting(trimmed));
     }
   }
 
@@ -543,7 +856,24 @@ export function hashDescription(description: string): string {
  */
 export function countReveals(slide: Slide): number {
   if (slide.elements.length === 0) return 0;
-  return Math.max(...slide.elements.map((e) => e.revealOrder)) + 1;
+
+  // Collect all revealOrders, including those from grid items
+  const allRevealOrders: number[] = [];
+
+  for (const element of slide.elements) {
+    allRevealOrders.push(element.revealOrder);
+
+    // If this is a grid, also check grid items' revealOrders
+    if (element.metadata?.isGrid && element.metadata?.gridItems) {
+      for (const gridItem of element.metadata.gridItems) {
+        if (gridItem.revealOrder !== undefined) {
+          allRevealOrders.push(gridItem.revealOrder);
+        }
+      }
+    }
+  }
+
+  return Math.max(...allRevealOrders) + 1;
 }
 
 /**
@@ -551,6 +881,29 @@ export function countReveals(slide: Slide): number {
  */
 export function getVisibleElements(slide: Slide, revealStep: number): SlideElement[] {
   return slide.elements.filter((e) => e.revealOrder <= revealStep);
+}
+
+/**
+ * Detect if a deck uses v1 (legacy) format
+ * V2 decks have `v: 2` in their frontmatter (at the end of the document)
+ * Returns true if deck lacks the v2 marker
+ */
+export function isLegacyDeck(content: string): boolean {
+  // Empty or very short content is not considered legacy (nothing to upgrade)
+  if (!content || content.trim().length < 20) {
+    return false;
+  }
+
+  // Use extractFrontmatter to check for v: 2
+  const { frontmatter } = extractFrontmatter(content);
+
+  // If frontmatter has v: 2, it's not legacy
+  if (frontmatter.v === 2) {
+    return false;
+  }
+
+  // No v2 marker found = legacy deck
+  return true;
 }
 
 /**
@@ -614,13 +967,23 @@ export function deckToMarkdown(deck: ParsedDeck): string {
             lines.push('```');
             break;
           case 'list':
-            const listItems = element.metadata?.listItems || [];
-            const isOrdered = element.metadata?.listType === 'ordered';
-            listItems.forEach((item, idx) => {
-              if (isOrdered) {
-                lines.push(`${idx + 1}. ${item}`);
+            const serializeListItems = element.metadata?.listItems || [];
+            const isOrderedList = element.metadata?.listType === 'ordered';
+            serializeListItems.forEach((item, idx) => {
+              // Handle both old format (string) and new format (ListItem object)
+              const content = typeof item === 'string' ? item : item.content;
+              const style = typeof item === 'string' ? 'body' : item.style;
+
+              // Prepend heading marker based on style
+              let itemText = content;
+              if (style === 'title') itemText = `# ${content}`;
+              else if (style === 'h1') itemText = `## ${content}`;
+              else if (style === 'h2') itemText = `### ${content}`;
+
+              if (isOrderedList) {
+                lines.push(`${idx + 1}. ${itemText}`);
               } else {
-                lines.push(`- ${item}`);
+                lines.push(`- ${itemText}`);
               }
             });
             break;
@@ -630,6 +993,11 @@ export function deckToMarkdown(deck: ParsedDeck): string {
 
       if (slide.speakerNotes) {
         lines.push(`> ${slide.speakerNotes.replace(/\n/g, '\n> ')}`);
+        lines.push('');
+      }
+
+      if (slide.footer) {
+        lines.push(`$<${slide.footer}>`);
         lines.push('');
       }
 

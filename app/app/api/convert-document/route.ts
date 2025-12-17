@@ -12,6 +12,7 @@ import { prisma } from '@/lib/prisma';
 import { saveDeckBlob, saveTheme } from '@/lib/blob';
 import { DOCUMENT_TO_SLIDES_PROMPT, DEFAULT_THEME_SYSTEM_PROMPT } from '@/lib/prompts';
 import { requireCredits, deductCredits, CREDIT_COSTS } from '@/lib/credits';
+import { extractFrontmatter } from '@/lib/parser';
 import { nanoid } from 'nanoid';
 
 // Create Vercel AI Gateway client
@@ -138,6 +139,28 @@ Begin:`;
         { error: 'Invalid slide format generated', raw: markdown },
         { status: 500 }
       );
+    }
+
+    // Add v: 2 marker to mark as v2 format deck
+    const { frontmatter, body } = extractFrontmatter(cleanedMarkdown);
+    frontmatter.v = 2;
+
+    // Rebuild markdown with frontmatter
+    if (frontmatter.v || (frontmatter.images && Object.keys(frontmatter.images).length > 0)) {
+      let yamlContent = '';
+      if (frontmatter.v) {
+        yamlContent += `v: ${frontmatter.v}\n`;
+      }
+      if (frontmatter.images && Object.keys(frontmatter.images).length > 0) {
+        yamlContent += 'images:\n';
+        for (const [desc, data] of Object.entries(frontmatter.images)) {
+          yamlContent += `  ${JSON.stringify(desc)}:\n`;
+          for (const [key, val] of Object.entries(data)) {
+            yamlContent += `    ${key}: ${val}\n`;
+          }
+        }
+      }
+      cleanedMarkdown = body + `\n\n---\n${yamlContent}---`;
     }
 
     // Generate deck name: use suggested title, then document name, then first heading

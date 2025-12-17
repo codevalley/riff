@@ -24,6 +24,9 @@ yarn-error.log*
 # Vercel
 .vercel
 
+# claude
+.claude/
+
 # IDE
 .idea/
 .vscode/

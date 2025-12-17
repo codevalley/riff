@@ -18,6 +18,7 @@ interface SlideEditorProps {
   onSave: () => void;
   onRevamp?: () => void;
   isSaving?: boolean;
+  isLegacy?: boolean;
 }
 
 // Find the character position where slide N starts (0-indexed)
@@ -48,7 +49,7 @@ function getSlideFromPosition(content: string, cursorPos: number): number {
   return separators ? separators.length : 0;
 }
 
-export function SlideEditor({ content, onChange, onSave, onRevamp, isSaving = false }: SlideEditorProps) {
+export function SlideEditor({ content, onChange, onSave, onRevamp, isSaving = false, isLegacy = false }: SlideEditorProps) {
   const [localContent, setLocalContent] = useState(content);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [editorSlide, setEditorSlide] = useState(0);
@@ -173,11 +174,14 @@ export function SlideEditor({ content, onChange, onSave, onRevamp, isSaving = fa
           {onRevamp && (
             <button
               onClick={onRevamp}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm text-text-secondary hover:text-amber-400 hover:bg-amber-500/10 transition-all duration-fast"
-              title="Revamp deck with AI"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm text-text-secondary hover:text-amber-400 hover:bg-amber-500/10 transition-all duration-fast relative"
+              title={isLegacy ? "Upgrade deck to v2 format" : "Revamp deck with AI"}
             >
               <Wand2 className="w-3.5 h-3.5" />
               <span>Revamp</span>
+              {isLegacy && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse" />
+              )}
             </button>
           )}
 

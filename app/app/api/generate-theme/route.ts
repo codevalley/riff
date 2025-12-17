@@ -53,11 +53,18 @@ export async function POST(request: NextRequest) {
     // Try to extract CSS from the response (it might be wrapped in code blocks)
     let css = responseText;
 
-    // Remove markdown code blocks if present
-    const codeBlockMatch = css.match(/```css?\s*([\s\S]*?)```/);
+    // Remove markdown code blocks if present (try multiple patterns)
+    // Pattern 1: ```css ... ``` or ``` ... ```
+    const codeBlockMatch = css.match(/```(?:css)?\s*([\s\S]*?)```/);
     if (codeBlockMatch) {
       css = codeBlockMatch[1];
     }
+
+    // Pattern 2: If still has backticks, strip them all
+    css = css.replace(/```(?:css)?/g, '').replace(/```/g, '');
+
+    // Remove any @import statements from AI output (we'll add our own with correct weights)
+    css = css.replace(/@import\s+url\([^)]+\);?\s*/g, '');
 
     // Clean up the CSS
     css = css.trim();
@@ -81,11 +88,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Extract font weights used in the theme
+    const weightMatches = Array.from(css.matchAll(/--weight-\w+:\s*(\d+)/g));
+    const usedWeights = new Set<string>();
+    for (const match of weightMatches) {
+      usedWeights.add(match[1]);
+    }
+    // Ensure common weights are included (300=light, 400=regular, 500=medium, 600=semibold, 700=bold)
+    const weights = usedWeights.size > 0
+      ? Array.from(usedWeights).sort().join(';')
+      : '300;400;500;600;700';
+
     // Generate Google Fonts import URL
     const uniqueFonts = Array.from(new Set(fonts));
     const fontImport = uniqueFonts.length > 0
       ? `@import url('https://fonts.googleapis.com/css2?${uniqueFonts
-          .map((f) => `family=${encodeURIComponent(f)}:wght@400;500;600;700`)
+          .map((f) => `family=${encodeURIComponent(f)}:wght@${weights}`)
           .join('&')}&display=swap');\n\n`
       : '';
 

@@ -10,23 +10,43 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Lightbulb, X } from 'lucide-react';
 
 const FORMAT_EXAMPLES = [
-  { syntax: '---', description: 'Slide separator' },
-  { syntax: '# Title', description: 'Main headline (h1)' },
-  { syntax: '## Heading', description: 'Secondary heading (h2)' },
-  { syntax: '### Subtitle', description: 'Tertiary text (h3)' },
-  { syntax: 'Regular text', description: 'Body text (no prefix)' },
-  { syntax: '- Item  or  * Item', description: 'Unordered list' },
-  { syntax: '1. Item', description: 'Ordered list' },
-  { syntax: '[image: description]', description: 'AI-generated image' },
-  { syntax: '**pause**', description: 'Reveal animation beat' },
-  { syntax: '> Note', description: 'Speaker notes (hidden)' },
-  { syntax: '`keyword`', description: 'Highlighted text' },
-  { syntax: '```lang\\ncode\\n```', description: 'Code block' },
-  { syntax: '[section]', description: 'Section header slide' },
-  { syntax: '# Title [anvil]', description: 'Anvil drop animation' },
-  { syntax: '# Title [typewriter]', description: 'Typewriter effect' },
-  { syntax: '# Title [glow]', description: 'Pulsing glow effect' },
-  { syntax: '# Title [shake]', description: 'Attention shake' },
+  // Basic syntax
+  { syntax: '---', description: 'Slide separator', category: 'basic' },
+  { syntax: '# Title', description: 'Main headline (f1 font)', category: 'basic' },
+  { syntax: '## Heading', description: 'Secondary heading (f2 font)', category: 'basic' },
+  { syntax: '### Subtitle', description: 'Body text (f2 font)', category: 'basic' },
+  { syntax: 'Regular text', description: 'Body text (no prefix)', category: 'basic' },
+  { syntax: '- Item  or  * Item', description: 'Unordered list', category: 'basic' },
+  { syntax: '1. Item', description: 'Ordered list', category: 'basic' },
+  { syntax: '`keyword`', description: 'Highlighted accent text', category: 'basic' },
+  { syntax: '```lang\\ncode\\n```', description: 'Code block', category: 'basic' },
+  { syntax: '**pause**', description: 'Reveal animation beat', category: 'basic' },
+  { syntax: '> Note', description: 'Speaker notes (hidden)', category: 'basic' },
+
+  // Layout v2
+  { syntax: '[left, top]', description: 'Alignment: horizontal, vertical', category: 'layout' },
+  { syntax: '[center, center]', description: 'Center content (default)', category: 'layout' },
+  { syntax: '[section]', description: 'Section header slide', category: 'layout' },
+  { syntax: '[space:2]', description: 'Vertical spacer (multiplier)', category: 'layout' },
+  { syntax: '$<footer text>', description: 'Slide footer', category: 'layout' },
+
+  // Images
+  { syntax: '[image: desc]', description: 'AI-generated image', category: 'image' },
+  { syntax: '[image: desc, left]', description: 'Image on left (30/70 split)', category: 'image' },
+  { syntax: '[image: desc, right]', description: 'Image on right (70/30 split)', category: 'image' },
+  { syntax: '[image: desc, top]', description: 'Image on top (landscape)', category: 'image' },
+  { syntax: '[image: desc, bottom]', description: 'Image on bottom', category: 'image' },
+
+  // Grids
+  { syntax: '[grid]', description: 'Start grid card layout', category: 'grid' },
+  { syntax: '- [icon: rocket]', description: 'Lucide icon in grid item', category: 'grid' },
+  { syntax: '- ## Card Title', description: 'Heading row in grid item', category: 'grid' },
+
+  // Text effects
+  { syntax: '# Title [anvil]', description: 'Anvil drop animation', category: 'effect' },
+  { syntax: '# Title [typewriter]', description: 'Typewriter effect', category: 'effect' },
+  { syntax: '# Title [glow]', description: 'Pulsing glow effect', category: 'effect' },
+  { syntax: '# Title [shake]', description: 'Attention shake', category: 'effect' },
 ];
 
 // Background effect previews with visual demonstrations
@@ -140,20 +160,104 @@ export function FormatHelpDialog() {
 
                 {/* Content */}
                 <div className="px-6 pb-6 overflow-y-auto flex-1">
-                  <div className="space-y-0.5">
-                    {FORMAT_EXAMPLES.map((item, index) => (
-                      <div
-                        key={index}
-                        className="flex items-start gap-3 py-2 px-3 rounded-md hover:bg-white/5 transition-colors"
-                      >
-                        <code className="flex-shrink-0 min-w-[150px] text-xs font-mono text-amber-400 bg-amber-500/10 px-2 py-1 rounded">
-                          {item.syntax}
-                        </code>
-                        <span className="text-sm text-[#a1a1aa]">
-                          {item.description}
-                        </span>
-                      </div>
-                    ))}
+                  {/* Basic Syntax */}
+                  <div className="mb-4">
+                    <h3 className="text-xs font-medium text-white uppercase tracking-wider mb-2 px-3">Basic Syntax</h3>
+                    <div className="space-y-0.5">
+                      {FORMAT_EXAMPLES.filter(i => i.category === 'basic').map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex items-start gap-3 py-1.5 px-3 rounded-md hover:bg-white/5 transition-colors"
+                        >
+                          <code className="flex-shrink-0 min-w-[160px] text-xs font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">
+                            {item.syntax}
+                          </code>
+                          <span className="text-xs text-[#a1a1aa]">
+                            {item.description}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Layout */}
+                  <div className="mb-4">
+                    <h3 className="text-xs font-medium text-white uppercase tracking-wider mb-2 px-3">Layout & Alignment</h3>
+                    <div className="space-y-0.5">
+                      {FORMAT_EXAMPLES.filter(i => i.category === 'layout').map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex items-start gap-3 py-1.5 px-3 rounded-md hover:bg-white/5 transition-colors"
+                        >
+                          <code className="flex-shrink-0 min-w-[160px] text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">
+                            {item.syntax}
+                          </code>
+                          <span className="text-xs text-[#a1a1aa]">
+                            {item.description}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Images */}
+                  <div className="mb-4">
+                    <h3 className="text-xs font-medium text-white uppercase tracking-wider mb-2 px-3">Images</h3>
+                    <div className="space-y-0.5">
+                      {FORMAT_EXAMPLES.filter(i => i.category === 'image').map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex items-start gap-3 py-1.5 px-3 rounded-md hover:bg-white/5 transition-colors"
+                        >
+                          <code className="flex-shrink-0 min-w-[160px] text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                            {item.syntax}
+                          </code>
+                          <span className="text-xs text-[#a1a1aa]">
+                            {item.description}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Grids */}
+                  <div className="mb-4">
+                    <h3 className="text-xs font-medium text-white uppercase tracking-wider mb-2 px-3">Grid Cards</h3>
+                    <div className="space-y-0.5">
+                      {FORMAT_EXAMPLES.filter(i => i.category === 'grid').map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex items-start gap-3 py-1.5 px-3 rounded-md hover:bg-white/5 transition-colors"
+                        >
+                          <code className="flex-shrink-0 min-w-[160px] text-xs font-mono text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded">
+                            {item.syntax}
+                          </code>
+                          <span className="text-xs text-[#a1a1aa]">
+                            {item.description}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Text Effects */}
+                  <div className="mb-4">
+                    <h3 className="text-xs font-medium text-white uppercase tracking-wider mb-2 px-3">Text Effects</h3>
+                    <div className="space-y-0.5">
+                      {FORMAT_EXAMPLES.filter(i => i.category === 'effect').map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex items-start gap-3 py-1.5 px-3 rounded-md hover:bg-white/5 transition-colors"
+                        >
+                          <code className="flex-shrink-0 min-w-[160px] text-xs font-mono text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded">
+                            {item.syntax}
+                          </code>
+                          <span className="text-xs text-[#a1a1aa]">
+                            {item.description}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Background Effects Section */}
@@ -219,7 +323,9 @@ export function FormatHelpDialog() {
                       <li>• Use <code className="text-amber-400 bg-amber-500/10 px-1 rounded">**pause**</code> to reveal content step-by-step</li>
                       <li>• Wrap text in <code className="text-amber-400 bg-amber-500/10 px-1 rounded">`backticks`</code> to highlight keywords</li>
                       <li>• Add <code className="text-amber-400 bg-amber-500/10 px-1 rounded">[section]</code> for bold section headers</li>
-                      <li>• Speaker notes (<code className="text-amber-400 bg-amber-500/10 px-1 rounded">&gt;</code>) are only visible in notes panel</li>
+                      <li>• Alignment goes at slide start: <code className="text-cyan-400 bg-cyan-500/10 px-1 rounded">[left, top]</code></li>
+                      <li>• Grid items support icons, images, and multi-line text</li>
+                      <li>• Use <code className="text-amber-400 bg-amber-500/10 px-1 rounded">**pause**</code> between grid items for reveals</li>
                     </ul>
                   </div>
                 </div>

@@ -18,6 +18,7 @@ import {
   Smile,
   Palette,
   Loader2,
+  ArrowUpCircle,
 } from 'lucide-react';
 import { CREDIT_COSTS } from '@/lib/credits-config';
 
@@ -27,6 +28,7 @@ interface RevampDeckDialogProps {
   onRevamp: (instructions: string) => Promise<void>;
   slideCount: number;
   isRevamping?: boolean;
+  isLegacy?: boolean;
 }
 
 interface Suggestion {
@@ -47,23 +49,37 @@ const SUGGESTIONS: Suggestion[] = [
   { id: 'concise', label: 'Concise', text: 'Make it more concise, removing redundancy', icon: Scissors },
 ];
 
+// Upgrade suggestion for legacy decks - uses v2 features
+const UPGRADE_SUGGESTION: Suggestion = {
+  id: 'upgrade',
+  label: 'Upgrade to v2',
+  text: 'Upgrade this deck to use the new v2 format with grids, icons, background effects, alignment controls, and text effects like [anvil], [typewriter], and [glow]. Preserve the existing content while enhancing it with these new features.',
+  icon: ArrowUpCircle,
+};
+
 export function RevampDeckDialog({
   isOpen,
   onClose,
   onRevamp,
   slideCount,
   isRevamping = false,
+  isLegacy = false,
 }: RevampDeckDialogProps) {
   const [instructions, setInstructions] = useState('');
   const [activeSuggestions, setActiveSuggestions] = useState<Set<string>>(new Set());
 
-  // Reset state when dialog opens
+  // Reset state when dialog opens, auto-select upgrade if legacy
   useEffect(() => {
     if (isOpen) {
-      setInstructions('');
-      setActiveSuggestions(new Set());
+      if (isLegacy) {
+        setActiveSuggestions(new Set(['upgrade']));
+        setInstructions(`• ${UPGRADE_SUGGESTION.text}`);
+      } else {
+        setInstructions('');
+        setActiveSuggestions(new Set());
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, isLegacy]);
 
   // Toggle suggestion - add/remove from textarea
   const toggleSuggestion = useCallback((suggestion: Suggestion) => {
@@ -157,15 +173,26 @@ export function RevampDeckDialog({
         <div className="px-6 pt-6 pb-5 border-b border-white/[0.06]">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/20 flex items-center justify-center">
-                <Wand2 className="w-5 h-5 text-amber-400" />
+              <div className={`w-10 h-10 rounded-xl border flex items-center justify-center ${
+                isLegacy
+                  ? 'bg-gradient-to-br from-amber-500/30 to-amber-600/20 border-amber-500/30'
+                  : 'bg-gradient-to-br from-amber-500/20 to-amber-600/10 border-amber-500/20'
+              }`}>
+                {isLegacy ? (
+                  <ArrowUpCircle className="w-5 h-5 text-amber-400" />
+                ) : (
+                  <Wand2 className="w-5 h-5 text-amber-400" />
+                )}
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-white tracking-tight">
-                  Revamp Deck
+                  {isLegacy ? 'Upgrade Deck' : 'Revamp Deck'}
                 </h2>
                 <p className="text-sm text-white/40 mt-0.5">
-                  Refine your {slideCount}-slide deck with AI
+                  {isLegacy
+                    ? `Upgrade your ${slideCount}-slide deck to v2 format`
+                    : `Refine your ${slideCount}-slide deck with AI`
+                  }
                 </p>
               </div>
             </div>
@@ -181,6 +208,38 @@ export function RevampDeckDialog({
 
         {/* Content */}
         <div className="px-6 py-5 space-y-5">
+          {/* Upgrade banner for legacy decks */}
+          {isLegacy && (
+            <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/10 to-amber-600/5 border border-amber-500/20">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                  <ArrowUpCircle className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-amber-300">Legacy deck detected</p>
+                  <p className="text-xs text-white/50 mt-0.5">
+                    This deck uses an older format. Upgrade to unlock grids, icons, background effects, and text animations.
+                  </p>
+                </div>
+                <motion.button
+                  onClick={() => toggleSuggestion(UPGRADE_SUGGESTION)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`
+                    px-3 py-1.5 rounded-lg text-xs font-medium flex-shrink-0
+                    transition-all duration-200
+                    ${activeSuggestions.has('upgrade')
+                      ? 'bg-amber-500 text-black'
+                      : 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                    }
+                  `}
+                >
+                  {activeSuggestions.has('upgrade') ? 'Selected' : 'Upgrade'}
+                </motion.button>
+              </div>
+            </div>
+          )}
+
           {/* Quick suggestions */}
           <div>
             <label className="block text-[11px] font-medium text-white/40 uppercase tracking-wider mb-3">
@@ -260,12 +319,12 @@ export function RevampDeckDialog({
             {isRevamping ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Revamping...</span>
+                <span>{isLegacy ? 'Upgrading...' : 'Revamping...'}</span>
               </>
             ) : (
               <>
-                <Wand2 className="w-4 h-4" />
-                <span>Revamp Deck</span>
+                {isLegacy ? <ArrowUpCircle className="w-4 h-4" /> : <Wand2 className="w-4 h-4" />}
+                <span>{isLegacy ? 'Upgrade Deck' : 'Revamp Deck'}</span>
               </>
             )}
           </button>

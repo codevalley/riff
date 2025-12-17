@@ -10,7 +10,7 @@ import { PanelLeftClose, PanelLeft, X, Loader2, Plus, FileSymlink } from 'lucide
 import { RiffIcon } from '@/components/RiffIcon';
 import { useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
-import { parseSlideMarkdown, updateImageInManifest, setActiveImageSlot } from '@/lib/parser';
+import { parseSlideMarkdown, updateImageInManifest, setActiveImageSlot, isLegacyDeck } from '@/lib/parser';
 import { ImageSlot } from '@/lib/types';
 import { DeckManager } from '@/components/DeckManager';
 import { SlideEditor } from '@/components/SlideEditor';
@@ -341,7 +341,16 @@ function EditorContent() {
       });
 
       const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Theme generation failed:', data);
+        setError(data.error || 'Failed to generate theme');
+        return;
+      }
+
       if (data.css) {
+        console.log('Theme generated successfully, CSS length:', data.css.length);
+        console.log('Generated CSS:', data.css);
         setThemeCSS(data.css);
         setThemePrompt(prompt);
         setTheme({
@@ -351,10 +360,13 @@ function EditorContent() {
           css: data.css,
           fonts: { display: '', body: '', mono: '' },
         });
+      } else {
+        console.error('No CSS in response:', data);
+        setError('Theme generation returned no CSS');
       }
     } catch (err) {
       setError('Failed to generate theme');
-      console.error(err);
+      console.error('Theme generation error:', err);
     } finally {
       setIsGeneratingTheme(false);
     }
@@ -610,6 +622,7 @@ function EditorContent() {
                   onSave={saveDeck}
                   onRevamp={() => setShowRevampDialog(true)}
                   isSaving={isSaving}
+                  isLegacy={isLegacyDeck(currentDeckContent)}
                 />
               </div>
             </motion.div>
@@ -757,6 +770,7 @@ function EditorContent() {
         onRevamp={handleRevamp}
         slideCount={parsedDeck?.slides.length || 0}
         isRevamping={isRevamping}
+        isLegacy={isLegacyDeck(currentDeckContent)}
       />
     </div>
   );

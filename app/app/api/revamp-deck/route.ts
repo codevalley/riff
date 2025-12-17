@@ -8,73 +8,13 @@ import { generateText, createGateway } from 'ai';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { requireCredits, deductCredits, CREDIT_COSTS } from '@/lib/credits';
+import { DECK_REVAMP_PROMPT } from '@/lib/prompts';
+import { extractFrontmatter } from '@/lib/parser';
 
 // Create Vercel AI Gateway client
 const gateway = createGateway({
   apiKey: process.env.AI_GATEWAY_API_KEY || '',
 });
-
-const REVAMP_SYSTEM_PROMPT = `You are a presentation expert. Your job is to REVAMP and IMPROVE an existing Riff presentation based on user instructions.
-
-## RIFF MARKDOWN FORMAT
-
-Each slide is separated by \`---\` on its own line.
-
-### Element Types:
-- \`# Title\` - Main headline (large, bold)
-- \`## Heading\` - Secondary heading
-- \`### Text\` - Body text
-- Regular text - Also treated as body text
-- \`- Item\` or \`* Item\` - Bullet list
-- \`1. Item\` - Numbered list
-- \`[image: description]\` - AI-generated image (describe what to show)
-- \`**pause**\` - Progressive reveal (content after appears on click)
-- \`> Speaker note\` - Hidden notes for presenter only
-- \`\`\`language\\ncode\\n\`\`\` - Code blocks
-
-### Section separators:
-- \`[section]\` - Marks a section header slide
-
-### Text Effects (append to titles):
-- \`# Title [anvil]\` - Drop animation
-- \`# Title [typewriter]\` - Character-by-character reveal
-- \`# Title [glow]\` - Pulsing glow effect
-- \`# Title [shake]\` - Attention shake
-
-### Background Effects (before content):
-- \`[bg:glow-bottom-left]\` - Gradient glow
-- \`[bg:grid-center]\` - Grid pattern
-- \`[bg:hatch-top-right-amber]\` - Hatched pattern with color
-
-### Inline Formatting:
-- \`\`keyword\`\` - Highlighted/accent text
-
-## REVAMP GUIDELINES
-
-1. **Preserve Core Content**: Keep the essential information and message intact. This is a refinement, not a rewrite.
-
-2. **PRESERVE FRONTMATTER**: If the deck has frontmatter (YAML between --- markers at the end starting with "images:"), keep it EXACTLY as-is at the end of the output.
-
-3. **Apply User Instructions**: Follow the user's specific requests for improvement.
-
-4. **Enhance Visually**:
-   - Add more [image: description] placeholders if lacking visuals
-   - Add **pause** for progressive reveals on dense slides
-   - Apply text effects on impactful titles
-   - Use background effects on section headers
-
-5. **Improve Flow**:
-   - Ensure logical progression between slides
-   - Balance content density across slides
-   - Add speaker notes where helpful
-
-6. **Keep it Punchy**:
-   - Titles should be concise and impactful
-   - Limit bullet points (3-5 max per slide)
-   - Remove redundancy
-
-## OUTPUT FORMAT
-Output ONLY the complete revised markdown. No explanations, no code fences. Just the deck markdown content.`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -127,7 +67,7 @@ Now revamp the deck according to the instructions above. Output only the revised
 
     const { text: markdown } = await generateText({
       model: gateway(modelId),
-      system: REVAMP_SYSTEM_PROMPT,
+      system: DECK_REVAMP_PROMPT,
       prompt: userPrompt,
       maxOutputTokens: 16384,
     });
@@ -153,6 +93,33 @@ Now revamp the deck according to the instructions above. Output only the revised
 
     // Count slides after revamp
     const newSlideCount = (cleanedMarkdown.match(/^---$/gm) || []).length + 1;
+
+    // Add v: 2 marker using proper frontmatter extraction
+    // This ensures we don't create duplicate blocks
+    const { frontmatter, body } = extractFrontmatter(cleanedMarkdown);
+    frontmatter.v = 2;
+
+    // Rebuild markdown with frontmatter at end
+    // Only add frontmatter block if there's content
+    if (frontmatter.v || (frontmatter.images && Object.keys(frontmatter.images).length > 0)) {
+      let yamlContent = '';
+      if (frontmatter.v) {
+        yamlContent += `v: ${frontmatter.v}\n`;
+      }
+      if (frontmatter.images && Object.keys(frontmatter.images).length > 0) {
+        // Use simple YAML serialization for images
+        yamlContent += 'images:\n';
+        for (const [desc, data] of Object.entries(frontmatter.images)) {
+          yamlContent += `  ${JSON.stringify(desc)}:\n`;
+          for (const [key, val] of Object.entries(data)) {
+            yamlContent += `    ${key}: ${val}\n`;
+          }
+        }
+      }
+      cleanedMarkdown = body + `\n\n---\n${yamlContent}---`;
+    } else {
+      cleanedMarkdown = body;
+    }
 
     // Deduct credits after successful revamp
     await deductCredits(

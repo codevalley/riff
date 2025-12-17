@@ -43,8 +43,10 @@ const TOC = [
     icon: FileText,
     children: [
       { id: 'slides', title: 'Creating Slides' },
+      { id: 'alignment', title: 'Alignment' },
       { id: 'text-formatting', title: 'Text & Formatting' },
       { id: 'lists-tables', title: 'Lists & Tables' },
+      { id: 'grid-cards', title: 'Grid Cards' },
       { id: 'code-blocks', title: 'Code Blocks' },
       { id: 'speaker-notes', title: 'Speaker Notes' },
     ],
@@ -55,6 +57,7 @@ const TOC = [
     icon: Image,
     children: [
       { id: 'image-placeholders', title: 'Image Placeholders' },
+      { id: 'image-positioning', title: 'Image Positioning' },
       { id: 'ai-generation', title: 'AI Generation' },
       { id: 'image-styles', title: 'Image Styles' },
       { id: 'uploading', title: 'Uploading Images' },
@@ -467,6 +470,44 @@ Even more content`} />
                 </div>
               </section>
 
+              <section data-section="alignment" className="mb-12 scroll-mt-24">
+                <h3 className="text-xl font-medium mb-4 text-white/90">Alignment</h3>
+                <div className="prose-custom">
+                  <p>
+                    Control slide content alignment with <code>[horizontal, vertical]</code> markers at the start of a slide:
+                  </p>
+                  <CodeBlock code={`[center, center]  // Centered (default)
+
+# Impact Statement
+
+---
+
+[left, top]  // Top-left aligned
+
+# Content-Heavy Slide
+
+- Point one
+- Point two
+- Point three
+
+---
+
+[center, top]  // Top-centered (good for grids)
+
+# Our Features
+
+[grid]
+- ## Feature 1
+- ## Feature 2`} />
+                  <p className="mt-4">
+                    <strong>Horizontal:</strong> <code>left</code>, <code>center</code>, <code>right</code>
+                  </p>
+                  <p>
+                    <strong>Vertical:</strong> <code>top</code>, <code>center</code>, <code>bottom</code>
+                  </p>
+                </div>
+              </section>
+
               <section data-section="text-formatting" className="mb-12 scroll-mt-24">
                 <h3 className="text-xl font-medium mb-4 text-white/90">Text & Formatting</h3>
                 <div className="prose-custom">
@@ -505,6 +546,49 @@ Tables:
 | Themes  | Done   |
 | Images  | Done   |
 | Export  | Soon   |`} />
+                </div>
+              </section>
+
+              <section data-section="grid-cards" className="mb-12 scroll-mt-24">
+                <h3 className="text-xl font-medium mb-4 text-white/90">Grid Cards</h3>
+                <div className="prose-custom">
+                  <p>
+                    Create horizontal card layouts for features, benefits, or comparisons:
+                  </p>
+                  <CodeBlock code={`[grid]
+- [icon: rocket]
+  ## Launch Fast
+  Deploy in minutes
+- [icon: shield]
+  ## Stay Secure
+  Enterprise-grade protection
+- [icon: zap]
+  ## Scale Easy
+  Grows with you`} />
+                  <p className="mt-4">
+                    Each bullet (<code>-</code>) starts a new card. Within each card:
+                  </p>
+                  <ul className="list-disc ml-5 mt-2 space-y-1 text-white/60">
+                    <li><code>[icon: name]</code> - Lucide icon (optional)</li>
+                    <li><code>## Heading</code> - Card title</li>
+                    <li>Plain text - Description</li>
+                  </ul>
+                  <p className="mt-4">
+                    Use <code>**pause**</code> between grid items for progressive reveals:
+                  </p>
+                  <CodeBlock code={`[grid]
+- ## Step 1
+  Research
+
+**pause**
+
+- ## Step 2
+  Build
+
+**pause**
+
+- ## Step 3
+  Launch`} />
                 </div>
               </section>
 
@@ -569,12 +653,29 @@ Visible content here.
 [image: diagram showing user authentication flow]
 
 [image: team collaboration in modern office]`} />
-                  <p className="mt-4">
-                    Position images by adding modifiers:
+                </div>
+              </section>
+
+              <section data-section="image-positioning" className="mb-12 scroll-mt-24">
+                <h3 className="text-xl font-medium mb-4 text-white/90">Image Positioning</h3>
+                <div className="prose-custom">
+                  <p>
+                    Create split layouts by adding a position after the description:
                   </p>
-                  <CodeBlock code={`[image: description | left]   // Image on left
-[image: description | right]  // Image on right
-[image: description | full]   // Full-width image`} />
+                  <CodeBlock code={`[image: description, left]    // 30% image left, 70% content right
+[image: description, right]   // 70% content left, 30% image right
+[image: description, top]     // 70% image top, 30% content bottom
+[image: description, bottom]  // 30% content top, 70% image bottom`} />
+                  <p className="mt-4">
+                    Left/right positions create portrait-oriented images, while top/bottom create landscape-oriented images.
+                  </p>
+                  <CodeBlock code={`[left, center]
+
+# Our Process
+
+### Building great products requires great collaboration
+
+[image: Team brainstorming around whiteboard, right]`} />
                 </div>
               </section>
 
@@ -755,12 +856,22 @@ Second point appears on click.
 
 Final reveal!`} />
                   <p className="mt-4">
-                    Special animations:
+                    <strong>Text Effects</strong> - Add animations to titles:
                   </p>
-                  <CodeBlock code={`# Title [anvil]     // Dramatic drop-in
-[section]           // Section divider slide
-[bg:glow]           // Glowing background effect
-[bg:gradient]       // Gradient background`} />
+                  <CodeBlock code={`# Title [anvil]       // Dramatic drop-in bounce
+# Title [typewriter]  // Character-by-character
+# Title [glow]        // Pulsing glow effect
+# Title [shake]       // Attention-grabbing shake`} />
+                  <p className="mt-4">
+                    <strong>Background Effects</strong> - Decorative slide backgrounds:
+                  </p>
+                  <CodeBlock code={`[bg:glow-center]            // Radial glow
+[bg:grid-top-right]         // Grid pattern
+[bg:hatch-bottom-left-amber] // Hatched pattern
+[bg:dashed-center-blue]     // Dashed grid`} />
+                  <p className="mt-4 text-white/50">
+                    Colors: <code>accent</code>, <code>amber</code>, <code>blue</code>, <code>purple</code>, <code>rose</code>, <code>emerald</code>, <code>cyan</code>, <code>orange</code>, <code>pink</code>
+                  </p>
                 </div>
               </section>
 
