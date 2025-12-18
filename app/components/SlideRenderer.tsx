@@ -815,17 +815,26 @@ function GridCard({
   onActiveSlotChange,
 }: GridCardProps) {
   // Check if this grid item should be visible based on its revealOrder
-  const isVisible = (item.revealOrder ?? 0) <= revealStep;
+  const itemRevealOrder = item.revealOrder ?? 0;
+  const isVisible = itemRevealOrder <= revealStep;
 
+  // Hidden items: render empty placeholder to maintain grid layout
+  if (!isVisible) {
+    return (
+      <div
+        className="flex flex-col items-center text-center p-4 md:p-6 rounded-xl bg-transparent"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  // Visible items: render with entrance animation
   return (
-    <div
-      className={`
-        flex flex-col items-center text-center
-        p-4 md:p-6 rounded-xl
-        bg-slide-surface/20
-        transition-all duration-500 ease-out
-        ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}
-      `}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="flex flex-col items-center text-center p-4 md:p-6 rounded-xl bg-slide-surface/20"
     >
       {/* All rows stack vertically - can be icon, image, or text */}
       {item.rows?.map((row, idx) => (
@@ -838,7 +847,7 @@ function GridCard({
           onActiveSlotChange={onActiveSlotChange}
         />
       ))}
-    </div>
+    </motion.div>
   );
 }
 

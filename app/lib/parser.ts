@@ -692,6 +692,9 @@ export function parseSlideMarkdown(markdown: string): ParsedDeck {
 
     // Pause marker (outside grid mode)
     if (trimmed === '**pause**') {
+      // Finalize any pending list before incrementing reveal order
+      // This ensures items before and after pause are in separate list elements
+      finalizeList();
       revealOrder++;
       continue;
     }

@@ -116,14 +116,14 @@ export function SlidePreview({
             slide={currentSlide}
             slideIndex={presentation.currentSlide}
             deckId={deckId}
-            revealStep={999}  // Show all content in editor (reveals only matter during presentation)
+            revealStep={presentation.currentReveal}
             themePrompt={themePrompt}
             isPresenting={false}
           />
         ) : (
           <SlideRenderer
             slide={currentSlide}
-            revealStep={999}  // Show all content in editor (reveals only matter during presentation)
+            revealStep={presentation.currentReveal}
             isPresenting={false}
             imageManifest={parsedDeck.imageManifest}
             onImageChange={onImageChange}
