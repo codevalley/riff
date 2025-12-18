@@ -2,7 +2,7 @@
 
 // ============================================
 // RIFF - Document Uploader Component
-// Refined editorial aesthetic with engaging states
+// Multi-stage deck generation with tips carousel
 // ============================================
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -18,6 +18,10 @@ import {
   Lightbulb,
   Clipboard,
   Plus,
+  ImageIcon,
+  Palette,
+  Share2,
+  Code2,
 } from 'lucide-react';
 import { RiffIcon } from '@/components/RiffIcon';
 import { useRouter } from 'next/navigation';
@@ -28,12 +32,67 @@ interface DocumentUploaderProps {
 }
 
 type ConversionStatus = 'idle' | 'reading' | 'converting' | 'success' | 'error';
+type ConversionStage = 'decksmith' | 'packaging' | 'theming' | 'saving';
 
 interface ConversionOptions {
   slideCount: 'auto' | 'full' | number;
   style: 'professional' | 'minimal' | 'creative';
   includeSpeakerNotes: boolean;
 }
+
+// Stage configuration
+const STAGES: { id: ConversionStage; label: string; messages: string[] }[] = [
+  {
+    id: 'decksmith',
+    label: 'DeckSmith',
+    messages: [
+      'Analyzing content structure...',
+      'Mapping to slide templates...',
+      'Organizing narrative flow...',
+      'Crafting slide layouts...',
+      'Optimizing density...',
+    ],
+  },
+  {
+    id: 'packaging',
+    label: 'Packaging',
+    messages: ['Extracting title...', 'Analyzing theme...'],
+  },
+  {
+    id: 'theming',
+    label: 'Theming',
+    messages: ['Generating color palette...', 'Selecting typography...'],
+  },
+  {
+    id: 'saving',
+    label: 'Finish',
+    messages: ['Saving to cloud...'],
+  },
+];
+
+// Tips for the carousel
+const TIPS = [
+  {
+    icon: ImageIcon,
+    title: 'AI Images',
+    description: 'Type [image: description] and images appear automatically.',
+  },
+  {
+    icon: Palette,
+    title: 'Custom Themes',
+    description: 'Describe any style and AI generates matching colors & fonts.',
+  },
+  {
+    icon: Share2,
+    title: 'One-Click Publish',
+    description: 'Share your deck with a single link. No sign-up required for viewers.',
+  },
+  {
+    icon: Code2,
+    title: 'Markdown Native',
+    description: 'Edit slides in familiar markdown. Export anytime.',
+  },
+];
 
 // Animated background orbs for converting state
 function ConvertingOrbs() {
@@ -97,6 +156,161 @@ function SuccessParticles() {
           }}
         />
       ))}
+    </div>
+  );
+}
+
+// Tips carousel component - fixed height to prevent jumping
+function TipsCarousel({ currentTip }: { currentTip: number }) {
+  const tip = TIPS[currentTip];
+  const Icon = tip.icon;
+
+  return (
+    <div className="mb-8">
+      {/* Fixed height container to prevent layout shifts */}
+      <div className="h-[88px] relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentTip}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className="absolute inset-0 bg-white/[0.03] border border-white/[0.08] rounded-xl p-4"
+          >
+            <div className="flex items-center gap-4 h-full">
+              <div className="w-10 h-10 rounded-lg bg-white/[0.05] border border-white/[0.1] flex items-center justify-center flex-shrink-0">
+                <Icon className="w-5 h-5 text-white/60" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white/80 mb-0.5">{tip.title}</p>
+                <p className="text-sm text-white/40 leading-snug line-clamp-2">{tip.description}</p>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Carousel dots */}
+      <div className="flex justify-center gap-1.5 mt-4">
+        {TIPS.map((_, i) => (
+          <div
+            key={i}
+            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+              i === currentTip ? 'bg-white/60 w-4' : 'bg-white/20'
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Horizontal stage progress component with animated progress line
+function StageProgress({
+  currentStage,
+  currentMessage,
+}: {
+  currentStage: ConversionStage;
+  currentMessage: string;
+}) {
+  const currentIndex = STAGES.findIndex((s) => s.id === currentStage);
+
+  // Stage weights for visual spacing (DeckSmith is longest/most complex)
+  const stageWeights = [3, 1, 1, 0.5]; // DeckSmith, Packaging, Theming, Saving
+
+  return (
+    <div>
+      {/* Horizontal progress bar */}
+      <div className="flex items-center mb-6">
+        {STAGES.map((stage, index) => {
+          const isCompleted = index < currentIndex;
+          const isCurrent = index === currentIndex;
+          const weight = stageWeights[index];
+
+          return (
+            <div
+              key={stage.id}
+              className="flex items-center"
+              style={{ flex: index < STAGES.length - 1 ? weight : 0 }}
+            >
+              {/* Stage circle */}
+              <div className="flex flex-col items-center flex-shrink-0">
+                <motion.div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                    isCompleted
+                      ? 'border-emerald-500 bg-emerald-500'
+                      : isCurrent
+                      ? 'border-white bg-white/10'
+                      : 'border-white/20 bg-transparent'
+                  }`}
+                >
+                  {isCompleted ? (
+                    <Check className="w-4 h-4 text-white" strokeWidth={3} />
+                  ) : isCurrent ? (
+                    <motion.div
+                      className="w-2 h-2 rounded-full bg-white"
+                      animate={{ scale: [1, 1.3, 1], opacity: [1, 0.7, 1] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                    />
+                  ) : null}
+                </motion.div>
+                <span
+                  className={`text-[11px] mt-2 font-medium transition-colors duration-300 whitespace-nowrap ${
+                    isCompleted
+                      ? 'text-emerald-400'
+                      : isCurrent
+                      ? 'text-white'
+                      : 'text-white/30'
+                  }`}
+                >
+                  {stage.label}
+                </span>
+              </div>
+
+              {/* Connector line with animated progress */}
+              {index < STAGES.length - 1 && (
+                <div className="flex-1 mx-3 h-0.5 mt-[-20px] relative overflow-hidden rounded-full bg-white/10">
+                  {/* Completed fill */}
+                  {isCompleted && (
+                    <div className="absolute inset-0 bg-emerald-500 rounded-full" />
+                  )}
+                  {/* Animated progress for current stage */}
+                  {isCurrent && (
+                    <motion.div
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-white/60 via-white/80 to-white/60 rounded-full"
+                      initial={{ left: '-20%', width: '20%' }}
+                      animate={{ left: '100%' }}
+                      transition={{
+                        duration: stage.id === 'decksmith' ? 3 : 1.5,
+                        repeat: Infinity,
+                        ease: 'linear',
+                      }}
+                      style={{ width: '30%' }}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Current stage message */}
+      <div className="text-center">
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={currentMessage}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            transition={{ duration: 0.2 }}
+            className="text-sm text-white/50"
+          >
+            {currentMessage}
+          </motion.p>
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
@@ -198,6 +412,39 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
   const [customContext, setCustomContext] = useState('');
   const [showContextField, setShowContextField] = useState(false);
 
+  // Multi-stage conversion state
+  const [conversionStage, setConversionStage] = useState<ConversionStage>('decksmith');
+  const [stageMessage, setStageMessage] = useState('');
+  const [currentTip, setCurrentTip] = useState(0);
+
+  // Rotate tips during conversion
+  useEffect(() => {
+    if (status === 'converting') {
+      const interval = setInterval(() => {
+        setCurrentTip((prev) => (prev + 1) % TIPS.length);
+      }, 4000);
+      return () => clearInterval(interval);
+    }
+  }, [status]);
+
+  // Rotate stage messages
+  useEffect(() => {
+    if (status === 'converting') {
+      const stage = STAGES.find((s) => s.id === conversionStage);
+      if (stage) {
+        let messageIndex = 0;
+        setStageMessage(stage.messages[0]);
+
+        const interval = setInterval(() => {
+          messageIndex = (messageIndex + 1) % stage.messages.length;
+          setStageMessage(stage.messages[messageIndex]);
+        }, 2000);
+
+        return () => clearInterval(interval);
+      }
+    }
+  }, [status, conversionStage]);
+
   // Handle pasted text content
   const handlePastedText = useCallback((text: string) => {
     if (text.trim().length < 100) {
@@ -242,7 +489,6 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
     setPasteError(null);
 
     try {
-      // Check if clipboard API is available
       if (!navigator.clipboard || !navigator.clipboard.readText) {
         setPasteError('Clipboard not supported. Try Ctrl/Cmd+V instead.');
         return;
@@ -259,7 +505,6 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
     } catch (err) {
       console.error('Clipboard access error:', err);
 
-      // Provide specific error messages
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setPasteError('Clipboard permission denied. Allow access or use Ctrl/Cmd+V.');
       } else {
@@ -331,25 +576,27 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
     }
   };
 
+  // Multi-stage conversion process
   const handleConvert = async () => {
     if (!documentContent || !fileName) return;
 
     setStatus('converting');
+    setConversionStage('decksmith');
     setError(null);
 
     try {
-      const response = await fetch('/api/convert-document', {
+      // ===== STAGE 1: DeckSmith - Generate deck =====
+      const deckResponse = await fetch('/api/generate-deck', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           document: documentContent,
-          documentName: fileName.replace(/\.(txt|md|markdown)$/i, ''),
           options,
           context: customContext.trim() || undefined,
         }),
       });
 
-      if (response.status === 401 || response.redirected) {
+      if (deckResponse.status === 401) {
         sessionStorage.setItem('riff-pending-document', JSON.stringify({
           content: documentContent,
           name: fileName,
@@ -359,18 +606,72 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
         return;
       }
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Conversion failed');
+      const deckData = await deckResponse.json();
+      if (!deckResponse.ok) {
+        throw new Error(deckData.error || 'Failed to generate deck');
       }
 
-      setCreatedDeckId(data.deck.id);
-      setCreatedDeckName(data.deck.name);
-      setSlideCount(data.slideCount);
+      const { markdown, slideCount: generatedSlideCount } = deckData;
+      setSlideCount(generatedSlideCount);
+
+      // ===== STAGE 2: Packaging - Extract title & theme prompt =====
+      setConversionStage('packaging');
+
+      const metadataResponse = await fetch('/api/generate-deck-metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown }),
+      });
+
+      const metadataData = await metadataResponse.json();
+      if (!metadataResponse.ok) {
+        throw new Error(metadataData.error || 'Failed to extract metadata');
+      }
+
+      const { title, themePrompt } = metadataData;
+
+      // ===== STAGE 3: Theming - Generate CSS =====
+      setConversionStage('theming');
+
+      const themeResponse = await fetch('/api/generate-theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: themePrompt }),
+      });
+
+      const themeData = await themeResponse.json();
+      let themeCss = null;
+      if (themeResponse.ok) {
+        themeCss = themeData.css;
+      }
+      // Theme generation is optional - continue even if it fails
+
+      // ===== STAGE 4: Saving - Save to database =====
+      setConversionStage('saving');
+
+      const saveResponse = await fetch('/api/save-deck', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          markdown,
+          title,
+          themeCss,
+          themePrompt,
+        }),
+      });
+
+      const saveData = await saveResponse.json();
+      if (!saveResponse.ok) {
+        throw new Error(saveData.error || 'Failed to save deck');
+      }
+
+      // Success!
+      setCreatedDeckId(saveData.deck.id);
+      setCreatedDeckName(saveData.deck.name);
       setShowParticles(true);
       setStatus('success');
       setTimeout(() => setShowParticles(false), 1000);
+
     } catch (err) {
       if (err instanceof SyntaxError) {
         sessionStorage.setItem('riff-pending-document', JSON.stringify({
@@ -397,26 +698,6 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
     }
   };
 
-  // Converting state messages that cycle
-  const convertingMessages = [
-    'Analyzing structure...',
-    'Crafting slides...',
-    'Optimizing content...',
-    'Almost there...',
-  ];
-  const [messageIndex, setMessageIndex] = useState(0);
-
-  useEffect(() => {
-    if (status === 'converting') {
-      const interval = setInterval(() => {
-        setMessageIndex((i) => (i + 1) % convertingMessages.length);
-      }, 2000);
-      return () => clearInterval(interval);
-    } else {
-      setMessageIndex(0);
-    }
-  }, [status]);
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
@@ -436,7 +717,7 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
         transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
         className="relative w-full max-w-lg bg-[#0a0a0a] border border-white/[0.08] rounded-2xl shadow-2xl"
       >
-        {/* Converting State - Full Takeover */}
+        {/* Converting State - Multi-stage with tips */}
         <AnimatePresence mode="wait">
           {status === 'converting' && (
             <motion.div
@@ -444,58 +725,16 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="relative py-20 px-6"
+              className="relative py-10 px-6"
             >
               <ConvertingOrbs />
 
-              <div className="relative z-10 text-center">
-                {/* Riff icon with subtle pulse */}
-                <motion.div
-                  className="w-20 h-20 mx-auto mb-8 rounded-2xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-center justify-center"
-                  animate={{ scale: [1, 1.02, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                >
-                  <RiffIcon
-                    size={36}
-                    primaryColor="rgba(255, 255, 255, 0.8)"
-                    secondaryColor="rgba(255, 255, 255, 0.4)"
-                  />
-                </motion.div>
+              <div className="relative z-10">
+                {/* Tips carousel */}
+                <TipsCarousel currentTip={currentTip} />
 
-                {/* Progress text */}
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-3"
-                >
-                  <h3 className="text-lg font-medium text-white">
-                    Creating your deck
-                  </h3>
-                  <AnimatePresence mode="wait">
-                    <motion.p
-                      key={messageIndex}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -5 }}
-                      transition={{ duration: 0.2 }}
-                      className="text-sm text-white/40"
-                    >
-                      {convertingMessages[messageIndex]}
-                    </motion.p>
-                  </AnimatePresence>
-                </motion.div>
-
-                {/* Progress bar */}
-                <div className="mt-10 mx-auto max-w-[200px]">
-                  <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-gradient-to-r from-white/40 to-white/60 rounded-full"
-                      initial={{ width: '0%' }}
-                      animate={{ width: '100%' }}
-                      transition={{ duration: 12, ease: 'easeInOut' }}
-                    />
-                  </div>
-                </div>
+                {/* Stage progress */}
+                <StageProgress currentStage={conversionStage} currentMessage={stageMessage} />
               </div>
             </motion.div>
           )}

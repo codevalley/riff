@@ -10,7 +10,13 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { saveDeckBlob, saveTheme } from '@/lib/blob';
-import { DOCUMENT_TO_SLIDES_PROMPT, DEFAULT_THEME_SYSTEM_PROMPT } from '@/lib/prompts';
+import {
+  DECKSMITH_SYSTEM_PROMPT,
+  MARKDOWN_SYNTAX_SPEC,
+  REFERENCE_DECK_TEMPLATE,
+  DECK_METADATA_PROMPT,
+  DEFAULT_THEME_SYSTEM_PROMPT
+} from '@/lib/prompts';
 import { requireCredits, deductCredits, CREDIT_COSTS } from '@/lib/credits';
 import { extractFrontmatter } from '@/lib/parser';
 import { nanoid } from 'nanoid';
@@ -49,83 +55,89 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build the conversion prompt
+    // Build the DeckSmith prompt with three injected inputs
     const slideCount = options?.slideCount || 'auto';
-    const style = options?.style || 'professional';
 
-    // Build slide count instruction
-    let slideCountInstruction: string;
+    // Build slide count instruction for context
+    let slideCountHint = '';
     if (slideCount === 'full') {
-      slideCountInstruction = 'Create as many slides as needed to cover ALL content comprehensively. Do NOT summarize or reduce - preserve all information from the document. Each major point, paragraph, or concept should have its own slide.';
-    } else if (slideCount === 'auto') {
-      slideCountInstruction = 'Determine automatically based on content (typically 1 slide per major point)';
-    } else {
-      slideCountInstruction = `Target approximately ${slideCount} slides`;
+      slideCountHint = '\n[Slide count: Cover ALL content comprehensively - use as many slides as needed]';
+    } else if (slideCount !== 'auto' && typeof slideCount === 'number') {
+      slideCountHint = `\n[Target: approximately ${slideCount} slides]`;
     }
 
-    // Build optional context section
+    // Build optional user context section
     const contextSection = context && typeof context === 'string' && context.trim()
-      ? `\n## User Instructions\n${context.trim()}\n`
+      ? `\n\n[User Instructions: ${context.trim()}]`
       : '';
 
-    const userPrompt = `Convert the following document into a Riff presentation.
+    // DeckSmith user prompt with three plain text block injections
+    const userPrompt = `## MARKDOWN_SYNTAX_SPEC
+${MARKDOWN_SYNTAX_SPEC}
 
-## Conversion Settings
-- Slide count: ${slideCountInstruction}
-- Style preference: ${style}
-- Include speaker notes: ${options?.includeSpeakerNotes !== false ? 'Yes' : 'No'}
-${contextSection}
-## IMPORTANT: Visual Requirements
-- Add [image: description] placeholders generously - at least every 2-3 slides
-- Use descriptive, specific image descriptions (e.g., "[image: A confident speaker presenting to an engaged audience in a modern conference room]")
-- Use background effects like [bg:glow-bottom-left] or [bg:grid-center] on section headers
-- Apply text effects like [anvil], [typewriter], or [glow] on impactful titles
-- Use **pause** to create progressive reveals for bullet points
+## REFERENCE_DECK_TEMPLATE
+${REFERENCE_DECK_TEMPLATE}
 
-## Document Content
-${document}
+## SOURCE_CONTENT${slideCountHint}${contextSection}
+${document}`;
 
-## Output Format
-LINE 1: Output a short deck title (MAX 4-5 words) with a relevant emoji prefix, like: "TITLE: 🚀 Product Launch Strategy" or "TITLE: 📊 Q4 Review". Keep it punchy!
-LINE 2: Output a theme description for the visual style, like: "THEME: Modern tech startup with electric blue accents and clean geometric patterns" or "THEME: Warm and approachable with soft gradients and friendly rounded elements". Be specific and creative!
-THEN: Generate the complete markdown for the presentation.
-
-Begin:`;
-
-    const modelId = process.env.AI_GATEWAY_MODEL || 'moonshotai/kimi-k2-0905';
+    // Use separate model for deck generation (most complex operation)
+    // AI_DECK_MODEL allows using a premium model specifically for deck generation
+    const deckModelId = process.env.AI_DECK_MODEL || process.env.AI_GATEWAY_MODEL || 'moonshotai/kimi-k2-0905';
+    // Standard model for lighter tasks (metadata extraction, theme generation)
+    const standardModelId = process.env.AI_GATEWAY_MODEL || 'moonshotai/kimi-k2-0905';
 
     // Use higher token limit for "full" mode
     const maxTokens = slideCount === 'full' ? 16384 : 8192;
 
-    const { text: markdown } = await generateText({
-      model: gateway(modelId),
-      system: DOCUMENT_TO_SLIDES_PROMPT,
+    // Stage 1: Generate deck content with DeckSmith (using premium model)
+    const { text: deckOutput } = await generateText({
+      model: gateway(deckModelId),
+      system: DECKSMITH_SYSTEM_PROMPT,
       prompt: userPrompt,
       maxOutputTokens: maxTokens,
     });
 
-    // Clean up - remove any markdown code fences if present
-    let cleanedMarkdown = markdown
-      .replace(/^```markdown?\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim();
-
-    // Extract suggested title with emoji (format: "TITLE: 🚀 Product Launch")
-    let suggestedTitle: string | null = null;
-    const titleMatch = cleanedMarkdown.match(/^TITLE:\s*(.+)$/im);
-    if (titleMatch) {
-      suggestedTitle = titleMatch[1].trim();
-      // Remove the TITLE line from markdown
-      cleanedMarkdown = cleanedMarkdown.replace(/^TITLE:\s*.+\n*/im, '').trim();
+    // DeckSmith outputs in ```text``` code block - extract the content
+    let cleanedMarkdown = deckOutput;
+    const textBlockMatch = deckOutput.match(/```text\s*([\s\S]*?)```/);
+    if (textBlockMatch) {
+      cleanedMarkdown = textBlockMatch[1].trim();
+    } else {
+      // Fallback: try markdown fence or just clean up
+      cleanedMarkdown = deckOutput
+        .replace(/^```(?:markdown|text)?\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
     }
 
-    // Extract suggested theme (format: "THEME: Modern tech with blue accents")
+    // Stage 2: Extract title and theme via separate LLM call
+    let suggestedTitle: string | null = null;
     let suggestedTheme: string | null = null;
-    const themeMatch = cleanedMarkdown.match(/^THEME:\s*(.+)$/im);
-    if (themeMatch) {
-      suggestedTheme = themeMatch[1].trim();
-      // Remove the THEME line from markdown
-      cleanedMarkdown = cleanedMarkdown.replace(/^THEME:\s*.+\n*/im, '').trim();
+
+    try {
+      const { text: metadataOutput } = await generateText({
+        model: gateway(standardModelId),
+        system: DECK_METADATA_PROMPT,
+        prompt: `Extract title and theme from this deck:\n\n${cleanedMarkdown.slice(0, 3000)}`,
+        maxOutputTokens: 256,
+      });
+
+      // Parse JSON response
+      const jsonMatch = metadataOutput.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const metadata = JSON.parse(jsonMatch[0]);
+        suggestedTitle = metadata.title || null;
+        suggestedTheme = metadata.themePrompt || null;
+      }
+    } catch (metadataError) {
+      // Metadata extraction failed - continue without it
+      console.error('Metadata extraction failed:', metadataError);
+      // Fallback: extract first heading as title
+      const headingMatch = cleanedMarkdown.match(/^#\s+(.+)$/m);
+      if (headingMatch) {
+        suggestedTitle = headingMatch[1].replace(/\[.*?\]/g, '').trim();
+      }
     }
 
     // Ensure slides start properly (remove leading ---)
@@ -136,7 +148,7 @@ Begin:`;
     // Validate that it looks like slide markdown
     if (!cleanedMarkdown.includes('# ')) {
       return NextResponse.json(
-        { error: 'Invalid slide format generated', raw: markdown },
+        { error: 'Invalid slide format generated', raw: deckOutput },
         { status: 500 }
       );
     }
@@ -208,9 +220,9 @@ Begin:`;
         // Check credits for theme generation
         const themeCredits = await requireCredits(session.user.id, CREDIT_COSTS.THEME_GENERATION);
         if (themeCredits.allowed) {
-          // Generate theme CSS
+          // Generate theme CSS (using standard model)
           const { text: themeResponse } = await generateText({
-            model: gateway(modelId),
+            model: gateway(standardModelId),
             prompt: `${DEFAULT_THEME_SYSTEM_PROMPT}\n\nUser's theme request: "${suggestedTheme}"\n\nGenerate the CSS theme:`,
             maxOutputTokens: 2048,
           });

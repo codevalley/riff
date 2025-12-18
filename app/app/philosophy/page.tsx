@@ -301,7 +301,7 @@ export default function PhilosophyPage() {
           {/* Footer note */}
           <motion.footer variants={fadeIn} className="text-center">
             <p className="text-[13px] text-white/25">
-              Last updated December 2024
+              Last updated December 2025
             </p>
           </motion.footer>
         </motion.article>

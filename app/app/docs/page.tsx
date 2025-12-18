@@ -1020,9 +1020,9 @@ Final reveal!`} />
                       <div className="flex justify-between items-center py-2 border-b border-white/[0.06]">
                         <div>
                           <span className="text-white/70">Import document</span>
-                          <span className="text-white/40 text-[13px] ml-2">(includes auto-theme)</span>
+                          <span className="text-white/40 text-[13px] ml-2">(premium AI + auto-theme)</span>
                         </div>
-                        <span className="text-amber-400 font-medium tabular-nums">1.2 credits</span>
+                        <span className="text-amber-400 font-medium tabular-nums">2.2 credits</span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b border-white/[0.06]">
                         <span className="text-white/70">Revamp deck</span>
