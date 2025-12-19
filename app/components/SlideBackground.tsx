@@ -5,6 +5,7 @@
 // ============================================
 
 import { BackgroundEffect, BackgroundColor, BackgroundPosition } from '@/lib/types';
+import { RetroGrid } from './ui/retro-grid';
 
 interface SlideBackgroundProps {
   effect: BackgroundEffect;
@@ -72,6 +73,8 @@ export function SlideBackground({ effect }: SlideBackgroundProps) {
       return <HatchBackground position={position} colors={colors} />;
     case 'dashed':
       return <DashedBackground position={position} colors={colors} />;
+    case 'retrogrid':
+      return <RetroGrid angle={65} />;
     default:
       return null;
   }

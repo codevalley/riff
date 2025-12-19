@@ -8,7 +8,7 @@ export const CREDIT_COSTS = {
   IMAGE_GENERATION: 1,
   IMAGE_RESTYLE: 1,
   DOCUMENT_CONVERSION: 2,  // Premium model for deck generation
-  DECK_REVAMP: 1,
+  DECK_REVAMP: 1.5,        // Premium model for deck revamp
   THEME_GENERATION: 0.2,
 } as const;
 

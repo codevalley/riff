@@ -235,7 +235,7 @@ export function removeImageFromManifest(
 const VALID_EFFECTS: TextEffect[] = ['anvil', 'typewriter', 'glow', 'shake'];
 
 // Valid background effect types
-const VALID_BG_TYPES: BackgroundEffectType[] = ['glow', 'grid', 'hatch', 'dashed'];
+const VALID_BG_TYPES: BackgroundEffectType[] = ['glow', 'grid', 'hatch', 'dashed', 'retrogrid'];
 const VALID_BG_POSITIONS: BackgroundPosition[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'center'];
 const VALID_BG_COLORS: BackgroundColor[] = ['amber', 'blue', 'purple', 'rose', 'emerald', 'cyan', 'orange', 'pink', 'accent'];
 
@@ -337,11 +337,20 @@ function parseGridItem(rawLines: string[]): GridItem {
 
 /**
  * Parse background effect from [bg:effect-position] or [bg:effect-position-color]
- * Examples: [bg:glow-bottom-left], [bg:grid-center], [bg:hatch-top-right-amber]
+ * Examples: [bg:glow-bottom-left], [bg:grid-center], [bg:hatch-top-right-amber], [bg:retrogrid]
  * Position can be: top-left, top-right, bottom-left, bottom-right, center
+ * Special case: retrogrid doesn't require a position
  */
 function parseBackgroundEffect(value: string): BackgroundEffect | null {
   const lower = value.toLowerCase();
+
+  // Special case: retrogrid doesn't need a position
+  if (lower === 'retrogrid') {
+    return {
+      type: 'retrogrid',
+      position: 'center', // Not used, but required by type
+    };
+  }
 
   // Extract the effect type (first part before first -)
   const firstDash = lower.indexOf('-');

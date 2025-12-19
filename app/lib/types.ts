@@ -117,13 +117,13 @@ export type SlideElementType =
 export type TextEffect = 'anvil' | 'typewriter' | 'glow' | 'shake';
 
 // Background effect types
-export type BackgroundEffectType = 'glow' | 'grid' | 'hatch' | 'dashed';
+export type BackgroundEffectType = 'glow' | 'grid' | 'hatch' | 'dashed' | 'retrogrid';
 export type BackgroundPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
 export type BackgroundColor = 'amber' | 'blue' | 'purple' | 'rose' | 'emerald' | 'cyan' | 'orange' | 'pink' | 'accent';
 
 export interface BackgroundEffect {
   type: BackgroundEffectType;
-  position: BackgroundPosition;
+  position: BackgroundPosition; // not used for 'retrogrid'
   color?: BackgroundColor; // defaults to 'accent' (theme color)
 }
 

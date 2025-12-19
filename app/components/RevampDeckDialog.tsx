@@ -19,8 +19,47 @@ import {
   Palette,
   Loader2,
   ArrowUpCircle,
+  Sparkles,
+  FileText,
+  LayoutGrid,
+  MousePointerClick,
 } from 'lucide-react';
 import { CREDIT_COSTS } from '@/lib/credits-config';
+
+// Rotating status messages during revamp
+const REVAMP_MESSAGES = [
+  'Analyzing your deck structure...',
+  'Applying DeckSmith transformations...',
+  'Optimizing slide density...',
+  'Adding progressive reveals...',
+  'Polishing visual elements...',
+  'Ensuring content preservation...',
+  'Finalizing your revamped deck...',
+];
+
+// Tips shown during revamp
+const REVAMP_TIPS = [
+  {
+    icon: LayoutGrid,
+    title: 'Grids & Icons',
+    description: 'Features become eye-catching grid cards with icons.',
+  },
+  {
+    icon: MousePointerClick,
+    title: 'Progressive Reveals',
+    description: 'Content reveals step-by-step for better pacing.',
+  },
+  {
+    icon: Sparkles,
+    title: 'Visual Polish',
+    description: 'Background effects and text animations add impact.',
+  },
+  {
+    icon: FileText,
+    title: 'Content Preserved',
+    description: 'Your facts and message stay intact.',
+  },
+];
 
 interface RevampDeckDialogProps {
   isOpen: boolean;
@@ -67,6 +106,8 @@ export function RevampDeckDialog({
 }: RevampDeckDialogProps) {
   const [instructions, setInstructions] = useState('');
   const [activeSuggestions, setActiveSuggestions] = useState<Set<string>>(new Set());
+  const [currentMessage, setCurrentMessage] = useState(0);
+  const [currentTip, setCurrentTip] = useState(0);
 
   // Reset state when dialog opens, auto-select upgrade if legacy
   useEffect(() => {
@@ -78,8 +119,26 @@ export function RevampDeckDialog({
         setInstructions('');
         setActiveSuggestions(new Set());
       }
+      setCurrentMessage(0);
+      setCurrentTip(0);
     }
   }, [isOpen, isLegacy]);
+
+  // Rotate messages and tips during revamp
+  useEffect(() => {
+    if (isRevamping) {
+      const messageInterval = setInterval(() => {
+        setCurrentMessage((prev) => (prev + 1) % REVAMP_MESSAGES.length);
+      }, 3000);
+      const tipInterval = setInterval(() => {
+        setCurrentTip((prev) => (prev + 1) % REVAMP_TIPS.length);
+      }, 4000);
+      return () => {
+        clearInterval(messageInterval);
+        clearInterval(tipInterval);
+      };
+    }
+  }, [isRevamping]);
 
   // Toggle suggestion - add/remove from textarea
   const toggleSuggestion = useCallback((suggestion: Suggestion) => {
@@ -145,25 +204,114 @@ export function RevampDeckDialog({
         transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
         className="relative w-full max-w-lg bg-[#0a0a0a] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden"
       >
-        {/* Processing state overlay */}
+        {/* Processing state overlay - lively with tips and rotating messages */}
         <AnimatePresence>
           {isRevamping && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-20 bg-[#0a0a0a]/95 flex items-center justify-center"
+              className="absolute inset-0 z-20 bg-[#0a0a0a] flex flex-col items-center justify-center px-8 py-10"
             >
-              <div className="text-center">
+              {/* Animated background gradient */}
+              <div className="absolute inset-0 overflow-hidden">
                 <motion.div
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-                  className="w-12 h-12 mx-auto mb-4 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/20 flex items-center justify-center"
-                >
-                  <Wand2 className="w-6 h-6 text-amber-400" />
-                </motion.div>
-                <p className="text-sm text-white/60">Revamping your deck...</p>
-                <p className="text-xs text-white/30 mt-1">This may take a moment</p>
+                  className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-amber-600/5"
+                  animate={{
+                    backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'],
+                  }}
+                  transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+                />
+              </div>
+
+              <div className="relative z-10 w-full max-w-sm">
+                {/* Tip card - rotates through tips */}
+                <div className="mb-8">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={currentTip}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.3 }}
+                      className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.08]"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center flex-shrink-0">
+                          {(() => {
+                            const TipIcon = REVAMP_TIPS[currentTip].icon;
+                            return <TipIcon className="w-5 h-5 text-amber-400" />;
+                          })()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white/90">
+                            {REVAMP_TIPS[currentTip].title}
+                          </p>
+                          <p className="text-xs text-white/50 mt-0.5">
+                            {REVAMP_TIPS[currentTip].description}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+
+                  {/* Tip indicators */}
+                  <div className="flex justify-center gap-1.5 mt-3">
+                    {REVAMP_TIPS.map((_, idx) => (
+                      <div
+                        key={idx}
+                        className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                          idx === currentTip ? 'bg-amber-400 w-3' : 'bg-white/20'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Progress indicator with breathing wand */}
+                <div className="flex flex-col items-center">
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.08, 1],
+                      opacity: [0.9, 1, 0.9],
+                    }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                    className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30 flex items-center justify-center mb-4"
+                  >
+                    <Wand2 className="w-7 h-7 text-amber-400" />
+                  </motion.div>
+
+                  {/* Rotating status message */}
+                  <div className="h-6 flex items-center justify-center">
+                    <AnimatePresence mode="wait">
+                      <motion.p
+                        key={currentMessage}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        transition={{ duration: 0.2 }}
+                        className="text-sm text-white/70 text-center"
+                      >
+                        {REVAMP_MESSAGES[currentMessage]}
+                      </motion.p>
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Animated progress bar */}
+                  <div className="w-full max-w-[200px] h-1 mt-4 rounded-full bg-white/10 overflow-hidden">
+                    <motion.div
+                      className="h-full bg-gradient-to-r from-amber-500/60 via-amber-400 to-amber-500/60 rounded-full"
+                      initial={{ x: '-100%' }}
+                      animate={{ x: '200%' }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                      style={{ width: '50%' }}
+                    />
+                  </div>
+
+                  <p className="text-xs text-white/30 mt-3">
+                    Using premium model for best results
+                  </p>
+                </div>
               </div>
             </motion.div>
           )}

@@ -86,6 +86,15 @@ const BACKGROUND_EFFECTS = [
       backgroundSize: '6px 6px',
     })
   },
+  {
+    type: 'retrogrid',
+    name: 'RetroGrid',
+    description: 'Animated perspective grid',
+    preview: (color: string) => ({
+      backgroundImage: `linear-gradient(to bottom, transparent 50%, ${color} 100%), linear-gradient(to right, ${color} 1px, transparent 1px)`,
+      backgroundSize: '100% 100%, 8px 100%',
+    })
+  },
 ];
 
 const POSITIONS = ['top', 'bottom', 'left', 'right', 'center'];
@@ -272,7 +281,7 @@ export function FormatHelpDialog() {
                     {/* Effect Types with Previews */}
                     <div className="mb-4">
                       <p className="text-xs text-white mb-2 font-medium">Types:</p>
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-5 gap-2">
                         {BACKGROUND_EFFECTS.map((effect) => (
                           <div key={effect.type} className="text-center">
                             <div

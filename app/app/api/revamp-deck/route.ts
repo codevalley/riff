@@ -1,6 +1,7 @@
 // ============================================
 // API: /api/revamp-deck
 // AI-powered deck refinement based on user instructions
+// Uses DeckSmith architecture with preservation rules
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -8,7 +9,11 @@ import { generateText, createGateway } from 'ai';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { requireCredits, deductCredits, CREDIT_COSTS } from '@/lib/credits';
-import { DECK_REVAMP_PROMPT } from '@/lib/prompts';
+import {
+  DECKSMITH_REVAMP_PROMPT,
+  MARKDOWN_SYNTAX_SPEC,
+  REFERENCE_DECK_TEMPLATE,
+} from '@/lib/prompts';
 import { extractFrontmatter } from '@/lib/parser';
 
 // Create Vercel AI Gateway client
@@ -48,35 +53,41 @@ export async function POST(request: NextRequest) {
     // Count slides before revamp
     const originalSlideCount = (currentContent.match(/^---$/gm) || []).length + 1;
 
-    // Build the user prompt
-    const userPrompt = `## Current Deck Content
+    // Build the DeckSmith user prompt with four injected inputs
+    const userPrompt = `## MARKDOWN_SYNTAX_SPEC
+${MARKDOWN_SYNTAX_SPEC}
 
+## REFERENCE_DECK_TEMPLATE
+${REFERENCE_DECK_TEMPLATE}
+
+## CURRENT_DECK
 ${currentContent}
 
----
+## USER_INSTRUCTIONS
+${instructions.trim()}`;
 
-## User Instructions
+    // Use premium model for revamp (same as deck generation)
+    const modelId = process.env.AI_DECK_MODEL || process.env.AI_GATEWAY_MODEL || 'moonshotai/kimi-k2-0905';
 
-${instructions.trim()}
-
----
-
-Now revamp the deck according to the instructions above. Output only the revised markdown.`;
-
-    const modelId = process.env.AI_GATEWAY_MODEL || 'moonshotai/kimi-k2-0905';
-
-    const { text: markdown } = await generateText({
+    const { text: revampOutput } = await generateText({
       model: gateway(modelId),
-      system: DECK_REVAMP_PROMPT,
+      system: DECKSMITH_REVAMP_PROMPT,
       prompt: userPrompt,
       maxOutputTokens: 16384,
     });
 
-    // Clean up - remove any markdown code fences if present
-    let cleanedMarkdown = markdown
-      .replace(/^```markdown?\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim();
+    // DeckSmith outputs in ```text``` code block - extract the content
+    let cleanedMarkdown = revampOutput;
+    const textBlockMatch = revampOutput.match(/```text\s*([\s\S]*?)```/);
+    if (textBlockMatch) {
+      cleanedMarkdown = textBlockMatch[1].trim();
+    } else {
+      // Fallback: try markdown fence or just clean up
+      cleanedMarkdown = revampOutput
+        .replace(/^```(?:markdown|text)?\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+    }
 
     // Ensure slides start properly (remove leading ---)
     if (cleanedMarkdown.startsWith('---')) {
@@ -86,7 +97,7 @@ Now revamp the deck according to the instructions above. Output only the revised
     // Validate that it looks like slide markdown
     if (!cleanedMarkdown.includes('# ')) {
       return NextResponse.json(
-        { error: 'Invalid slide format generated', raw: markdown },
+        { error: 'Invalid slide format generated', raw: revampOutput },
         { status: 500 }
       );
     }
