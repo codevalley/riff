@@ -16,9 +16,8 @@ import {
   Minimize,
   RotateCcw,
 } from 'lucide-react';
-import { ParsedDeck, SlideRenderMode, ImageSlot } from '@/lib/types';
+import { ParsedDeck, ImageSlot } from '@/lib/types';
 import { SlideRenderer } from './SlideRenderer';
-import { GeneratedSlide } from './GeneratedSlide';
 import { countReveals } from '@/lib/parser';
 
 interface PresenterProps {
@@ -26,8 +25,6 @@ interface PresenterProps {
   deckId: string;
   initialSlide?: number;
   themeCSS?: string;
-  themePrompt?: string;
-  initialRenderMode?: SlideRenderMode;
   isSharedView?: boolean;
   onImageChange?: (description: string, slot: ImageSlot, url: string) => void;
   onActiveSlotChange?: (description: string, slot: ImageSlot) => void;
@@ -38,8 +35,6 @@ export function Presenter({
   deckId,
   initialSlide = 0,
   themeCSS,
-  themePrompt,
-  initialRenderMode = 'standard',
   isSharedView = false,
   onImageChange,
   onActiveSlotChange,
@@ -49,9 +44,6 @@ export function Presenter({
   const [showNotes, setShowNotes] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [renderMode, setRenderMode] = useState<SlideRenderMode>(initialRenderMode);
-
-  const isGeneratedMode = renderMode === 'generated';
 
   const slide = deck.slides[currentSlide];
   const totalSlides = deck.slides.length;
@@ -177,25 +169,14 @@ export function Presenter({
         }}
       >
         {slide && (
-          isGeneratedMode ? (
-            <GeneratedSlide
-              slide={slide}
-              slideIndex={currentSlide}
-              deckId={deckId}
-              revealStep={currentReveal}
-              themePrompt={themePrompt}
-              isPresenting={true}
-            />
-          ) : (
-            <SlideRenderer
-              slide={slide}
-              revealStep={currentReveal}
-              isPresenting={true}
-              imageManifest={deck.imageManifest}
-              onImageChange={onImageChange}
-              onActiveSlotChange={onActiveSlotChange}
-            />
-          )
+          <SlideRenderer
+            slide={slide}
+            revealStep={currentReveal}
+            isPresenting={true}
+            imageManifest={deck.imageManifest}
+            onImageChange={onImageChange}
+            onActiveSlotChange={onActiveSlotChange}
+          />
         )}
       </div>
 

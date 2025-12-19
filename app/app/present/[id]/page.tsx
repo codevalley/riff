@@ -84,7 +84,6 @@ export default async function PresentPage({ params, searchParams }: PageProps) {
       deckId={deckId}
       initialSlide={initialSlide}
       themeCSS={theme?.css}
-      themePrompt={theme?.prompt}
     />
   );
 }

@@ -244,14 +244,11 @@ export interface ThemeGenerationRequest {
   baseTheme?: 'dark' | 'light';
 }
 
-export type SlideRenderMode = 'standard' | 'generated';
-
 export interface PresentationState {
   currentSlide: number;
   currentReveal: number; // Which pause we're at within the slide
   isFullscreen: boolean;
   showSpeakerNotes: boolean;
-  renderMode: SlideRenderMode; // Toggle between standard parser and LLM-generated HTML
 }
 
 // Store types for Zustand
@@ -316,8 +313,6 @@ export interface AppState {
   toggleEditor: () => void;
   toggleSpeakerNotes: () => void;
   toggleFullscreen: () => void;
-  toggleRenderMode: () => void;
-  setRenderMode: (mode: SlideRenderMode) => void;
 
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;

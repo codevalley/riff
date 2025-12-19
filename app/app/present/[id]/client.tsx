@@ -5,15 +5,13 @@
 // ============================================
 
 import { Presenter } from '@/components/Presenter';
-import { ParsedDeck, SlideRenderMode } from '@/lib/types';
+import { ParsedDeck } from '@/lib/types';
 
 interface PresenterClientProps {
   deck: ParsedDeck;
   deckId: string;
   initialSlide: number;
   themeCSS?: string;
-  themePrompt?: string;
-  initialRenderMode?: SlideRenderMode;
   isSharedView?: boolean;
 }
 
@@ -22,8 +20,6 @@ export function PresenterClient({
   deckId,
   initialSlide,
   themeCSS,
-  themePrompt,
-  initialRenderMode = 'standard',
   isSharedView = false,
 }: PresenterClientProps) {
   return (
@@ -32,8 +28,6 @@ export function PresenterClient({
       deckId={deckId}
       initialSlide={initialSlide}
       themeCSS={themeCSS}
-      themePrompt={themePrompt}
-      initialRenderMode={initialRenderMode}
       isSharedView={isSharedView}
     />
   );

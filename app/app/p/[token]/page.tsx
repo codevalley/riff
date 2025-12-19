@@ -95,14 +95,12 @@ export default async function SharedPresentationPage({ params, searchParams }: P
 
   // Parse theme if available
   let themeCSS: string | undefined;
-  let themePrompt: string | undefined;
   let imageUrls: Record<string, string> = {};
 
   if (deck.publishedTheme) {
     try {
       const theme = JSON.parse(deck.publishedTheme);
       themeCSS = theme.css;
-      themePrompt = theme.prompt;
       imageUrls = theme.imageUrls || {};
     } catch {
       // Invalid theme JSON, ignore
@@ -118,7 +116,6 @@ export default async function SharedPresentationPage({ params, searchParams }: P
         deckId={deck.id}
         initialSlide={initialSlide}
         themeCSS={themeCSS}
-        themePrompt={themePrompt}
         isSharedView={true}
       />
       <RiffBadge />

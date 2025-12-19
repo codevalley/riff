@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { AppState, Deck, ParsedDeck, ThemeConfig, SlideRenderMode, ImageStyleId } from './types';
+import { AppState, Deck, ParsedDeck, ThemeConfig, ImageStyleId } from './types';
 import { countReveals } from './parser';
 
 // Helper to get initial imageStyle from localStorage (for SSR safety)
@@ -28,7 +28,6 @@ export const useStore = create<AppState>((set, get) => ({
     currentReveal: 0,
     isFullscreen: false,
     showSpeakerNotes: false,
-    renderMode: 'standard' as SlideRenderMode,
   },
 
   currentTheme: null,
@@ -256,21 +255,6 @@ export const useStore = create<AppState>((set, get) => ({
         isFullscreen: !state.presentation.isFullscreen,
       },
     })),
-  toggleRenderMode: () =>
-    set((state) => ({
-      presentation: {
-        ...state.presentation,
-        renderMode: state.presentation.renderMode === 'standard' ? 'generated' : 'standard',
-      },
-    })),
-  setRenderMode: (mode: SlideRenderMode) =>
-    set((state) => ({
-      presentation: {
-        ...state.presentation,
-        renderMode: mode,
-      },
-    })),
-
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
 }));

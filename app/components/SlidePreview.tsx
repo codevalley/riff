@@ -2,27 +2,31 @@
 
 // ============================================
 // VIBE SLIDES - Slide Preview Component
-// Minimal, Vercel-inspired design
+// Minimal, Vercel-inspired design with Add/Revamp
 // ============================================
 
-import { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft,
   ChevronRight,
   MessageSquare,
   Play,
+  Plus,
+  Wand2,
+  Loader2,
+  X,
+  Check,
   Sparkles,
-  Layout,
-  Palette,
+  Trash2,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { SlideRenderer } from './SlideRenderer';
-import { GeneratedSlide } from './GeneratedSlide';
-import { SlideGeneratorSettings } from './SlideGeneratorSettings';
 import { ThemeCustomizer } from './ThemeCustomizer';
 import { ImageStyleSelector } from './ImageStyleSelector';
-import { countReveals } from '@/lib/parser';
+import { AddSlideDialog } from './AddSlideDialog';
+import { RevampSlideDialog } from './RevampSlideDialog';
+import { countReveals, parseSlideMarkdown } from '@/lib/parser';
 import { ImageSlot } from '@/lib/types';
 
 interface SlidePreviewProps {
@@ -34,6 +38,65 @@ interface SlidePreviewProps {
   onImageChange?: (description: string, slot: ImageSlot, url: string) => void;
   onActiveSlotChange?: (description: string, slot: ImageSlot) => void;
 }
+
+// ============================================
+// Helper functions for markdown manipulation
+// ============================================
+
+function splitDeckContent(content: string): { frontmatter: string; slides: string[] } {
+  const lines = content.split('\n');
+  let frontmatter = '';
+  let bodyStart = 0;
+
+  if (lines[0]?.trim() === '---') {
+    const endIndex = lines.findIndex((line, i) => i > 0 && line.trim() === '---');
+    if (endIndex > 0) {
+      frontmatter = lines.slice(0, endIndex + 1).join('\n');
+      bodyStart = endIndex + 1;
+    }
+  }
+
+  const body = lines.slice(bodyStart).join('\n').trim();
+  const slides = body.split(/\n---\n/).filter(s => s.trim());
+
+  return { frontmatter, slides };
+}
+
+function joinDeckContent(frontmatter: string, slides: string[]): string {
+  const body = slides.join('\n\n---\n\n');
+  return frontmatter ? `${frontmatter}\n\n${body}` : body;
+}
+
+function getSlideMarkdown(content: string, slideIndex: number): string {
+  const { slides } = splitDeckContent(content);
+  return slides[slideIndex] || '';
+}
+
+function replaceSlideMarkdown(content: string, slideIndex: number, newSlide: string): string {
+  const { frontmatter, slides } = splitDeckContent(content);
+  if (slideIndex >= 0 && slideIndex < slides.length) {
+    slides[slideIndex] = newSlide.trim();
+  }
+  return joinDeckContent(frontmatter, slides);
+}
+
+function insertSlideAfter(content: string, afterIndex: number, newSlide: string): string {
+  const { frontmatter, slides } = splitDeckContent(content);
+  slides.splice(afterIndex + 1, 0, newSlide.trim());
+  return joinDeckContent(frontmatter, slides);
+}
+
+function removeSlideAt(content: string, slideIndex: number): string {
+  const { frontmatter, slides } = splitDeckContent(content);
+  if (slideIndex >= 0 && slideIndex < slides.length) {
+    slides.splice(slideIndex, 1);
+  }
+  return joinDeckContent(frontmatter, slides);
+}
+
+// ============================================
+// Main Component
+// ============================================
 
 export function SlidePreview({
   deckId,
@@ -49,19 +112,73 @@ export function SlidePreview({
     presentation,
     themePrompt,
     currentTheme,
+    currentDeckContent,
+    updateDeckContent,
+    setParsedDeck,
     nextSlide,
     prevSlide,
     goToSlide,
     toggleSpeakerNotes,
-    toggleRenderMode,
   } = useStore();
 
-  const isGeneratedMode = presentation.renderMode === 'generated';
+  // Navigator ref for auto-scrolling
+  const navigatorRef = useRef<HTMLDivElement>(null);
+  const slideRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  // Add Slide state
+  const [showAddSlideDialog, setShowAddSlideDialog] = useState(false);
+  const [isAddingSlide, setIsAddingSlide] = useState(false);
+  const [addSlidePosition, setAddSlidePosition] = useState(0);
+
+  // Added slide review state (for keep/revamp/discard flow)
+  const [addedSlideReview, setAddedSlideReview] = useState<{
+    slideIndex: number;
+    slideContent: string;
+  } | null>(null);
+
+  // Revamp Slide state
+  const [showRevampDialog, setShowRevampDialog] = useState(false);
+  const [revampSlideIndex, setRevampSlideIndex] = useState(0);
+  const [isRevamping, setIsRevamping] = useState(false);
+
+  // Revamp comparison state
+  const [revampComparison, setRevampComparison] = useState<{
+    slideIndex: number;
+    oldContent: string;
+    newContent: string;
+    showNew: boolean;
+  } | null>(null);
+
+  // Hover state for thumbnails
+  const [hoveredThumbnail, setHoveredThumbnail] = useState<number | null>(null);
 
   const currentSlide = parsedDeck?.slides[presentation.currentSlide];
   const totalSlides = parsedDeck?.slides.length || 0;
   const currentReveals = currentSlide ? countReveals(currentSlide) : 1;
 
+  // Auto-scroll navigator when slide changes
+  useEffect(() => {
+    const slideElement = slideRefs.current.get(presentation.currentSlide);
+    if (slideElement && navigatorRef.current) {
+      const container = navigatorRef.current;
+      const slideRect = slideElement.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+
+      const isOutOfView =
+        slideRect.left < containerRect.left ||
+        slideRect.right > containerRect.right;
+
+      if (isOutOfView) {
+        slideElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center',
+        });
+      }
+    }
+  }, [presentation.currentSlide]);
+
+  // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
@@ -89,20 +206,250 @@ export function SlidePreview({
             toggleSpeakerNotes();
           }
           break;
+        case 'Escape':
+          if (revampComparison) {
+            setRevampComparison(null);
+          }
+          if (addedSlideReview) {
+            // Keep the slide on Escape
+            setAddedSlideReview(null);
+          }
+          break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nextSlide, prevSlide, toggleSpeakerNotes]);
+  }, [nextSlide, prevSlide, toggleSpeakerNotes, revampComparison, addedSlideReview]);
 
-  if (!parsedDeck || !currentSlide) {
+  // ============================================
+  // Add Slide handlers
+  // ============================================
+
+  const handleOpenAddSlide = useCallback((position: number) => {
+    setAddSlidePosition(position);
+    setShowAddSlideDialog(true);
+  }, []);
+
+  const handleAddSlide = useCallback(async (description: string) => {
+    if (!currentDeckContent) return;
+
+    setIsAddingSlide(true);
+    setShowAddSlideDialog(false);
+
+    // Navigate to show loading on the insertion point
+    goToSlide(addSlidePosition);
+
+    try {
+      const beforeSlide = getSlideMarkdown(currentDeckContent, addSlidePosition);
+      const afterSlide = getSlideMarkdown(currentDeckContent, addSlidePosition + 1);
+
+      const response = await fetch('/api/add-slide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deckId,
+          insertAfterSlide: addSlidePosition,
+          userDescription: description,
+          deckContext: {
+            title: parsedDeck?.metadata?.title || 'Untitled',
+            slideCount: totalSlides,
+          },
+          surroundingSlides: {
+            before: beforeSlide || undefined,
+            after: afterSlide || undefined,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate slide');
+      }
+
+      const newContent = insertSlideAfter(currentDeckContent, addSlidePosition, data.slideContent);
+      updateDeckContent(newContent);
+
+      const parsed = parseSlideMarkdown(newContent);
+      setParsedDeck(parsed);
+
+      // Navigate to the new slide
+      const newSlideIndex = addSlidePosition + 1;
+      goToSlide(newSlideIndex);
+
+      // Auto-save
+      await fetch(`/api/decks/${encodeURIComponent(deckId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newContent }),
+      });
+
+      // Enter review mode for the new slide
+      setAddedSlideReview({
+        slideIndex: newSlideIndex,
+        slideContent: data.slideContent,
+      });
+    } catch (err) {
+      console.error('Error adding slide:', err);
+    } finally {
+      setIsAddingSlide(false);
+    }
+  }, [currentDeckContent, addSlidePosition, deckId, parsedDeck?.metadata?.title, totalSlides, updateDeckContent, setParsedDeck, goToSlide]);
+
+  // Keep the added slide (just close review)
+  const handleKeepAddedSlide = useCallback(() => {
+    setAddedSlideReview(null);
+  }, []);
+
+  // Discard the added slide
+  const handleDiscardAddedSlide = useCallback(async () => {
+    if (!addedSlideReview || !currentDeckContent) return;
+
+    const newContent = removeSlideAt(currentDeckContent, addedSlideReview.slideIndex);
+    updateDeckContent(newContent);
+
+    const parsed = parseSlideMarkdown(newContent);
+    setParsedDeck(parsed);
+
+    // Navigate to previous slide
+    goToSlide(Math.max(0, addedSlideReview.slideIndex - 1));
+
+    // Auto-save
+    await fetch(`/api/decks/${encodeURIComponent(deckId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: newContent }),
+    });
+
+    setAddedSlideReview(null);
+  }, [addedSlideReview, currentDeckContent, deckId, updateDeckContent, setParsedDeck, goToSlide]);
+
+  // Revamp the added slide
+  const handleRevampAddedSlide = useCallback(() => {
+    if (!addedSlideReview) return;
+
+    // Keep the slide and open revamp dialog
+    setRevampSlideIndex(addedSlideReview.slideIndex);
+    setAddedSlideReview(null);
+    setShowRevampDialog(true);
+  }, [addedSlideReview]);
+
+  // ============================================
+  // Revamp Slide handlers
+  // ============================================
+
+  const handleOpenRevamp = useCallback((slideIndex: number) => {
+    setRevampSlideIndex(slideIndex);
+    setShowRevampDialog(true);
+  }, []);
+
+  const handleRevampSlide = useCallback(async (instructions: string) => {
+    if (!currentDeckContent) return;
+
+    setIsRevamping(true);
+    setShowRevampDialog(false);
+
+    goToSlide(revampSlideIndex);
+
+    try {
+      const currentSlideMarkdown = getSlideMarkdown(currentDeckContent, revampSlideIndex);
+
+      const response = await fetch('/api/revamp-slide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deckId,
+          slideIndex: revampSlideIndex,
+          currentSlide: currentSlideMarkdown,
+          userInstructions: instructions,
+          deckContext: {
+            title: parsedDeck?.metadata?.title || 'Untitled',
+            theme: themePrompt,
+            slideCount: totalSlides,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to revamp slide');
+      }
+
+      setRevampComparison({
+        slideIndex: revampSlideIndex,
+        oldContent: currentSlideMarkdown,
+        newContent: data.slideContent,
+        showNew: true,
+      });
+    } catch (err) {
+      console.error('Error revamping slide:', err);
+    } finally {
+      setIsRevamping(false);
+    }
+  }, [currentDeckContent, revampSlideIndex, deckId, parsedDeck?.metadata?.title, themePrompt, totalSlides, goToSlide]);
+
+  const handleApplyRevamp = useCallback(async () => {
+    if (!revampComparison || !currentDeckContent) return;
+
+    const newContent = replaceSlideMarkdown(
+      currentDeckContent,
+      revampComparison.slideIndex,
+      revampComparison.newContent
+    );
+    updateDeckContent(newContent);
+
+    const parsed = parseSlideMarkdown(newContent);
+    setParsedDeck(parsed);
+
+    await fetch(`/api/decks/${encodeURIComponent(deckId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: newContent }),
+    });
+
+    setRevampComparison(null);
+  }, [revampComparison, currentDeckContent, deckId, updateDeckContent, setParsedDeck]);
+
+  const handleDiscardRevamp = useCallback(() => {
+    setRevampComparison(null);
+  }, []);
+
+  // ============================================
+  // Get slide to render (with comparison support)
+  // ============================================
+
+  const getDisplaySlide = useCallback(() => {
+    if (!currentSlide) return null;
+
+    if (
+      revampComparison &&
+      revampComparison.slideIndex === presentation.currentSlide
+    ) {
+      const contentToShow = revampComparison.showNew
+        ? revampComparison.newContent
+        : revampComparison.oldContent;
+
+      const tempParsed = parseSlideMarkdown(`---\ntitle: temp\n---\n${contentToShow}`);
+      return tempParsed.slides[0] || currentSlide;
+    }
+
+    return currentSlide;
+  }, [currentSlide, revampComparison, presentation.currentSlide]);
+
+  const displaySlide = getDisplaySlide();
+
+  if (!parsedDeck || !displaySlide) {
     return (
       <div className="flex items-center justify-center h-full bg-background rounded-lg border border-border">
         <p className="text-text-quaternary text-sm">No slides to preview</p>
       </div>
     );
   }
+
+  const isComparingCurrentSlide = revampComparison && revampComparison.slideIndex === presentation.currentSlide;
+  const isRevampingCurrentSlide = isRevamping && revampSlideIndex === presentation.currentSlide;
+  const isAddingCurrentSlide = isAddingSlide && addSlidePosition === presentation.currentSlide;
+  const isReviewingAddedSlide = addedSlideReview && addedSlideReview.slideIndex === presentation.currentSlide;
 
   return (
     <div className="flex flex-col h-full bg-background rounded-lg overflow-hidden border border-border">
@@ -111,25 +458,210 @@ export function SlidePreview({
 
       {/* Slide view */}
       <div className="flex-1 relative overflow-hidden group">
-        {isGeneratedMode ? (
-          <GeneratedSlide
-            slide={currentSlide}
-            slideIndex={presentation.currentSlide}
-            deckId={deckId}
-            revealStep={presentation.currentReveal}
-            themePrompt={themePrompt}
-            isPresenting={false}
-          />
-        ) : (
-          <SlideRenderer
-            slide={currentSlide}
-            revealStep={presentation.currentReveal}
-            isPresenting={false}
-            imageManifest={parsedDeck.imageManifest}
-            onImageChange={onImageChange}
-            onActiveSlotChange={onActiveSlotChange}
-          />
-        )}
+        {/* Loading overlay for adding slide */}
+        <AnimatePresence>
+          {isAddingCurrentSlide && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-20 bg-black/40 backdrop-blur-sm flex items-center justify-center"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="flex flex-col items-center gap-4 p-6 bg-[#0a0a0a]/95 border border-white/[0.08] rounded-2xl shadow-2xl"
+              >
+                <motion.div
+                  animate={{
+                    scale: [1, 1.08, 1],
+                    opacity: [0.9, 1, 0.9],
+                  }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                  className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30 flex items-center justify-center"
+                >
+                  <Sparkles className="w-6 h-6 text-amber-400" />
+                </motion.div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-white">Creating new slide...</p>
+                  <p className="text-xs text-white/50 mt-1">Analyzing context and generating content</p>
+                </div>
+                <div className="w-32 h-1 rounded-full bg-white/10 overflow-hidden">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-amber-500/60 via-amber-400 to-amber-500/60 rounded-full"
+                    initial={{ x: '-100%' }}
+                    animate={{ x: '200%' }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ width: '50%' }}
+                  />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Loading overlay for revamp */}
+        <AnimatePresence>
+          {isRevampingCurrentSlide && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-20 bg-black/40 backdrop-blur-sm flex items-center justify-center"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="flex flex-col items-center gap-4 p-6 bg-[#0a0a0a]/95 border border-white/[0.08] rounded-2xl shadow-2xl"
+              >
+                <motion.div
+                  animate={{
+                    scale: [1, 1.08, 1],
+                    opacity: [0.9, 1, 0.9],
+                  }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                  className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/30 flex items-center justify-center"
+                >
+                  <Wand2 className="w-6 h-6 text-amber-400" />
+                </motion.div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-white">Revamping slide...</p>
+                  <p className="text-xs text-white/50 mt-1">Applying your transformations</p>
+                </div>
+                <div className="w-32 h-1 rounded-full bg-white/10 overflow-hidden">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-amber-500/60 via-amber-400 to-amber-500/60 rounded-full"
+                    initial={{ x: '-100%' }}
+                    animate={{ x: '200%' }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ width: '50%' }}
+                  />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Added slide review overlay - Keep/Revamp/Discard */}
+        <AnimatePresence>
+          {isReviewingAddedSlide && (
+            <>
+              {/* Top badge */}
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/95 border border-amber-500/30 rounded-xl shadow-2xl backdrop-blur-md"
+              >
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span className="text-sm font-medium text-amber-300">New slide created</span>
+              </motion.div>
+
+              {/* Bottom action bar */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 p-2 bg-[#0a0a0a]/95 border border-white/[0.08] rounded-xl shadow-2xl backdrop-blur-md"
+              >
+                <button
+                  onClick={handleDiscardAddedSlide}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all duration-200"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Discard
+                </button>
+                <button
+                  onClick={handleRevampAddedSlide}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-white/60 hover:text-white/90 hover:bg-white/[0.05] rounded-lg transition-all duration-200"
+                >
+                  <Wand2 className="w-4 h-4" />
+                  Revamp
+                </button>
+                <button
+                  onClick={handleKeepAddedSlide}
+                  className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-medium rounded-lg transition-all duration-200 shadow-lg shadow-amber-500/20"
+                >
+                  <Check className="w-4 h-4" />
+                  Keep
+                </button>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Comparison toggle overlay (for revamp) */}
+        <AnimatePresence>
+          {isComparingCurrentSlide && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1 bg-[#0a0a0a]/95 border border-white/[0.08] rounded-xl shadow-2xl backdrop-blur-md"
+            >
+              <button
+                onClick={() => setRevampComparison(prev => prev ? { ...prev, showNew: false } : null)}
+                className={`
+                  px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                  ${!revampComparison?.showNew
+                    ? 'bg-white/10 text-white'
+                    : 'text-white/50 hover:text-white/80 hover:bg-white/[0.05]'
+                  }
+                `}
+              >
+                Original
+              </button>
+              <button
+                onClick={() => setRevampComparison(prev => prev ? { ...prev, showNew: true } : null)}
+                className={`
+                  px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
+                  ${revampComparison?.showNew
+                    ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-black'
+                    : 'text-white/50 hover:text-white/80 hover:bg-white/[0.05]'
+                  }
+                `}
+              >
+                Revamped
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Comparison action bar (for revamp) */}
+        <AnimatePresence>
+          {isComparingCurrentSlide && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 p-2 bg-[#0a0a0a]/95 border border-white/[0.08] rounded-xl shadow-2xl backdrop-blur-md"
+            >
+              <button
+                onClick={handleDiscardRevamp}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-white/60 hover:text-white/90 hover:bg-white/[0.05] rounded-lg transition-all duration-200"
+              >
+                <X className="w-4 h-4" />
+                Discard
+              </button>
+              <button
+                onClick={handleApplyRevamp}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-medium rounded-lg transition-all duration-200 shadow-lg shadow-amber-500/20"
+              >
+                <Check className="w-4 h-4" />
+                Apply Changes
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <SlideRenderer
+          slide={displaySlide}
+          revealStep={presentation.currentReveal}
+          isPresenting={false}
+          imageManifest={parsedDeck.imageManifest}
+          onImageChange={onImageChange}
+          onActiveSlotChange={onActiveSlotChange}
+        />
 
         {/* Navigation overlays */}
         <button
@@ -149,7 +681,7 @@ export function SlidePreview({
       </div>
 
       {/* Speaker notes */}
-      {presentation.showSpeakerNotes && currentSlide.speakerNotes && (
+      {presentation.showSpeakerNotes && currentSlide?.speakerNotes && (
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
@@ -187,44 +719,6 @@ export function SlidePreview({
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          {/* Render mode toggle */}
-          <div className="flex items-center bg-surface rounded-md p-0.5 border border-border">
-            <button
-              onClick={() => !isGeneratedMode || toggleRenderMode()}
-              className={`
-                flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-all
-                ${!isGeneratedMode
-                  ? 'bg-background text-text-primary'
-                  : 'text-text-tertiary hover:text-text-secondary'
-                }
-              `}
-              title="Standard mode"
-            >
-              <Layout className="w-3 h-3" />
-              Standard
-            </button>
-            <button
-              onClick={() => isGeneratedMode || toggleRenderMode()}
-              className={`
-                flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-all
-                ${isGeneratedMode
-                  ? 'bg-background text-text-primary'
-                  : 'text-text-tertiary hover:text-text-secondary'
-                }
-              `}
-              title="AI-generated slides"
-            >
-              <Sparkles className="w-3 h-3" />
-              Generated
-            </button>
-          </div>
-
-          {/* Slide generator settings (only show when in generated mode) */}
-          {isGeneratedMode && <SlideGeneratorSettings />}
-
-          <div className="w-px h-5 bg-border" />
-
-          {/* Theme customizer */}
           {onGenerateTheme && (
             <ThemeCustomizer
               currentPrompt={themePrompt}
@@ -234,7 +728,6 @@ export function SlidePreview({
             />
           )}
 
-          {/* Image style selector */}
           <ImageStyleSelector />
 
           <div className="w-px h-5 bg-border" />
@@ -256,7 +749,6 @@ export function SlidePreview({
 
           <button
             onClick={async () => {
-              // Save before presenting to ensure presenter has latest content
               if (onSave) {
                 await onSave();
               }
@@ -275,32 +767,166 @@ export function SlidePreview({
         </div>
       </div>
 
-      {/* Mini slide navigator */}
-      <div className="px-4 py-2 border-t border-border overflow-x-auto">
-        <div className="flex gap-1.5">
-          {parsedDeck.slides.map((slide, index) => (
-            <button
-              key={slide.id}
-              onClick={() => goToSlide(index)}
-              className={`
-                flex-shrink-0 w-14 h-9 rounded overflow-hidden
-                border transition-all
-                ${
-                  index === presentation.currentSlide
-                    ? 'border-text-primary'
-                    : 'border-border hover:border-border-hover'
-                }
-              `}
-            >
-              <div className="w-full h-full bg-slide-bg flex items-center justify-center">
-                <span className="text-[9px] font-mono text-slide-muted">
-                  {index + 1}
-                </span>
+      {/* Mini slide navigator with add/revamp */}
+      <div
+        ref={navigatorRef}
+        className="px-4 py-3 border-t border-border overflow-x-auto scrollbar-hide"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        <div className="flex gap-2 items-center">
+          {parsedDeck.slides.map((slide, index) => {
+            const isCurrent = index === presentation.currentSlide;
+            const isHovered = hoveredThumbnail === index;
+            const isNewlyAdded = addedSlideReview?.slideIndex === index;
+
+            return (
+              <div
+                key={slide.id}
+                className="flex items-center gap-2"
+                ref={(el) => {
+                  if (el) slideRefs.current.set(index, el);
+                }}
+              >
+                {/* Slide thumbnail with revamp button */}
+                <div
+                  className="relative flex-shrink-0 group/thumb"
+                  onMouseEnter={() => setHoveredThumbnail(index)}
+                  onMouseLeave={() => setHoveredThumbnail(null)}
+                >
+                  <button
+                    onClick={() => goToSlide(index)}
+                    className={`
+                      relative w-16 h-10 rounded-lg overflow-hidden
+                      border-2 transition-all duration-200
+                      ${isCurrent
+                        ? isNewlyAdded
+                          ? 'border-amber-400 shadow-[0_0_0_2px_rgba(251,191,36,0.3)]'
+                          : 'border-amber-500 shadow-[0_0_0_2px_rgba(245,158,11,0.2)]'
+                        : 'border-white/[0.08] hover:border-white/20'
+                      }
+                    `}
+                  >
+                    {/* Slide number badge */}
+                    <div className={`
+                      w-full h-full flex items-center justify-center
+                      transition-all duration-200
+                      ${isCurrent
+                        ? isNewlyAdded
+                          ? 'bg-amber-400/20'
+                          : 'bg-amber-500/10'
+                        : 'bg-white/[0.02] hover:bg-white/[0.05]'
+                      }
+                    `}>
+                      {isNewlyAdded ? (
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                      ) : (
+                        <span className={`
+                          text-xs font-mono font-medium
+                          ${isCurrent ? 'text-amber-400' : 'text-white/40'}
+                        `}>
+                          {index + 1}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Current slide indicator bar */}
+                    {isCurrent && (
+                      <motion.div
+                        layoutId="currentSlideIndicator"
+                        className={`absolute bottom-0 left-0 right-0 h-0.5 ${
+                          isNewlyAdded
+                            ? 'bg-gradient-to-r from-amber-400 to-amber-300'
+                            : 'bg-gradient-to-r from-amber-500 to-amber-400'
+                        }`}
+                        transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                      />
+                    )}
+                  </button>
+
+                  {/* Revamp button - expands on hover */}
+                  <AnimatePresence>
+                    {isHovered && !isRevamping && !revampComparison && !addedSlideReview && (
+                      <motion.button
+                        initial={{ opacity: 0, scale: 0.8, y: 5 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8, y: 5 }}
+                        transition={{ duration: 0.15 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenRevamp(index);
+                        }}
+                        className="
+                          absolute -top-2 left-1/2 -translate-x-1/2
+                          flex items-center gap-1.5 px-2.5 py-1
+                          bg-gradient-to-r from-amber-500 to-amber-600
+                          hover:from-amber-400 hover:to-amber-500
+                          rounded-full text-black text-[10px] font-medium
+                          shadow-lg shadow-amber-500/30
+                          transition-all duration-200
+                          whitespace-nowrap
+                        "
+                      >
+                        <Wand2 className="w-3 h-3" />
+                        <span>Revamp</span>
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Loading indicator for revamping slide */}
+                  {isRevamping && revampSlideIndex === index && (
+                    <div className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center backdrop-blur-[1px]">
+                      <Loader2 className="w-4 h-4 text-amber-400 animate-spin" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Add slide button after current slide */}
+                {isCurrent && !addedSlideReview && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    onClick={() => handleOpenAddSlide(index)}
+                    disabled={isAddingSlide}
+                    className="
+                      flex-shrink-0 w-8 h-10 rounded-lg
+                      border-2 border-dashed border-white/[0.15]
+                      hover:border-amber-500/50 hover:bg-amber-500/10
+                      flex items-center justify-center
+                      text-white/30 hover:text-amber-400
+                      transition-all duration-200
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                    "
+                    title="Add new slide"
+                  >
+                    {isAddingSlide ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4" />
+                    )}
+                  </motion.button>
+                )}
               </div>
-            </button>
-          ))}
+            );
+          })}
         </div>
       </div>
+
+      {/* Dialogs */}
+      <AddSlideDialog
+        isOpen={showAddSlideDialog}
+        onClose={() => setShowAddSlideDialog(false)}
+        onAdd={handleAddSlide}
+        insertPosition={addSlidePosition}
+        isAdding={isAddingSlide}
+      />
+
+      <RevampSlideDialog
+        isOpen={showRevampDialog}
+        onClose={() => setShowRevampDialog(false)}
+        onRevamp={handleRevampSlide}
+        slideIndex={revampSlideIndex}
+        isRevamping={isRevamping}
+      />
     </div>
   );
 }

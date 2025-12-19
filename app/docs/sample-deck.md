@@ -1,3 +1,4 @@
+[bg:retrogrid]
 [center, center]
 ## Company Name
 # SALES DECK [anvil]
