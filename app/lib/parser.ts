@@ -31,7 +31,7 @@ import {
 // Frontmatter Extraction
 // ============================================
 
-interface Frontmatter {
+export interface Frontmatter {
   v?: number;  // Version marker (2 = v2 format)
   images?: ImageManifest;
 }
@@ -40,15 +40,23 @@ interface Frontmatter {
  * Extract YAML frontmatter from markdown content
  * Handles multiple blocks by merging them, cleans up orphaned blocks
  * Preserves both v (version) and images metadata
+ *
+ * IMPORTANT: Frontmatter is at the END of the document (modern format)
+ * This function is tolerant of extra whitespace/newlines in YAML blocks
  */
 export function extractFrontmatter(content: string): { frontmatter: Frontmatter; body: string } {
   const mergedImages: ImageManifest = {};
   let version: number | undefined;
 
   // Helper to extract frontmatter fields from a YAML block
+  // Uses js-yaml which is tolerant of whitespace
   const extractFields = (yamlContent: string) => {
     try {
-      const parsed = yaml.load(yamlContent) as Frontmatter || {};
+      // Trim whitespace before parsing - YAML parser handles internal whitespace
+      const trimmed = yamlContent.trim();
+      if (!trimmed) return;
+
+      const parsed = yaml.load(trimmed) as Frontmatter || {};
       if (parsed.v) {
         version = parsed.v;
       }
@@ -61,21 +69,24 @@ export function extractFrontmatter(content: string): { frontmatter: Frontmatter;
   };
 
   // Check for TOP frontmatter (legacy position)
-  const topMatch = content.match(/^---\n([\s\S]*?)\n---\n/);
+  // Tolerant of whitespace after opening ---
+  const topMatch = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
   if (topMatch) {
     extractFields(topMatch[1]);
   }
 
-  // Find all END frontmatter blocks (modern position)
-  // Match any yaml block at the end that contains v: or images:
-  const endBlockRegex = /\n---\n((?:v:\s*\d+\n?|images:[\s\S]*?)+)\n?---/g;
+  // Find END frontmatter blocks (modern position)
+  // CRITICAL: Content must START with v: or images: (after optional whitespace)
+  // This prevents matching from earlier --- separators in the document
+  // Pattern: \n---\n[optional whitespace](v:... or images:...)---
+  const endBlockRegex = /\n---\s*\n(\s*(?:v:\s*\d+\s*\n?|images:[\s\S]*?)+)\s*---\s*$/g;
   let match;
   while ((match = endBlockRegex.exec(content)) !== null) {
     extractFields(match[1]);
   }
 
-  // Also check for standalone v: 2 block without closing ---
-  const standaloneV2Match = content.match(/\n---\n(v:\s*2)\s*$/);
+  // Standalone v: 2 block without closing --- (tolerant of whitespace)
+  const standaloneV2Match = content.match(/\n---\s*\n\s*(v:\s*2)\s*$/);
   if (standaloneV2Match) {
     extractFields(standaloneV2Match[1]);
   }
@@ -83,14 +94,15 @@ export function extractFrontmatter(content: string): { frontmatter: Frontmatter;
   // Remove all yaml blocks from content to get clean body
   let body = content;
 
-  // Remove top frontmatter if present
-  body = body.replace(/^---\n[\s\S]*?\n---\n/, '');
+  // Remove top frontmatter if present (tolerant of whitespace)
+  body = body.replace(/^---\s*\n[\s\S]*?\n---\s*\n/, '');
 
-  // Remove all end frontmatter blocks (with v: and/or images:)
-  body = body.replace(/\n---\n(?:v:\s*\d+\n?|images:[\s\S]*?)+\n?---/g, '');
+  // Remove end frontmatter blocks - content must START with v: or images:
+  // This is the key fix: no [\s\S]*? before the v:/images: check
+  body = body.replace(/\n---\s*\n\s*(?:v:\s*\d+\s*\n?|images:[\s\S]*?)+\s*---\s*$/g, '');
 
-  // Remove standalone v: 2 block at end (no closing ---)
-  body = body.replace(/\n---\nv:\s*2\s*$/, '');
+  // Remove standalone v: 2 block at end (tolerant of whitespace)
+  body = body.replace(/\n---\s*\n\s*v:\s*2\s*$/, '');
 
   // Also remove empty slide separators that might be left (--- followed by ---)
   body = body.replace(/\n---\s*\n---/g, '\n---');
@@ -114,7 +126,7 @@ export function extractFrontmatter(content: string): { frontmatter: Frontmatter;
  * Serialize frontmatter to YAML string (for appending at bottom of document)
  * Always outputs v: 2 first (if present), then images
  */
-function serializeFrontmatter(frontmatter: Frontmatter): string {
+export function serializeFrontmatter(frontmatter: Frontmatter): string {
   if (!frontmatter || Object.keys(frontmatter).length === 0) {
     return '';
   }
@@ -211,6 +223,43 @@ export function normalizeFrontmatter(content: string): string {
 }
 
 /**
+ * Comprehensive deck content normalization
+ * Called on save to ensure consistent formatting:
+ * 1. Moves frontmatter to bottom (if at top)
+ * 2. Trims each slide to remove excess whitespace
+ * 3. Normalizes slide separators to consistent format (\n\n---\n\n)
+ * 4. Removes excessive consecutive newlines
+ */
+export function normalizeDeckContent(content: string): string {
+  // Extract frontmatter (handles both top and bottom positions)
+  const { frontmatter, body } = extractFrontmatter(content);
+
+  // Split body into slides
+  let slides = body.split(/\n---\n/).filter(s => s.trim());
+
+  // Handle case where first slide might start with ---
+  if (body.trimStart().startsWith('---')) {
+    const trimmedBody = body.trimStart().replace(/^---\n?/, '');
+    slides = trimmedBody.split(/\n---\n/).filter(s => s.trim());
+  }
+
+  // Trim each slide and normalize internal whitespace
+  // - Trim leading/trailing whitespace
+  // - Collapse 3+ consecutive newlines to 2
+  const normalizedSlides = slides.map(slide => {
+    return slide
+      .trim()
+      .replace(/\n{3,}/g, '\n\n');  // Collapse excessive newlines
+  });
+
+  // Join slides with consistent separator
+  const normalizedBody = normalizedSlides.join('\n\n---\n\n');
+
+  // Re-serialize frontmatter at bottom
+  return normalizedBody + serializeFrontmatter(frontmatter);
+}
+
+/**
  * Remove an image from the manifest
  */
 export function removeImageFromManifest(
@@ -229,6 +278,31 @@ export function removeImageFromManifest(
   }
 
   return body + serializeFrontmatter(frontmatter);
+}
+
+/**
+ * Strip frontmatter from markdown content, returning only slide content
+ * Used for v3 migration where metadata is stored separately
+ */
+export function stripFrontmatter(content: string): string {
+  const { body } = extractFrontmatter(content);
+  return body.trim();
+}
+
+/**
+ * Extract frontmatter data for migration to v3 metadata format
+ * Returns the extracted data in a format suitable for DeckMetadataV3
+ */
+export function extractFrontmatterForMigration(content: string): {
+  images?: ImageManifest;
+  version?: number;
+} {
+  const { frontmatter } = extractFrontmatter(content);
+
+  return {
+    images: frontmatter.images,
+    version: frontmatter.v,
+  };
 }
 
 // Valid text effects that can be applied via [effect] syntax
@@ -897,8 +971,16 @@ export function getVisibleElements(slide: Slide, revealStep: number): SlideEleme
 
 /**
  * Detect if a deck uses v1 (legacy) format
- * V2 decks have `v: 2` in their frontmatter (at the end of the document)
- * Returns true if deck lacks the v2 marker
+ *
+ * Format detection:
+ * - v1 (legacy): Images embedded in markdown frontmatter, no version marker
+ * - v2: Images embedded in markdown frontmatter with `v: 2` marker
+ * - v3: Clean markdown (no frontmatter), images stored in separate metadata JSON
+ *
+ * Returns true ONLY if deck has embedded images but no v: 2 marker
+ * (meaning it needs migration to v2 format before moving to v3)
+ *
+ * v3 decks (no frontmatter) return false - they're already modern format
  */
 export function isLegacyDeck(content: string): boolean {
   // Empty or very short content is not considered legacy (nothing to upgrade)
@@ -906,16 +988,22 @@ export function isLegacyDeck(content: string): boolean {
     return false;
   }
 
-  // Use extractFrontmatter to check for v: 2
+  // Use extractFrontmatter to check for version and images
   const { frontmatter } = extractFrontmatter(content);
 
-  // If frontmatter has v: 2, it's not legacy
+  // If frontmatter has v: 2, it's not legacy (it's v2 format)
   if (frontmatter.v === 2) {
     return false;
   }
 
-  // No v2 marker found = legacy deck
-  return true;
+  // If frontmatter has images but no v:2, it's legacy (needs upgrade)
+  if (frontmatter.images && Object.keys(frontmatter.images).length > 0) {
+    return true;
+  }
+
+  // No frontmatter images = either v3 (clean markdown) or brand new deck
+  // Neither is "legacy" - v3 is the modern format
+  return false;
 }
 
 /**

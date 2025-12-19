@@ -4,14 +4,14 @@
 // RIFF - Main Editor Application
 // ============================================
 
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useEffect, useState, useCallback, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PanelLeftClose, PanelLeft, X, Loader2, Plus, FileSymlink } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, X, Loader2, Plus, FileSymlink, CloudDownload, Upload, ChevronDown, File, FolderOpen } from 'lucide-react';
 import { RiffIcon } from '@/components/RiffIcon';
 import { useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
-import { parseSlideMarkdown, updateImageInManifest, setActiveImageSlot, isLegacyDeck } from '@/lib/parser';
-import { ImageSlot } from '@/lib/types';
+import { parseSlideMarkdown, isLegacyDeck } from '@/lib/parser';
+import { ImageSlot, ImageManifest, DeckMetadataV3 } from '@/lib/types';
 import { DeckManager } from '@/components/DeckManager';
 import { SlideEditor } from '@/components/SlideEditor';
 import { SlidePreview } from '@/components/SlidePreview';
@@ -66,6 +66,26 @@ function EditorContent() {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showRevampDialog, setShowRevampDialog] = useState(false);
   const [isRevamping, setIsRevamping] = useState(false);
+  const [isImportingRiff, setIsImportingRiff] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  // Refs
+  const riffInputRef = useRef<HTMLInputElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close more menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    };
+    if (showMoreMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMoreMenu]);
 
   // Update page title based on current deck
   const currentDeck = decks.find((d) => d.id === currentDeckId);
@@ -91,6 +111,16 @@ function EditorContent() {
       const data = await response.json();
       setCurrentDeck(data.deck.id, data.content);
       const parsed = parseSlideMarkdown(data.content);
+
+      // Merge images from v3 metadata into parsed deck
+      // Metadata images take precedence over any embedded frontmatter
+      if (data.metadata?.images) {
+        parsed.imageManifest = {
+          ...parsed.imageManifest,
+          ...data.metadata.images,
+        };
+      }
+
       setParsedDeck(parsed);
 
       // Set publish status from API response
@@ -327,6 +357,95 @@ function EditorContent() {
     }
   };
 
+  // Export current deck as .riff file
+  const exportRiff = async () => {
+    if (!currentDeckId || isExporting) return;
+
+    setIsExporting(true);
+    try {
+      const response = await fetch(`/api/decks/${encodeURIComponent(currentDeckId)}/export`);
+      if (!response.ok) throw new Error('Failed to export');
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
+      const filename = filenameMatch ? filenameMatch[1] : 'deck.riff';
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError('Failed to export deck');
+      console.error('Export error:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Import .riff file
+  const importRiff = async (file: File) => {
+    setIsImportingRiff(true);
+    setLoadingMessage('Importing deck...');
+    setLoading(true);
+
+    try {
+      const content = await file.text();
+      const riffData = JSON.parse(content);
+
+      const response = await fetch('/api/decks/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: content,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to import');
+      }
+
+      const data = await response.json();
+
+      // Refresh decks list
+      const decksResponse = await fetch('/api/decks');
+      if (decksResponse.ok) {
+        const decksData = await decksResponse.json();
+        setDecks(decksData.decks);
+      }
+
+      // Load the imported deck
+      if (data.deck?.id) {
+        await loadDeck(data.deck.id);
+      }
+    } catch (err) {
+      if (err instanceof SyntaxError) {
+        setError('Invalid .riff file');
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to import deck');
+      }
+      console.error('Import error:', err);
+    } finally {
+      setIsImportingRiff(false);
+      setLoadingMessage(null);
+      setLoading(false);
+    }
+  };
+
+  // Handle .riff file selection
+  const handleRiffFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      importRiff(file);
+    }
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  };
+
   const generateTheme = async (prompt: string, customSystemPrompt?: string) => {
     setIsGeneratingTheme(true);
     try {
@@ -419,53 +538,83 @@ function EditorContent() {
     }
   }, [loadDeck, setDecks, setError]);
 
-  // Handle image change from ImagePlaceholder - update frontmatter and auto-save
+  // Handle image change from ImagePlaceholder - update metadata JSON (v3)
   const handleImageChange = useCallback(async (description: string, slot: ImageSlot, url: string) => {
-    if (!currentDeckId || !currentDeckContent) return;
+    if (!currentDeckId) return;
 
-    // Update the content with the new image URL in frontmatter
-    const newContent = updateImageInManifest(currentDeckContent, description, slot, url, true);
-    updateDeckContent(newContent);
-
-    // Re-parse to update the store
-    const parsed = parseSlideMarkdown(newContent);
-    setParsedDeck(parsed);
-
-    // Auto-save
     try {
-      await fetch(`/api/decks/${encodeURIComponent(currentDeckId)}`, {
-        method: 'PUT',
+      // Update image in metadata JSON via API
+      const response = await fetch(`/api/decks/${encodeURIComponent(currentDeckId)}/images`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newContent }),
+        body: JSON.stringify({
+          description,
+          slot,
+          url,
+          setActive: true,
+        }),
       });
-    } catch (err) {
-      console.error('Auto-save failed:', err);
-    }
-  }, [currentDeckId, currentDeckContent, updateDeckContent, setParsedDeck]);
 
-  // Handle active slot change - update frontmatter and auto-save
+      if (!response.ok) {
+        throw new Error('Failed to update image');
+      }
+
+      const data = await response.json();
+
+      // Update the parsedDeck's imageManifest in-place
+      if (parsedDeck) {
+        const updatedManifest = {
+          ...parsedDeck.imageManifest,
+          [description]: data.image,
+        };
+        setParsedDeck({
+          ...parsedDeck,
+          imageManifest: updatedManifest,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to update image:', err);
+      setError('Failed to save image');
+    }
+  }, [currentDeckId, parsedDeck, setParsedDeck, setError]);
+
+  // Handle active slot change - update metadata JSON (v3)
   const handleActiveSlotChange = useCallback(async (description: string, slot: ImageSlot) => {
-    if (!currentDeckId || !currentDeckContent) return;
+    if (!currentDeckId) return;
 
-    // Update the active slot in frontmatter
-    const newContent = setActiveImageSlot(currentDeckContent, description, slot);
-    updateDeckContent(newContent);
-
-    // Re-parse to update the store
-    const parsed = parseSlideMarkdown(newContent);
-    setParsedDeck(parsed);
-
-    // Auto-save
     try {
-      await fetch(`/api/decks/${encodeURIComponent(currentDeckId)}`, {
+      // Update active slot in metadata JSON via API
+      const response = await fetch(`/api/decks/${encodeURIComponent(currentDeckId)}/images`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newContent }),
+        body: JSON.stringify({
+          description,
+          activeSlot: slot,
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to update active slot');
+      }
+
+      const data = await response.json();
+
+      // Update the parsedDeck's imageManifest in-place
+      if (parsedDeck) {
+        const updatedManifest = {
+          ...parsedDeck.imageManifest,
+          [description]: data.image,
+        };
+        setParsedDeck({
+          ...parsedDeck,
+          imageManifest: updatedManifest,
+        });
+      }
     } catch (err) {
-      console.error('Auto-save failed:', err);
+      console.error('Failed to update active slot:', err);
+      setError('Failed to save image preference');
     }
-  }, [currentDeckId, currentDeckContent, updateDeckContent, setParsedDeck]);
+  }, [currentDeckId, parsedDeck, setParsedDeck, setError]);
 
   // Handle deck revamp with AI
   const handleRevamp = useCallback(async (instructions: string) => {
@@ -523,19 +672,17 @@ function EditorContent() {
       {themeCSS && <style dangerouslySetInnerHTML={{ __html: themeCSS }} />}
 
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border">
-        <div className="flex items-center justify-between h-14 px-4">
-          {/* Left: Logo & Deck selector */}
-          <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-30 bg-background/98 backdrop-blur-xl">
+        <div className="flex items-center justify-between h-12 px-4">
+          {/* Left: Logo, Deck selector & New dropdown */}
+          <div className="flex items-center gap-2">
             {/* Logo */}
-            <a href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-              <RiffIcon size={26} primaryColor="rgba(255, 255, 255, 0.9)" secondaryColor="rgba(255, 255, 255, 0.5)" />
-              <span style={{ fontFamily: "'Playfair Display', Georgia, serif" }} className="text-lg font-semibold tracking-tight">
+            <a href="/" className="flex items-center gap-2 hover:opacity-70 transition-opacity mr-1">
+              <RiffIcon size={20} primaryColor="rgba(255, 255, 255, 0.85)" secondaryColor="rgba(255, 255, 255, 0.4)" />
+              <span style={{ fontFamily: "'Playfair Display', Georgia, serif" }} className="text-sm font-semibold tracking-tight text-white/90">
                 Riff
               </span>
             </a>
-
-            <div className="h-4 w-px bg-border" />
 
             <DeckManager
               decks={decks}
@@ -546,65 +693,136 @@ function EditorContent() {
               isLoading={isLoading}
             />
 
-            <div className="h-4 w-px bg-border" />
+            {/* New dropdown - single button that opens menu */}
+            <div className="relative" ref={moreMenuRef}>
+              <button
+                onClick={() => setShowMoreMenu(!showMoreMenu)}
+                className={`
+                  flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-md transition-all
+                  ${showMoreMenu
+                    ? 'bg-white/10 text-white'
+                    : 'text-white/60 hover:text-white/90 hover:bg-white/[0.06]'
+                  }
+                `}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New</span>
+                <ChevronDown className={`w-3 h-3 opacity-50 transition-transform ${showMoreMenu ? 'rotate-180' : ''}`} />
+              </button>
 
-            {/* New Deck Button */}
-            <button
-              onClick={() => setShowNewDeckModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-surface rounded-md transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Deck</span>
-            </button>
-
-            {/* Import Button */}
-            <button
-              onClick={() => setShowUploader(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-text-secondary hover:text-text-primary hover:bg-surface rounded-md transition-colors"
-              title="Create deck from document"
-            >
-              <FileSymlink className="w-4 h-4" />
-              <span>Import</span>
-            </button>
+              {/* Dropdown menu */}
+              <AnimatePresence>
+                {showMoreMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 4 }}
+                    transition={{ duration: 0.12, ease: 'easeOut' }}
+                    className="absolute top-full left-0 mt-1.5 w-52 bg-[#1c1c1c] rounded-xl shadow-2xl shadow-black/50 py-1.5 z-50 overflow-hidden"
+                  >
+                    <button
+                      onClick={() => {
+                        setShowNewDeckModal(true);
+                        setShowMoreMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/[0.06] transition-colors"
+                    >
+                      <File className="w-4 h-4 opacity-60" />
+                      <span>Blank deck</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowUploader(true);
+                        setShowMoreMenu(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/[0.06] transition-colors"
+                    >
+                      <FileSymlink className="w-4 h-4 opacity-60" />
+                      <span>From document</span>
+                    </button>
+                    <div className="my-1.5 mx-3 h-px bg-white/[0.06]" />
+                    <button
+                      onClick={() => {
+                        riffInputRef.current?.click();
+                        setShowMoreMenu(false);
+                      }}
+                      disabled={isImportingRiff}
+                      className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+                    >
+                      {isImportingRiff ? (
+                        <Loader2 className="w-4 h-4 opacity-60 animate-spin" />
+                      ) : (
+                        <FolderOpen className="w-4 h-4 opacity-60" />
+                      )}
+                      <span>Open .riff file</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
 
-          {/* Right: Actions */}
-          <div className="flex items-center gap-1">
-            {/* Publish Button */}
-            {currentDeckId && currentDeck && (
-              <PublishPopover
-                deckId={currentDeckId}
-                deckName={currentDeck.name}
-                publishStatus={publishStatus}
-                onPublishStatusChange={setPublishStatus}
-              />
+          {/* Right: Deck actions & user */}
+          <div className="flex items-center gap-0.5">
+            {/* Deck actions */}
+            {currentDeckId && (
+              <>
+                {/* Download */}
+                <button
+                  onClick={exportRiff}
+                  disabled={isExporting}
+                  className="p-2 text-white/40 hover:text-white/80 hover:bg-white/[0.06] rounded-lg transition-colors disabled:opacity-40"
+                  title="Download .riff"
+                >
+                  {isExporting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CloudDownload className="w-4 h-4" />
+                  )}
+                </button>
+
+                {/* Publish */}
+                {currentDeck && (
+                  <PublishPopover
+                    deckId={currentDeckId}
+                    deckName={currentDeck.name}
+                    publishStatus={publishStatus}
+                    onPublishStatusChange={setPublishStatus}
+                  />
+                )}
+
+                <div className="w-px h-5 bg-white/[0.08] mx-2" />
+              </>
             )}
 
-            <button
-              onClick={toggleEditor}
-              className="p-2 hover:bg-surface rounded-md text-text-secondary hover:text-text-primary transition-colors"
-              title={isEditorOpen ? 'Hide editor' : 'Show editor'}
-            >
-              {isEditorOpen ? (
-                <PanelLeftClose className="w-4 h-4" />
-              ) : (
-                <PanelLeft className="w-4 h-4" />
-              )}
-            </button>
-
-            <div className="h-4 w-px bg-border mx-1" />
-
+            {/* User section */}
             <CreditsDisplay onPurchaseClick={() => setShowPurchaseModal(true)} />
-
-            <div className="h-4 w-px bg-border mx-1" />
-
             <UserMenu />
+
+            {/* Editor toggle - far right */}
+            {currentDeckId && (
+              <button
+                onClick={toggleEditor}
+                className={`p-2 ml-1 rounded-lg transition-colors ${
+                  isEditorOpen
+                    ? 'text-white/70 bg-white/[0.06]'
+                    : 'text-white/40 hover:text-white/80 hover:bg-white/[0.06]'
+                }`}
+                title={isEditorOpen ? 'Hide editor' : 'Show editor'}
+              >
+                {isEditorOpen ? (
+                  <PanelLeftClose className="w-4 h-4" />
+                ) : (
+                  <PanelLeft className="w-4 h-4" />
+                )}
+              </button>
+            )}
           </div>
         </div>
       </header>
 
       {/* Main content */}
-      <main className="flex h-[calc(100vh-57px)]">
+      <main className="flex h-[calc(100vh-49px)]">
         {/* Editor panel */}
         <AnimatePresence mode="wait">
           {isEditorOpen && (
@@ -771,6 +989,15 @@ function EditorContent() {
         slideCount={parsedDeck?.slides.length || 0}
         isRevamping={isRevamping}
         isLegacy={isLegacyDeck(currentDeckContent)}
+      />
+
+      {/* Hidden file input for .riff import */}
+      <input
+        ref={riffInputRef}
+        type="file"
+        accept=".riff,application/json"
+        onChange={handleRiffFileChange}
+        className="hidden"
       />
     </div>
   );

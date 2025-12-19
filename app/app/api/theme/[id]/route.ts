@@ -1,13 +1,15 @@
 // ============================================
 // API: /api/theme/[id]
-// Get and delete saved themes for a deck (user-scoped)
+// Get, apply from history, and delete saved themes for a deck (user-scoped)
+// Now returns full v3 metadata including theme history
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getTheme, deleteTheme } from '@/lib/blob';
+import { getMetadata, deleteTheme, applyThemeFromHistory } from '@/lib/blob';
 
+// GET: Fetch theme and history
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -19,18 +21,28 @@ export async function GET(
     }
 
     const deckId = decodeURIComponent(params.id);
-    const theme = await getTheme(session.user.id, deckId);
+    const metadata = await getMetadata(session.user.id, deckId);
 
-    if (!theme) {
+    if (!metadata?.theme) {
       return NextResponse.json(
         { error: 'Theme not found' },
         { status: 404 }
       );
     }
 
+    // Return current theme + history for quantization UI
     return NextResponse.json({
-      css: theme.css,
-      prompt: theme.prompt,
+      css: metadata.theme.css,
+      prompt: metadata.theme.prompt,
+      generatedAt: metadata.theme.generatedAt,
+      // Theme history for "apply previous theme" feature
+      history: metadata.themeHistory?.map((t, index) => ({
+        index,
+        prompt: t.prompt,
+        generatedAt: t.generatedAt,
+        // Include a preview snippet of CSS (accent color)
+        preview: extractAccentColor(t.css),
+      })) || [],
     });
   } catch (error) {
     console.error('Error fetching theme:', error);
@@ -39,6 +51,62 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+
+// PATCH: Apply theme from history (swap current with history entry)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const deckId = decodeURIComponent(params.id);
+    const { historyIndex } = await request.json();
+
+    if (typeof historyIndex !== 'number' || historyIndex < 0) {
+      return NextResponse.json(
+        { error: 'Invalid history index' },
+        { status: 400 }
+      );
+    }
+
+    const updatedMetadata = await applyThemeFromHistory(
+      session.user.id,
+      deckId,
+      historyIndex
+    );
+
+    if (!updatedMetadata?.theme) {
+      return NextResponse.json(
+        { error: 'Failed to apply theme from history' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      css: updatedMetadata.theme.css,
+      prompt: updatedMetadata.theme.prompt,
+      generatedAt: updatedMetadata.theme.generatedAt,
+    });
+  } catch (error) {
+    console.error('Error applying theme from history:', error);
+    return NextResponse.json(
+      { error: 'Failed to apply theme', details: String(error) },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Extract accent color from CSS for preview
+ */
+function extractAccentColor(css: string): string | null {
+  const match = css.match(/--color-accent:\s*([^;]+)/);
+  return match ? match[1].trim() : null;
 }
 
 export async function DELETE(

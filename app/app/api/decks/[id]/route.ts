@@ -1,13 +1,16 @@
 // ============================================
 // API: /api/decks/[id]
 // Get, Update, Delete specific deck (with ownership check)
+// Now with v3 metadata migration: extracts frontmatter to JSON
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getDeckContent, updateDeckBlob, deleteDeckBlob } from '@/lib/blob';
+import { getDeckContent, updateDeckBlob, deleteDeckBlob, getMetadata, saveMetadata } from '@/lib/blob';
+import { normalizeDeckContent, stripFrontmatter, extractFrontmatterForMigration } from '@/lib/parser';
+import { DeckMetadataV3 } from '@/lib/types';
 
 export async function GET(
   request: NextRequest,
@@ -39,6 +42,9 @@ export async function GET(
       return NextResponse.json({ error: 'Deck content not found' }, { status: 404 });
     }
 
+    // Get metadata (v3 format - includes theme, images, settings)
+    const metadata = await getMetadata(session.user.id, id);
+
     // Determine publish status
     const isPublished = !!deck.publishedAt;
     const hasUnpublishedChanges = isPublished && deck.updatedAt > deck.publishedAt!;
@@ -52,6 +58,7 @@ export async function GET(
         updatedAt: deck.updatedAt,
       },
       content,
+      metadata, // v3 metadata (theme, images, themeHistory, settings)
       publishStatus: {
         isPublished,
         publishedAt: deck.publishedAt?.toISOString() || null,
@@ -101,8 +108,37 @@ export async function PUT(
       return NextResponse.json({ error: 'Deck not found' }, { status: 404 });
     }
 
-    // Update blob content
-    const newBlobUrl = await updateDeckBlob(deck.blobPath, content);
+    // === V3 MIGRATION: Extract frontmatter and save to metadata ===
+    // 1. Extract any embedded frontmatter (images, version)
+    const embeddedData = extractFrontmatterForMigration(content);
+
+    // 2. If we found embedded frontmatter, merge it into metadata JSON
+    if (embeddedData.images && Object.keys(embeddedData.images).length > 0) {
+      // Get existing metadata
+      const existingMetadata = await getMetadata(session.user.id, id);
+      const metadata: DeckMetadataV3 = existingMetadata || { v: 3 };
+
+      // Merge images (existing metadata takes precedence for conflicts)
+      metadata.images = {
+        ...embeddedData.images,
+        ...metadata.images,
+      };
+
+      // Save updated metadata
+      await saveMetadata(session.user.id, id, metadata);
+    }
+
+    // 3. Strip frontmatter from content and normalize
+    // Now markdown is clean - no YAML at top or bottom
+    const cleanContent = stripFrontmatter(content);
+    const normalizedContent = cleanContent
+      .split(/\n---\n/)
+      .filter(s => s.trim())
+      .map(s => s.trim().replace(/\n{3,}/g, '\n\n'))
+      .join('\n\n---\n\n');
+
+    // Update blob content (now frontmatter-free)
+    const newBlobUrl = await updateDeckBlob(deck.blobPath, normalizedContent);
 
     // Update deck record
     const updatedDeck = await prisma.deck.update({

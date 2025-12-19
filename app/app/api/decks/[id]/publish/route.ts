@@ -1,17 +1,17 @@
 // ============================================
 // API: /api/decks/[id]/publish
 // Publish current deck state to the shared view
-// With silent repair: recovers image URLs from localStorage
+// Now uses v3 metadata JSON for theme and images
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getDeckContent, getTheme, updateDeckBlob } from '@/lib/blob';
+import { getDeckContent, getMetadata, saveMetadata, updateDeckBlob } from '@/lib/blob';
 import { nanoid } from 'nanoid';
-import { extractFrontmatter, updateImageInManifest, normalizeFrontmatter } from '@/lib/parser';
-import { ImageSlot } from '@/lib/types';
+import { stripFrontmatter, extractFrontmatterForMigration } from '@/lib/parser';
+import { ImageSlot, DeckMetadataV3 } from '@/lib/types';
 
 // POST: Publish current deck state
 export async function POST(
@@ -26,7 +26,7 @@ export async function POST(
 
     const deckId = params.id;
 
-    // Parse request body for image URLs
+    // Parse request body for image URLs (from localStorage, for backward compat)
     let imageUrls: Record<string, string> = {};
     try {
       const body = await request.json();
@@ -56,12 +56,27 @@ export async function POST(
       );
     }
 
+    // Get v3 metadata (theme, images, settings)
+    let metadata = await getMetadata(session.user.id, deckId);
+    if (!metadata) {
+      metadata = { v: 3 };
+    }
+
+    // === V3 MIGRATION: Extract embedded frontmatter if present ===
+    const embeddedData = extractFrontmatterForMigration(content);
+    if (embeddedData.images && Object.keys(embeddedData.images).length > 0) {
+      // Merge embedded images into metadata (embedded takes precedence for migration)
+      metadata.images = {
+        ...metadata.images,
+        ...embeddedData.images,
+      };
+    }
+
     // === SILENT REPAIR ===
-    // Merge localStorage image URLs into frontmatter if they're missing
-    // This recovers images for decks created before frontmatter was added
+    // Merge localStorage image URLs into metadata if they're missing
+    // This recovers images for decks created before metadata was added
     if (Object.keys(imageUrls).length > 0) {
-      const { frontmatter } = extractFrontmatter(content);
-      const existingManifest = frontmatter.images || {};
+      const existingImages = metadata.images || {};
 
       // Parse localStorage keys: 'vibe-image-{slot}:{description}'
       for (const [key, url] of Object.entries(imageUrls)) {
@@ -74,46 +89,39 @@ export async function POST(
         const slot = match[1] as ImageSlot;
         const description = match[2];
 
-        // Check if this image is already in frontmatter
-        const existingEntry = existingManifest[description];
+        // Check if this image is already in metadata
+        const existingEntry = existingImages[description];
         if (existingEntry?.[slot]) continue; // Already have this URL
 
-        // Add to frontmatter
-        content = updateImageInManifest(content, description, slot, url, !existingEntry);
+        // Add to metadata
+        if (!metadata.images) metadata.images = {};
+        if (!metadata.images[description]) {
+          metadata.images[description] = { active: slot };
+        }
+        metadata.images[description][slot] = url;
       }
 
-      // Save repaired content back to blob and update deck record
-      const originalContent = await getDeckContent(deck.blobUrl);
-      if (content !== originalContent) {
-        const newBlobUrl = await updateDeckBlob(deck.blobPath, content);
-        await prisma.deck.update({
-          where: { id: deckId },
-          data: { blobUrl: newBlobUrl, updatedAt: new Date() },
-        });
-      }
+      // Save updated metadata
+      await saveMetadata(session.user.id, deckId, metadata);
     }
 
-    // === NORMALIZE FRONTMATTER ===
-    // Ensure frontmatter is at bottom of document (migrates legacy top-frontmatter)
-    const originalContent = content;
-    content = normalizeFrontmatter(content);
+    // === NORMALIZE & STRIP FRONTMATTER ===
+    // Strip embedded frontmatter (now in metadata JSON) and normalize
+    const cleanContent = stripFrontmatter(content);
+    const normalizedContent = cleanContent
+      .split(/\n---\n/)
+      .filter(s => s.trim())
+      .map(s => s.trim().replace(/\n{3,}/g, '\n\n'))
+      .join('\n\n---\n\n');
 
     // Save normalized content back to blob if it changed
-    if (content !== originalContent) {
-      const newBlobUrl = await updateDeckBlob(deck.blobPath, content);
+    if (normalizedContent !== content) {
+      const newBlobUrl = await updateDeckBlob(deck.blobPath, normalizedContent);
       await prisma.deck.update({
         where: { id: deckId },
         data: { blobUrl: newBlobUrl },
       });
     }
-
-    // Get current theme (may be null)
-    const theme = await getTheme(session.user.id, deckId);
-
-    // Add image URLs to theme data for persistence (for backward compat with ImageUrlHydrator)
-    const themeWithImages = theme
-      ? { ...theme, imageUrls }
-      : { imageUrls };
 
     // If no share token exists, create one
     let shareToken = deck.shareToken;
@@ -122,6 +130,7 @@ export async function POST(
     }
 
     // Update deck with published content
+    // Store full metadata as publishedTheme (includes theme + images)
     // IMPORTANT: Set both publishedAt AND updatedAt to the same timestamp
     // This ensures hasUnpublishedChanges (updatedAt > publishedAt) is false after publish
     const now = new Date();
@@ -129,8 +138,8 @@ export async function POST(
       where: { id: deckId },
       data: {
         shareToken,
-        publishedContent: content,
-        publishedTheme: JSON.stringify(themeWithImages),
+        publishedContent: normalizedContent,
+        publishedTheme: JSON.stringify(metadata), // v3: full metadata
         publishedAt: now,
         updatedAt: now,
       },

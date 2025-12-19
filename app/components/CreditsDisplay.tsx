@@ -154,23 +154,20 @@ export function CreditsDisplay({ onPurchaseClick, className = '' }: CreditsDispl
             exit={{ opacity: 0, y: 4, scale: 0.95 }}
             transition={{ duration: 0.1 }}
             className="
-              absolute left-1/2 -translate-x-1/2 bottom-full mb-2
-              px-3 py-2 bg-[#141414] border border-white/10 rounded-lg
+              absolute right-0 bottom-full mb-2
+              px-3 py-2 bg-[#1a1a1a] rounded-lg
               shadow-xl shadow-black/50
-              whitespace-nowrap z-50
+              whitespace-nowrap z-50 pointer-events-none
             "
           >
             <div className="text-xs text-white/70">
               {isEmpty ? (
                 <span className="text-red-400">No credits remaining</span>
               ) : isLow ? (
-                <span className="text-amber-400">Low balance - click to add more</span>
+                <span className="text-amber-400">Low balance</span>
               ) : (
-                <span>Click to add credits</span>
+                <span>Add credits</span>
               )}
-            </div>
-            <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-1">
-              <div className="w-2 h-2 bg-[#141414] border-r border-b border-white/10 rotate-45" />
             </div>
           </motion.div>
         )}

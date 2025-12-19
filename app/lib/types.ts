@@ -173,6 +173,69 @@ export interface ImageManifestEntry {
 // Image manifest maps description to its URLs
 export type ImageManifest = Record<string, ImageManifestEntry>;
 
+// ============================================
+// Deck Metadata v3 - Unified JSON storage
+// Stored at: users/{userId}/themes/{deckId}.json
+// ============================================
+
+/**
+ * Theme data - stored in metadata and theme history
+ */
+export interface ThemeData {
+  css: string;
+  prompt: string;
+  generatedAt?: string;
+}
+
+/**
+ * Deck settings - future expansion
+ */
+export interface DeckSettings {
+  aspectRatio?: '16:9' | '4:3';
+  // Future: transition, exportFormat, etc.
+}
+
+/**
+ * Unified deck metadata (v3 format)
+ * - Replaces embedded YAML frontmatter
+ * - Includes theme history for quantization
+ * - Stored as JSON in blob storage
+ */
+export interface DeckMetadataV3 {
+  v: 3;
+  images?: ImageManifest;
+  theme?: ThemeData;
+  themeHistory?: ThemeData[]; // Previous themes for quantization
+  settings?: DeckSettings;
+}
+
+/**
+ * Legacy theme format (pre-v3)
+ * Used for backward compatibility detection
+ */
+export interface LegacyThemeData {
+  css: string;
+  prompt: string;
+  generatedAt?: string;
+}
+
+// ============================================
+// Riff Export Format (.riff)
+// Portable bundle for sharing decks with all metadata
+// ============================================
+
+/**
+ * Riff export format - a JSON file with .riff extension
+ * Contains everything needed to recreate a deck
+ */
+export interface RiffExport {
+  format: 'riff-v1';
+  name: string;
+  content: string; // Markdown slides (no frontmatter)
+  metadata: DeckMetadataV3;
+  exportedAt: string; // ISO timestamp
+}
+
 // List item with optional heading style
 // Use # prefix in list items: - # Title, - ## H1, - ### H2, - body (default)
 export type ListItemStyle = 'title' | 'h1' | 'h2' | 'body';

@@ -64,14 +64,28 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
 
-    const { presentation } = get();
+    const { presentation, parsedDeck: existingDeck } = get();
     const maxSlideIndex = deck.slides.length - 1;
+
+    // Preserve existing imageManifest if the new deck has an empty one
+    // This is critical for v3 decks where images are stored in metadata JSON,
+    // not in markdown frontmatter. When components re-parse markdown content,
+    // parseSlideMarkdown() returns empty imageManifest for v3 decks.
+    const newManifestIsEmpty = !deck.imageManifest || Object.keys(deck.imageManifest).length === 0;
+    const existingManifestHasData = existingDeck?.imageManifest && Object.keys(existingDeck.imageManifest).length > 0;
+
+    const preservedImageManifest = (newManifestIsEmpty && existingManifestHasData)
+      ? existingDeck.imageManifest
+      : deck.imageManifest;
 
     // Clamp currentSlide if it's now out of bounds (e.g., slides were deleted)
     const newCurrentSlide = Math.min(presentation.currentSlide, Math.max(0, maxSlideIndex));
 
     set({
-      parsedDeck: deck,
+      parsedDeck: {
+        ...deck,
+        imageManifest: preservedImageManifest,
+      },
       presentation: {
         ...presentation,
         currentSlide: newCurrentSlide,

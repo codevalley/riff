@@ -5,6 +5,7 @@
 
 import { put, del, list } from '@vercel/blob';
 import { hashDescription } from './parser';
+import { DeckMetadataV3, ThemeData, ImageManifest } from './types';
 
 // Legacy prefixes (for backward compatibility / shared content)
 const IMAGES_PREFIX = 'images/';
@@ -223,21 +224,68 @@ export async function deleteImageFromCache(description: string): Promise<boolean
 // ============================================
 
 /**
- * Save a generated theme (user-scoped)
+ * Maximum number of themes to keep in history
  */
-export async function saveTheme(
+const MAX_THEME_HISTORY = 10;
+
+/**
+ * Get full deck metadata (v3 format)
+ * Handles both legacy (theme-only) and v3 (unified) formats
+ */
+export async function getMetadata(
+  userId: string,
+  deckId: string
+): Promise<DeckMetadataV3 | null> {
+  try {
+    const pathname = `${userThemesPrefix(userId)}${encodeURIComponent(deckId)}.json`;
+    const { blobs } = await list({ prefix: pathname });
+
+    if (blobs.length === 0) return null;
+
+    const response = await fetch(blobs[0].url);
+    const data = await response.json();
+
+    // Check if this is v3 format
+    if (data.v === 3) {
+      return data as DeckMetadataV3;
+    }
+
+    // Legacy format: wrap theme data in v3 structure
+    // Legacy has: { css, prompt, generatedAt }
+    if (data.css && data.prompt) {
+      return {
+        v: 3,
+        theme: {
+          css: data.css,
+          prompt: data.prompt,
+          generatedAt: data.generatedAt,
+        },
+      };
+    }
+
+    // Unknown format - return empty v3
+    return { v: 3 };
+  } catch (error) {
+    console.error('Error getting metadata:', error);
+    return null;
+  }
+}
+
+/**
+ * Save full deck metadata (v3 format)
+ */
+export async function saveMetadata(
   userId: string,
   deckId: string,
-  css: string,
-  prompt: string
+  metadata: DeckMetadataV3
 ): Promise<string> {
   const pathname = `${userThemesPrefix(userId)}${encodeURIComponent(deckId)}.json`;
 
-  const themeData = JSON.stringify({
-    css,
-    prompt,
-    generatedAt: new Date().toISOString(),
-  });
+  // Ensure v3 marker
+  const dataToSave: DeckMetadataV3 = {
+    ...metadata,
+    v: 3,
+  };
 
   // Delete existing
   try {
@@ -249,7 +297,7 @@ export async function saveTheme(
     // Ignore
   }
 
-  const blob = await put(pathname, themeData, {
+  const blob = await put(pathname, JSON.stringify(dataToSave, null, 2), {
     access: 'public',
     contentType: 'application/json',
     addRandomSuffix: false,
@@ -259,33 +307,125 @@ export async function saveTheme(
 }
 
 /**
+ * Update theme in metadata with history tracking
+ * Pushes current theme to history before updating
+ */
+export async function updateThemeInMetadata(
+  userId: string,
+  deckId: string,
+  newTheme: ThemeData
+): Promise<string> {
+  // Get existing metadata
+  const existing = await getMetadata(userId, deckId);
+  const metadata: DeckMetadataV3 = existing || { v: 3 };
+
+  // Push current theme to history if it exists
+  if (metadata.theme) {
+    metadata.themeHistory = metadata.themeHistory || [];
+    metadata.themeHistory.unshift(metadata.theme);
+    // Limit history size
+    metadata.themeHistory = metadata.themeHistory.slice(0, MAX_THEME_HISTORY);
+  }
+
+  // Set new theme
+  metadata.theme = newTheme;
+
+  return saveMetadata(userId, deckId, metadata);
+}
+
+/**
+ * Apply theme from history (swap with current)
+ * No LLM call needed - just CSS swap
+ */
+export async function applyThemeFromHistory(
+  userId: string,
+  deckId: string,
+  historyIndex: number
+): Promise<DeckMetadataV3 | null> {
+  const metadata = await getMetadata(userId, deckId);
+  if (!metadata) return null;
+
+  const history = metadata.themeHistory || [];
+  if (historyIndex < 0 || historyIndex >= history.length) return null;
+
+  // Swap current theme with history entry
+  const selectedTheme = history[historyIndex];
+  const currentTheme = metadata.theme;
+
+  // Remove selected from history
+  history.splice(historyIndex, 1);
+
+  // Push current to front of history (if exists)
+  if (currentTheme) {
+    history.unshift(currentTheme);
+  }
+
+  // Update metadata
+  metadata.theme = selectedTheme;
+  metadata.themeHistory = history.slice(0, MAX_THEME_HISTORY);
+
+  await saveMetadata(userId, deckId, metadata);
+  return metadata;
+}
+
+/**
+ * Update images in metadata (merge with existing)
+ */
+export async function updateImagesInMetadata(
+  userId: string,
+  deckId: string,
+  images: ImageManifest
+): Promise<string> {
+  const existing = await getMetadata(userId, deckId);
+  const metadata: DeckMetadataV3 = existing || { v: 3 };
+
+  // Merge images
+  metadata.images = {
+    ...metadata.images,
+    ...images,
+  };
+
+  return saveMetadata(userId, deckId, metadata);
+}
+
+/**
+ * Save a generated theme (user-scoped)
+ * @deprecated Use updateThemeInMetadata for v3 with history support
+ */
+export async function saveTheme(
+  userId: string,
+  deckId: string,
+  css: string,
+  prompt: string
+): Promise<string> {
+  // Use v3 format with history tracking
+  return updateThemeInMetadata(userId, deckId, {
+    css,
+    prompt,
+    generatedAt: new Date().toISOString(),
+  });
+}
+
+/**
  * Get a saved theme for a deck (user-scoped)
+ * @deprecated Use getMetadata for v3 with full metadata access
  */
 export async function getTheme(
   userId: string,
   deckId: string
 ): Promise<{ css: string; prompt: string } | null> {
-  try {
-    const pathname = `${userThemesPrefix(userId)}${encodeURIComponent(deckId)}.json`;
-    const { blobs } = await list({ prefix: pathname });
+  const metadata = await getMetadata(userId, deckId);
+  if (!metadata?.theme) return null;
 
-    if (blobs.length === 0) return null;
-
-    const response = await fetch(blobs[0].url);
-    const data = await response.json();
-
-    return {
-      css: data.css,
-      prompt: data.prompt,
-    };
-  } catch (error) {
-    console.error('Error getting theme:', error);
-    return null;
-  }
+  return {
+    css: metadata.theme.css,
+    prompt: metadata.theme.prompt,
+  };
 }
 
 /**
  * Delete a saved theme for a deck (user-scoped)
+ * Note: This now deletes the entire metadata file
  */
 export async function deleteTheme(userId: string, deckId: string): Promise<boolean> {
   try {

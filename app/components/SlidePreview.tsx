@@ -26,7 +26,11 @@ import { ThemeCustomizer } from './ThemeCustomizer';
 import { ImageStyleSelector } from './ImageStyleSelector';
 import { AddSlideDialog } from './AddSlideDialog';
 import { RevampSlideDialog } from './RevampSlideDialog';
-import { countReveals, parseSlideMarkdown } from '@/lib/parser';
+import {
+  countReveals,
+  parseSlideMarkdown,
+  stripFrontmatter,
+} from '@/lib/parser';
 import { ImageSlot } from '@/lib/types';
 
 interface SlidePreviewProps {
@@ -41,57 +45,63 @@ interface SlidePreviewProps {
 
 // ============================================
 // Helper functions for markdown manipulation
+// v3: Simplified - no frontmatter handling needed
+// Frontmatter is now stored in separate metadata JSON
 // ============================================
 
-function splitDeckContent(content: string): { frontmatter: string; slides: string[] } {
-  const lines = content.split('\n');
-  let frontmatter = '';
-  let bodyStart = 0;
+/**
+ * Split deck content into slides array
+ * Strips any legacy frontmatter (for migration) but doesn't preserve it
+ */
+function splitDeckContent(content: string): string[] {
+  // Strip any embedded frontmatter (migration from v2)
+  const body = stripFrontmatter(content);
 
-  if (lines[0]?.trim() === '---') {
-    const endIndex = lines.findIndex((line, i) => i > 0 && line.trim() === '---');
-    if (endIndex > 0) {
-      frontmatter = lines.slice(0, endIndex + 1).join('\n');
-      bodyStart = endIndex + 1;
-    }
+  // Split on --- separator
+  let slides = body.split(/\n---\n/).filter(s => s.trim());
+
+  // Handle case where first slide might start with ---
+  if (body.trimStart().startsWith('---')) {
+    const trimmedBody = body.trimStart().replace(/^---\n?/, '');
+    slides = trimmedBody.split(/\n---\n/).filter(s => s.trim());
   }
 
-  const body = lines.slice(bodyStart).join('\n').trim();
-  const slides = body.split(/\n---\n/).filter(s => s.trim());
-
-  return { frontmatter, slides };
+  return slides;
 }
 
-function joinDeckContent(frontmatter: string, slides: string[]): string {
-  const body = slides.join('\n\n---\n\n');
-  return frontmatter ? `${frontmatter}\n\n${body}` : body;
+/**
+ * Join slides back into deck content
+ * v3: Just joins slides, no frontmatter (stored separately)
+ */
+function joinDeckContent(slides: string[]): string {
+  return slides.map(s => s.trim()).join('\n\n---\n\n');
 }
 
 function getSlideMarkdown(content: string, slideIndex: number): string {
-  const { slides } = splitDeckContent(content);
+  const slides = splitDeckContent(content);
   return slides[slideIndex] || '';
 }
 
 function replaceSlideMarkdown(content: string, slideIndex: number, newSlide: string): string {
-  const { frontmatter, slides } = splitDeckContent(content);
+  const slides = splitDeckContent(content);
   if (slideIndex >= 0 && slideIndex < slides.length) {
     slides[slideIndex] = newSlide.trim();
   }
-  return joinDeckContent(frontmatter, slides);
+  return joinDeckContent(slides);
 }
 
 function insertSlideAfter(content: string, afterIndex: number, newSlide: string): string {
-  const { frontmatter, slides } = splitDeckContent(content);
+  const slides = splitDeckContent(content);
   slides.splice(afterIndex + 1, 0, newSlide.trim());
-  return joinDeckContent(frontmatter, slides);
+  return joinDeckContent(slides);
 }
 
 function removeSlideAt(content: string, slideIndex: number): string {
-  const { frontmatter, slides } = splitDeckContent(content);
+  const slides = splitDeckContent(content);
   if (slideIndex >= 0 && slideIndex < slides.length) {
     slides.splice(slideIndex, 1);
   }
-  return joinDeckContent(frontmatter, slides);
+  return joinDeckContent(slides);
 }
 
 // ============================================
