@@ -4,7 +4,7 @@
 // ============================================
 
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { Extension, RangeSet } from '@codemirror/state';
+import { Extension, RangeSet, RangeSetBuilder } from '@codemirror/state';
 import {
   Decoration,
   DecorationSet,
@@ -12,7 +12,29 @@ import {
   ViewPlugin,
   ViewUpdate,
   MatchDecorator,
+  WidgetType,
 } from '@codemirror/view';
+
+/**
+ * Widget that displays a slide number badge after ---
+ */
+class SlideNumberWidget extends WidgetType {
+  constructor(readonly slideNumber: number) {
+    super();
+  }
+
+  toDOM(): HTMLElement {
+    const span = document.createElement('span');
+    span.className = 'cm-slide-number-badge';
+    span.textContent = `slide ${this.slideNumber}`;
+    span.setAttribute('aria-label', `End of slide ${this.slideNumber}`);
+    return span;
+  }
+
+  eq(other: SlideNumberWidget): boolean {
+    return this.slideNumber === other.slideNumber;
+  }
+}
 
 // Custom decoration styles
 const slideDelimiterDeco = Decoration.mark({ class: 'cm-slide-delimiter' });
@@ -25,13 +47,40 @@ const speakerNoteDeco = Decoration.mark({ class: 'cm-speaker-note' });
 const bgMarkerDeco = Decoration.mark({ class: 'cm-bg-marker' });
 
 /**
- * Match decorator for slide delimiters (---)
- * Must be on its own line
+ * Build slide delimiter decorations with number badges
+ * Each --- gets both a mark decoration and a widget showing the slide number
  */
-const slideDelimiterMatcher = new MatchDecorator({
-  regexp: /^---$/gm,
-  decoration: slideDelimiterDeco,
-});
+function buildSlideDelimiterDecorations(view: EditorView): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  const content = view.state.doc.toString();
+  const lines = content.split('\n');
+
+  let slideNumber = 1;
+  let charPos = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim() === '---') {
+      const lineStart = charPos;
+      const lineEnd = charPos + line.length;
+
+      // Add mark decoration for the --- text
+      builder.add(lineStart, lineEnd, slideDelimiterDeco);
+
+      // Add widget decoration after the ---
+      const widget = Decoration.widget({
+        widget: new SlideNumberWidget(slideNumber),
+        side: 1, // After the text
+      });
+      builder.add(lineEnd, lineEnd, widget);
+
+      slideNumber++;
+    }
+    charPos += line.length + 1; // +1 for newline
+  }
+
+  return builder.finish();
+}
 
 /**
  * Match decorator for pause markers (**pause**)
@@ -126,7 +175,6 @@ function createSlideDecorationPlugin(): Extension {
       buildDecorations(view: EditorView): DecorationSet {
         // Combine all matchers - use RangeSet.join to merge decoration sets
         const matchers = [
-          slideDelimiterMatcher,
           pauseMarkerMatcher,
           imageMarkerMatcher,
           layoutMarkerMatcher,
@@ -138,8 +186,12 @@ function createSlideDecorationPlugin(): Extension {
           iconMarkerMatcher,
         ];
 
-        // Create decoration sets from each matcher and join them
+        // Create decoration sets from each matcher
         const sets = matchers.map((matcher) => matcher.createDeco(view));
+
+        // Add slide delimiter decorations with number badges
+        sets.push(buildSlideDelimiterDecorations(view));
+
         return RangeSet.join(sets);
       }
     },
@@ -159,8 +211,24 @@ export const slideDecorationStyles = EditorView.baseTheme({
     fontWeight: 'bold',
     backgroundColor: 'rgba(245, 158, 11, 0.1)',
     display: 'inline-block',
-    width: '100%',
     borderRadius: '2px',
+  },
+
+  // Slide number badge after ---
+  '.cm-slide-number-badge': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: '8px',
+    padding: '0 6px',
+    height: '18px',
+    fontSize: '11px',
+    fontWeight: '500',
+    fontFamily: 'system-ui, sans-serif',
+    color: 'rgba(245, 158, 11, 0.7)',
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderRadius: '9px',
+    verticalAlign: 'middle',
   },
 
   // Pause marker **pause** (rose)
