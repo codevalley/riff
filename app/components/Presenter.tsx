@@ -28,6 +28,7 @@ interface PresenterProps {
   isSharedView?: boolean;
   onImageChange?: (description: string, slot: ImageSlot, url: string) => void;
   onActiveSlotChange?: (description: string, slot: ImageSlot) => void;
+  sceneContext?: string;
 }
 
 export function Presenter({
@@ -38,6 +39,7 @@ export function Presenter({
   isSharedView = false,
   onImageChange,
   onActiveSlotChange,
+  sceneContext,
 }: PresenterProps) {
   const [currentSlide, setCurrentSlide] = useState(initialSlide);
   const [currentReveal, setCurrentReveal] = useState(0);
@@ -176,6 +178,7 @@ export function Presenter({
             imageManifest={deck.imageManifest}
             onImageChange={onImageChange}
             onActiveSlotChange={onActiveSlotChange}
+            sceneContext={sceneContext}
           />
         )}
       </div>
@@ -345,6 +348,7 @@ export function Presenter({
                         revealStep={999}
                         isPresenting={false}
                         imageManifest={deck.imageManifest}
+                        sceneContext={sceneContext}
                       />
                     </div>
                     <div className="absolute bottom-1 right-1 px-2 py-0.5 bg-black/60 rounded text-xs text-white/70">

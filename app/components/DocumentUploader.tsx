@@ -628,7 +628,7 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
         throw new Error(metadataData.error || 'Failed to extract metadata');
       }
 
-      const { title, themePrompt } = metadataData;
+      const { title, themePrompt, imageContext } = metadataData;
 
       // ===== STAGE 3: Theming - Generate CSS =====
       setConversionStage('theming');
@@ -657,6 +657,7 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
           title,
           themeCss,
           themePrompt,
+          imageContext, // Scene setting for AI-generated images
         }),
       });
 

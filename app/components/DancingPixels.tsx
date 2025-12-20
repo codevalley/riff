@@ -34,7 +34,7 @@ export function DancingPixels({
 
   // Generate dot grid with unique phase offsets
   const dots = useMemo(() => {
-    const spacing = 12;
+    const spacing = 16; // Larger spacing = fewer, more visible dots
     const cols = Math.ceil(600 / spacing);
     const rows = Math.ceil(350 / spacing);
     const result = [];
@@ -68,7 +68,6 @@ export function DancingPixels({
         viewBox="0 0 600 350"
         preserveAspectRatio="xMidYMid slice"
         shapeRendering="crispEdges"
-        style={{ color: 'var(--slide-accent, #06b6d4)' }}
       >
         {dots.map((dot) => {
           // Edge fade
@@ -100,7 +99,7 @@ export function DancingPixels({
           const isEnergized = waveIntensity > 0.15;
 
           // Position wander - smooth, gentle movement
-          const wanderAmount = waveIntensity * 2.5;
+          const wanderAmount = waveIntensity * 4; // More pronounced movement
           const wanderX = Math.sin(time * 0.8 + dot.phase) * wanderAmount;
           const wanderY = Math.cos(time * 0.7 + dot.phase * 1.3) * wanderAmount;
 
@@ -108,21 +107,26 @@ export function DancingPixels({
           const finalX = dot.x + wanderX;
           const finalY = dot.y + wanderY;
 
-          // Opacity based on state
-          const activeOpacity = waveIntensity * 0.85 * edgeFade;
-          const baseOpacity = 0.18 * edgeFade;
+          // Opacity based on state - MUCH more visible
+          const activeOpacity = Math.max(0.4, waveIntensity * 1.2) * edgeFade;
+          const baseOpacity = 0.35 * edgeFade;
 
           // Show either placeholder OR active pixel, not both
+          // Dot size: 4x4 for much better visibility
+          const dotSize = 4;
+          const halfDot = dotSize / 2;
+
           if (isEnergized) {
             return (
               <rect
                 key={dot.id}
-                x={finalX - 1}
-                y={finalY - 1}
-                width={2}
-                height={2}
+                x={finalX - halfDot}
+                y={finalY - halfDot}
+                width={dotSize}
+                height={dotSize}
                 fill="currentColor"
                 opacity={activeOpacity}
+                rx={1}
               />
             );
           }
@@ -130,12 +134,13 @@ export function DancingPixels({
           return (
             <rect
               key={dot.id}
-              x={dot.x - 1}
-              y={dot.y - 1}
-              width={2}
-              height={2}
+              x={dot.x - halfDot}
+              y={dot.y - halfDot}
+              width={dotSize}
+              height={dotSize}
               fill="currentColor"
               opacity={baseOpacity}
+              rx={1}
             />
           );
         })}

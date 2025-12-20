@@ -7,7 +7,7 @@ import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getDeckContent, getTheme } from '@/lib/blob';
+import { getDeckContent, getTheme, getMetadata } from '@/lib/blob';
 import { parseSlideMarkdown } from '@/lib/parser';
 import { PresenterClient } from './client';
 
@@ -78,12 +78,17 @@ export default async function PresentPage({ params, searchParams }: PageProps) {
   // Load theme if available (user-scoped)
   const theme = await getTheme(session.user.id, deckId);
 
+  // Load metadata for scene context
+  const metadata = await getMetadata(session.user.id, deckId);
+  const sceneContext = metadata?.imageContext;
+
   return (
     <PresenterClient
       deck={parsedDeck}
       deckId={deckId}
       initialSlide={initialSlide}
       themeCSS={theme?.css}
+      sceneContext={sceneContext}
     />
   );
 }

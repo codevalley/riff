@@ -34,17 +34,18 @@ export async function POST(request: NextRequest) {
     // Use standard model for metadata extraction (fast)
     const modelId = process.env.AI_GATEWAY_MODEL || 'moonshotai/kimi-k2-0905';
 
-    // Extract title and theme via LLM
+    // Extract title, theme, and image context via LLM
     const { text: metadataOutput } = await generateText({
       model: gateway(modelId),
       system: DECK_METADATA_PROMPT,
-      prompt: `Extract title and theme from this deck:\n\n${markdown.slice(0, 3000)}`,
-      maxOutputTokens: 256,
+      prompt: `Extract title, theme, and image context from this deck:\n\n${markdown.slice(0, 3000)}`,
+      maxOutputTokens: 512,
     });
 
     // Parse JSON response
     let title: string | null = null;
     let themePrompt: string | null = null;
+    let imageContext: string | null = null;
 
     const jsonMatch = metadataOutput.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
         const metadata = JSON.parse(jsonMatch[0]);
         title = metadata.title || null;
         themePrompt = metadata.themePrompt || null;
+        imageContext = metadata.imageContext || null;
       } catch {
         // JSON parse failed, try to extract manually
       }
@@ -70,9 +72,15 @@ export async function POST(request: NextRequest) {
       themePrompt = 'Modern dark theme with subtle accents';
     }
 
+    // Default image context if none extracted
+    if (!imageContext) {
+      imageContext = 'Professional business environment with modern aesthetic';
+    }
+
     return NextResponse.json({
       title: title || 'Untitled Presentation',
       themePrompt,
+      imageContext,
     });
 
   } catch (error) {

@@ -1,8 +1,8 @@
 'use client';
 
 // ============================================
-// VIBE SLIDES - Image Placeholder Component
-// With 3 image slots: Generated, Uploaded, Restyled
+// RIFF - Image Placeholder Component
+// Unified action menu: "+ Add Image" / "Edit ▾"
 // ============================================
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -10,17 +10,29 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ImageIcon,
   Loader2,
-  RefreshCw,
   Upload,
   Wand2,
   X,
   Layers,
   ChevronDown,
-  Brush,
+  Trash2,
+  Images,
+  Plus,
+  Pencil,
+  Paintbrush,
+  AlertCircle,
 } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/store';
 import { DancingPixels } from './DancingPixels';
 import { IMAGE_STYLE_PRESETS, ImageManifestEntry, ImageSlot } from '@/lib/types';
+
+// Library image for "From Library" picker
+interface LibraryImage {
+  description: string;
+  url: string;
+  slideIndex?: number;
+}
 
 interface ImagePlaceholderProps {
   description: string;
@@ -31,7 +43,15 @@ interface ImagePlaceholderProps {
   manifestEntry?: ImageManifestEntry;
   onImageChange?: (slot: ImageSlot, url: string) => void;
   onActiveSlotChange?: (slot: ImageSlot) => void;
+  // Scene context for visual consistency across images
+  sceneContext?: string;
+  onSceneContextChange?: (context: string) => void;
+  // Library of existing deck images for "From Library" picker
+  deckImages?: LibraryImage[];
+  // Callback when image is removed
+  onImageRemove?: () => void;
 }
+
 
 interface ImageSlots {
   generated?: string;
@@ -47,6 +67,10 @@ export function ImagePlaceholder({
   manifestEntry,
   onImageChange,
   onActiveSlotChange,
+  sceneContext,
+  onSceneContextChange,
+  deckImages = [],
+  onImageRemove,
 }: ImagePlaceholderProps) {
   // Image slots - each can have its own URL
   const [slots, setSlots] = useState<ImageSlots>({});
@@ -64,8 +88,19 @@ export function ImagePlaceholder({
   const [customPrompt, setCustomPrompt] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
+  // Scene context editing state (for restyle modal)
+  const [editedSceneContext, setEditedSceneContext] = useState('');
+  const [isSceneContextExpanded, setIsSceneContextExpanded] = useState(false);
+
+  // Unified action menu state
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const [showLibraryPicker, setShowLibraryPicker] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+
   const cacheChecked = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const actionMenuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const { imageCache, cacheImage, imageStyle } = useStore();
 
@@ -213,11 +248,54 @@ export function ImagePlaceholder({
     checkAllCaches();
   }, [description, imageCache, cacheImage, getPersistedSlotUrl, manifestEntry]);
 
-  // Generate new image with optional style override
-  const handleGenerate = async (forceRegenerate = false, styleOverride?: string) => {
+  // Initialize edited scene context when modal opens
+  useEffect(() => {
+    if (showRestyleModal) {
+      setEditedSceneContext(sceneContext || '');
+      setIsSceneContextExpanded(false);
+    }
+  }, [showRestyleModal, sceneContext]);
+
+  // Close action menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) {
+        setShowActionMenu(false);
+      }
+    };
+    if (showActionMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showActionMenu]);
+
+  // Select image from library
+  const handleSelectFromLibrary = useCallback((libraryImage: LibraryImage) => {
+    // Use uploaded slot for library selections
+    const cacheKey = getCacheKey('uploaded');
+    setSlots(prev => ({ ...prev, uploaded: libraryImage.url }));
+    setActiveSlot('uploaded');
+    cacheImage(cacheKey, libraryImage.url);
+    persistSlotUrl('uploaded', libraryImage.url);
+    onImageChange?.('uploaded', libraryImage.url);
+    setShowLibraryPicker(false);
+    setShowActionMenu(false);
+  }, [getCacheKey, cacheImage, persistSlotUrl, onImageChange]);
+
+  // Remove image
+  const handleRemoveImage = useCallback(() => {
+    setSlots({});
+    setActiveSlot(null);
+    setShowActionMenu(false);
+    onImageRemove?.();
+  }, [onImageRemove]);
+
+  // Generate new image (first-time generation only)
+  const handleGenerate = async (styleOverride?: string) => {
     setIsGenerating(true);
     setError(null);
     setShowGenerateDropdown(false);
+    setShowActionMenu(false);
 
     const styleToUse = styleOverride || imageStyle;
 
@@ -229,7 +307,8 @@ export function ImagePlaceholder({
           description,
           styleId: styleToUse,
           backgroundColor: getBackgroundColor(),
-          forceRegenerate,
+          forceRegenerate: false,
+          sceneContext,
         }),
       });
 
@@ -244,7 +323,6 @@ export function ImagePlaceholder({
         setSlots(prev => ({ ...prev, generated: data.url }));
         setActiveSlot('generated');
         cacheImage(cacheKey, data.url);
-        // Notify parent to persist to frontmatter
         onImageChange?.('generated', data.url);
       } else if (data.placeholder) {
         setError(data.message || 'Image generation not available');
@@ -346,12 +424,28 @@ export function ImagePlaceholder({
     }
   };
 
-  // Handle restyle
+  // Handle restyle - closes modal immediately, shows progress on image
   const handleRestyle = async () => {
     if (!activeImageUrl || (!selectedPreset && !customPrompt.trim())) return;
 
-    setIsRestyling(true);
+    // Capture form values before clearing
+    const styleToApply = selectedPreset;
+    const promptToApply = customPrompt.trim();
+    const contextToApply = editedSceneContext.trim();
+
+    // Persist scene context changes if edited
+    if (contextToApply !== (sceneContext || '') && onSceneContextChange) {
+      onSceneContextChange(contextToApply);
+    }
+
+    // Close modal immediately and reset form
+    setShowRestyleModal(false);
+    setCustomPrompt('');
+    setSelectedPreset(null);
     setError(null);
+
+    // Start restyling (DancingPixels overlay will show on the image)
+    setIsRestyling(true);
 
     try {
       const response = await fetch('/api/restyle-image', {
@@ -359,9 +453,10 @@ export function ImagePlaceholder({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageUrl: activeImageUrl,
-          styleId: selectedPreset || undefined,
-          customPrompt: customPrompt.trim() || undefined,
+          styleId: styleToApply || undefined,
+          customPrompt: promptToApply || undefined,
           backgroundColor: getBackgroundColor(),
+          sceneContext: contextToApply || undefined,
         }),
       });
 
@@ -375,12 +470,8 @@ export function ImagePlaceholder({
       setSlots(prev => ({ ...prev, restyled: data.url }));
       setActiveSlot('restyled');
       cacheImage(cacheKey, data.url);
-      persistSlotUrl('restyled', data.url); // Persist to localStorage for page refresh
-      // Notify parent to persist to frontmatter
+      persistSlotUrl('restyled', data.url);
       onImageChange?.('restyled', data.url);
-      setShowRestyleModal(false);
-      setCustomPrompt('');
-      setSelectedPreset(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to restyle image');
     } finally {
@@ -451,131 +542,396 @@ export function ImagePlaceholder({
     );
   };
 
-  // Restyle Modal (shadcn-inspired)
+  // Restyle Modal - Minimal design
   const renderRestyleModal = () => (
     <AnimatePresence>
       {showRestyleModal && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
-          onClick={() => setShowRestyleModal(false)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setShowRestyleModal(false)}
+          />
+
+          {/* Modal - compact */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.15 }}
-            className="bg-[#0a0a0a] border border-[#27272a] rounded-lg shadow-xl max-w-lg w-full max-h-[85vh] overflow-hidden"
+            className="relative w-full max-w-md bg-[#111] border border-white/10 rounded-xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex flex-col gap-1.5 p-6 pb-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white tracking-tight">Restyle image</h3>
-                <button
-                  onClick={() => setShowRestyleModal(false)}
-                  className="rounded-sm opacity-70 hover:opacity-100 transition-opacity"
-                >
-                  <X className="w-4 h-4 text-white" />
-                </button>
-              </div>
-              <p className="text-sm text-[#a1a1aa]">
-                Transform this image with a new artistic style.
-              </p>
+            {/* Header - minimal */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+              <h3 className="text-sm font-medium text-white">Restyle</h3>
+              <button
+                onClick={() => setShowRestyleModal(false)}
+                className="p-1 -m-1 text-white/40 hover:text-white/70 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            {/* Content */}
-            <div className="px-6 pb-6 space-y-4 overflow-y-auto max-h-[calc(85vh-160px)]">
-              {/* Preview */}
-              <div className="rounded-md overflow-hidden border border-[#27272a]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={activeImageUrl || ''}
-                  alt="Current image"
-                  className="w-full aspect-video object-contain bg-[#18181b]"
-                />
+            {/* Content - tight spacing */}
+            <div className="p-4 space-y-3">
+              {/* Description input - single line style */}
+              <input
+                type="text"
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                placeholder="Describe the new style..."
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20"
+              />
+
+              {/* Style chips - compact */}
+              <div className="flex flex-wrap gap-1">
+                {IMAGE_STYLE_PRESETS.filter(p => p.id !== 'none').map((preset) => (
+                  <button
+                    key={preset.id}
+                    onClick={() => setSelectedPreset(selectedPreset === preset.id ? null : preset.id)}
+                    className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                      selectedPreset === preset.id
+                        ? 'bg-white/20 text-white'
+                        : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80'
+                    }`}
+                  >
+                    {preset.name}
+                  </button>
+                ))}
               </div>
 
-              {/* Style presets */}
-              <div>
-                <label className="block text-sm font-medium text-white mb-2">Style preset</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {IMAGE_STYLE_PRESETS.filter(p => p.id !== 'none').map((preset) => (
-                    <button
-                      key={preset.id}
-                      onClick={() => {
-                        setSelectedPreset(preset.id);
-                        setCustomPrompt('');
-                      }}
-                      className={`p-3 text-left rounded-md border transition-all ${
-                        selectedPreset === preset.id
-                          ? 'border-white bg-white/10'
-                          : 'border-[#27272a] hover:border-[#3f3f46] bg-[#18181b]'
-                      }`}
-                    >
-                      <div className="font-medium text-sm text-white">{preset.name}</div>
-                      <div className="text-xs text-[#71717a] mt-0.5 line-clamp-1">
-                        {preset.description}
-                      </div>
-                    </button>
-                  ))}
+              {/* Selected style description */}
+              {selectedPreset && (
+                <p className="text-xs text-white/40">
+                  {IMAGE_STYLE_PRESETS.find(p => p.id === selectedPreset)?.description}
+                </p>
+              )}
+
+              {/* Scene context - simple inline expandable */}
+              {(sceneContext || editedSceneContext) && (
+                <div>
+                  <button
+                    onClick={() => setIsSceneContextExpanded(!isSceneContextExpanded)}
+                    className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/60 transition-colors"
+                  >
+                    <ChevronDown className={`w-3 h-3 transition-transform ${isSceneContextExpanded ? 'rotate-180' : ''}`} />
+                    Scene context
+                  </button>
+                  {isSceneContextExpanded && (
+                    <textarea
+                      value={editedSceneContext}
+                      onChange={(e) => setEditedSceneContext(e.target.value)}
+                      placeholder="Scene setting for visual consistency..."
+                      className="w-full mt-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-xs text-white/70 placeholder-white/30 focus:outline-none focus:border-white/20 resize-none h-16"
+                    />
+                  )}
                 </div>
-              </div>
-
-              {/* Custom prompt */}
-              <div>
-                <label className="block text-sm font-medium text-white mb-2">Custom prompt</label>
-                <textarea
-                  value={customPrompt}
-                  onChange={(e) => {
-                    setCustomPrompt(e.target.value);
-                    if (e.target.value.trim()) setSelectedPreset(null);
-                  }}
-                  placeholder="e.g., Transform into a watercolor painting..."
-                  className="w-full h-20 px-3 py-2 bg-[#18181b] border border-[#27272a] rounded-md text-sm text-white placeholder-[#52525b] focus:outline-none focus:ring-1 focus:ring-[#3f3f46] resize-none"
-                />
-              </div>
+              )}
 
               {error && (
-                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-md text-red-400 text-sm">
-                  {error}
-                </div>
+                <p className="text-xs text-red-400">{error}</p>
               )}
             </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-[#27272a]">
+            {/* Footer - compact */}
+            <div className="flex justify-end gap-2 px-4 py-3 border-t border-white/5">
               <button
                 onClick={() => setShowRestyleModal(false)}
-                className="h-9 px-4 text-sm text-[#a1a1aa] hover:text-white transition-colors"
+                className="px-3 py-1.5 text-xs text-white/50 hover:text-white/70 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleRestyle}
-                disabled={isRestyling || (!selectedPreset && !customPrompt.trim())}
-                className="h-9 px-4 bg-white hover:bg-white/90 text-black text-sm font-medium rounded-md transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!selectedPreset && !customPrompt.trim()}
+                className="px-4 py-1.5 bg-white text-black text-xs font-medium rounded-lg transition-colors hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {isRestyling ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Applying...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="w-4 h-4" />
-                    Apply style
-                  </>
-                )}
+                Apply
               </button>
             </div>
           </motion.div>
-        </motion.div>
+        </div>
       )}
     </AnimatePresence>
   );
+
+  // Library picker modal
+  const renderLibraryPicker = () => {
+    // Filter out current image and images without URLs
+    const availableImages = deckImages.filter(img =>
+      img.url && img.description !== description
+    );
+
+    if (availableImages.length === 0) return null;
+
+    return (
+      <AnimatePresence>
+        {showLibraryPicker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
+            onClick={() => setShowLibraryPicker(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="bg-[#0a0a0a] border border-[#27272a] rounded-xl shadow-xl max-w-md w-full max-h-[70vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-[#27272a]">
+                <h3 className="text-sm font-medium text-white">Select from Library</h3>
+                <button
+                  onClick={() => setShowLibraryPicker(false)}
+                  className="p-1 rounded hover:bg-white/10 text-white/50 hover:text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Image grid */}
+              <div className="p-3 overflow-y-auto max-h-[calc(70vh-60px)]">
+                <div className="grid grid-cols-3 gap-2">
+                  {availableImages.map((img, idx) => (
+                    <button
+                      key={`${img.description}-${idx}`}
+                      onClick={() => handleSelectFromLibrary(img)}
+                      className="group/libimg relative aspect-video rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={img.url}
+                        alt={img.description}
+                        className="w-full h-full object-cover"
+                      />
+                      {/* Hover overlay - uses named group to avoid parent group interference */}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/libimg:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-[10px] text-white font-medium px-2 text-center line-clamp-2">
+                          {img.description}
+                        </span>
+                      </div>
+                      {/* Slide indicator */}
+                      {img.slideIndex !== undefined && (
+                        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/70 rounded text-[9px] text-white/70">
+                          {img.slideIndex + 1}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  };
+
+  // Calculate menu position for portal rendering
+  const updateMenuPosition = useCallback(() => {
+    if (!menuButtonRef.current) return;
+    const rect = menuButtonRef.current.getBoundingClientRect();
+    setMenuPosition({
+      top: rect.top,
+      left: rect.left + rect.width / 2,
+    });
+  }, []);
+
+  // Unified action menu for filled state (uses portal to avoid clipping)
+  const renderFilledActionMenu = () => {
+    const hasLibraryImages = deckImages.filter(img => img.url && img.description !== description).length > 0;
+
+    const handleToggleMenu = () => {
+      if (!showActionMenu) {
+        updateMenuPosition();
+      }
+      setShowActionMenu(!showActionMenu);
+    };
+
+    const menuContent = showActionMenu && typeof document !== 'undefined' && createPortal(
+      <AnimatePresence>
+        <motion.div
+          ref={actionMenuRef}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 4 }}
+          transition={{ duration: 0.1 }}
+          className="fixed w-44 rounded-xl shadow-2xl overflow-hidden z-[9999]"
+          style={{
+            backgroundColor: '#0a0a0a',
+            border: '1px solid #27272a',
+            top: menuPosition ? menuPosition.top - 8 : 0,
+            left: menuPosition ? menuPosition.left : 0,
+            transform: 'translate(-50%, -100%)',
+          }}
+        >
+          <div className="p-1">
+            {/* Restyle - primary action for editing existing images */}
+            <button
+              onClick={() => {
+                setShowRestyleModal(true);
+                setShowActionMenu(false);
+              }}
+              disabled={isRestyling}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <Wand2 className="w-4 h-4 text-amber-400" />
+              Restyle
+            </button>
+
+            {/* Upload */}
+            <button
+              onClick={() => {
+                fileInputRef.current?.click();
+                setShowActionMenu(false);
+              }}
+              disabled={isUploading}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <Upload className="w-4 h-4 text-blue-400" />
+              Upload New
+            </button>
+
+            {/* From Library */}
+            {hasLibraryImages && (
+              <button
+                onClick={() => {
+                  setShowLibraryPicker(true);
+                  setShowActionMenu(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <Images className="w-4 h-4 text-amber-400" />
+                From Library
+              </button>
+            )}
+
+            {/* Divider */}
+            <div className="my-1 border-t border-white/10" />
+
+            {/* Remove */}
+            <button
+              onClick={handleRemoveImage}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-red-400/90 hover:bg-red-500/10 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              Remove
+            </button>
+          </div>
+        </motion.div>
+      </AnimatePresence>,
+      document.body
+    );
+
+    return (
+      <>
+        <button
+          ref={menuButtonRef}
+          onClick={handleToggleMenu}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-black/80 hover:bg-black/90 backdrop-blur-sm rounded-lg border border-white/10 text-xs font-medium text-white/90 hover:text-white transition-all shadow-lg"
+        >
+          <Pencil className="w-3 h-3" />
+          Edit
+          <ChevronDown className={`w-3 h-3 transition-transform ${showActionMenu ? 'rotate-180' : ''}`} />
+        </button>
+        {menuContent}
+      </>
+    );
+  };
+
+  // Unified action menu for empty state (uses portal to avoid clipping)
+  const renderEmptyActionMenu = () => {
+    const hasLibraryImages = deckImages.filter(img => img.url && img.description !== description).length > 0;
+
+    const handleToggleMenu = () => {
+      if (!showActionMenu) {
+        updateMenuPosition();
+      }
+      setShowActionMenu(!showActionMenu);
+    };
+
+    const menuContent = showActionMenu && typeof document !== 'undefined' && createPortal(
+      <AnimatePresence>
+        <motion.div
+          ref={actionMenuRef}
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.1 }}
+          className="fixed w-44 rounded-xl shadow-2xl overflow-hidden z-[9999]"
+          style={{
+            backgroundColor: '#0a0a0a',
+            border: '1px solid #27272a',
+            top: menuPosition ? menuPosition.top + 40 : 0, // Below the button
+            left: menuPosition ? menuPosition.left : 0,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <div className="p-1">
+            {/* Generate */}
+            <button
+              onClick={() => handleGenerate()}
+              disabled={isGenerating}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <Paintbrush className="w-4 h-4 text-emerald-400" />
+              Generate
+            </button>
+
+            {/* Upload */}
+            <button
+              onClick={() => {
+                fileInputRef.current?.click();
+                setShowActionMenu(false);
+              }}
+              disabled={isUploading}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <Upload className="w-4 h-4 text-blue-400" />
+              Upload
+            </button>
+
+            {/* From Library */}
+            {hasLibraryImages && (
+              <button
+                onClick={() => {
+                  setShowLibraryPicker(true);
+                  setShowActionMenu(false);
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm text-white/90 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <Images className="w-4 h-4 text-amber-400" />
+                From Library
+              </button>
+            )}
+          </div>
+        </motion.div>
+      </AnimatePresence>,
+      document.body
+    );
+
+    return (
+      <>
+        <button
+          ref={menuButtonRef}
+          onClick={handleToggleMenu}
+          className="flex items-center gap-2 px-4 py-2 bg-slide-accent/20 hover:bg-slide-accent/30 backdrop-blur-sm rounded-lg border border-slide-accent/40 text-sm font-medium text-slide-accent transition-all"
+        >
+          <Plus className="w-4 h-4" />
+          Add Image
+        </button>
+        {menuContent}
+      </>
+    );
+  };
 
   // If we have an active image, show it with action buttons
   if (activeImageUrl) {
@@ -583,6 +939,7 @@ export function ImagePlaceholder({
       <>
         {renderFileInput()}
         {renderRestyleModal()}
+        {renderLibraryPicker()}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -594,13 +951,44 @@ export function ImagePlaceholder({
             isDragging ? 'ring-2 ring-slide-accent' : ''
           }`}
         >
+          {/* Current image */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={activeImageUrl}
+            src={activeImageUrl!}
             alt={description}
             className="absolute inset-0 w-full h-full object-contain"
             loading="lazy"
           />
+
+          {/* Restyling overlay with animation */}
+          {isRestyling && (
+            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-40">
+              <div className="relative w-full h-full">
+                <DancingPixels className="text-amber-500" />
+              </div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <p className="text-white/90 text-sm font-medium">Restyling...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Error display for filled state (e.g., insufficient credits) */}
+          {error && !isRestyling && (
+            <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/90 to-transparent z-40">
+              <div className="flex items-center justify-center gap-2">
+                <div className="flex items-center gap-2 px-3 py-2 bg-red-500/20 border border-red-500/30 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-red-400" />
+                  <span className="text-red-300 text-xs">{error}</span>
+                  <button
+                    onClick={() => setError(null)}
+                    className="ml-2 text-red-400 hover:text-red-300"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Drag overlay */}
           {isDragging && (
@@ -612,8 +1000,8 @@ export function ImagePlaceholder({
             </div>
           )}
 
-          {/* Slot indicator + picker (top left) */}
-          {!isPresenting && activeSlot && (
+          {/* Slot indicator + picker (top left) - hide during restyling */}
+          {!isPresenting && activeSlot && !isRestyling && (
             <div className="absolute top-2 left-2 z-40">
               <button
                 onClick={() => setShowSlotPicker(!showSlotPicker)}
@@ -632,108 +1020,10 @@ export function ImagePlaceholder({
             </div>
           )}
 
-          {/* Floating action bar (bottom) */}
-          {!isPresenting && (
+          {/* Unified Edit button (bottom center) - hide during restyling */}
+          {!isPresenting && !isRestyling && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0">
-              <div className="flex items-center gap-1 px-1.5 py-1.5 bg-black/90 backdrop-blur-sm rounded-lg border border-white/10 shadow-xl">
-                {/* Generate split button */}
-                <div className="relative flex items-center">
-                  <button
-                    onClick={() => handleGenerate(true)}
-                    disabled={isGenerating}
-                    className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-l-md text-xs font-medium transition-colors disabled:opacity-50"
-                    title="Regenerate with current style"
-                  >
-                    {isGenerating ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <RefreshCw className="w-3.5 h-3.5" />
-                    )}
-                    Regen
-                  </button>
-                  <button
-                    onClick={() => setShowGenerateDropdown(!showGenerateDropdown)}
-                    disabled={isGenerating}
-                    className="flex items-center px-1 py-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded-r-md transition-colors disabled:opacity-50 border-l border-white/10"
-                    title="Choose style"
-                  >
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-
-                  {/* Style dropdown - rendered with fixed positioning to escape backdrop-blur */}
-                  <AnimatePresence>
-                    {showGenerateDropdown && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-[100]"
-                          onClick={() => setShowGenerateDropdown(false)}
-                        />
-                        <div className="absolute left-0 bottom-full mb-1.5 z-[101]">
-                          <motion.div
-                            initial={{ opacity: 0, y: 4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 4 }}
-                            transition={{ duration: 0.1 }}
-                            className="w-48 rounded-lg shadow-2xl overflow-hidden isolate"
-                            style={{
-                              backgroundColor: '#09090b',
-                              border: '1px solid #27272a',
-                            }}
-                          >
-                            <div
-                              className="px-2.5 py-1.5 border-b border-[#27272a]"
-                              style={{ backgroundColor: '#09090b' }}
-                            >
-                              <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Generate with style</p>
-                            </div>
-                            <div
-                              className="p-1 max-h-48 overflow-y-auto"
-                              style={{ backgroundColor: '#09090b' }}
-                            >
-                              {IMAGE_STYLE_PRESETS.map((preset) => (
-                                <button
-                                  key={preset.id}
-                                  onClick={() => handleGenerate(true, preset.id)}
-                                  className="w-full text-left px-2.5 py-1.5 text-xs text-white/90 hover:text-white hover:bg-white/10 rounded transition-colors"
-                                >
-                                  {preset.name}
-                                </button>
-                              ))}
-                            </div>
-                          </motion.div>
-                        </div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                <div className="w-px h-4 bg-white/20" />
-
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
-                  title="Upload image"
-                >
-                  {isUploading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Upload className="w-3.5 h-3.5" />
-                  )}
-                  Upload
-                </button>
-
-                <div className="w-px h-4 bg-white/20" />
-
-                <button
-                  onClick={() => setShowRestyleModal(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-md text-xs font-medium transition-colors"
-                  title="Restyle image"
-                >
-                  <Wand2 className="w-3.5 h-3.5" />
-                  Style
-                </button>
-              </div>
+              {renderFilledActionMenu()}
             </div>
           )}
         </motion.div>
@@ -746,6 +1036,7 @@ export function ImagePlaceholder({
     <>
       {renderFileInput()}
       {renderRestyleModal()}
+      {renderLibraryPicker()}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -791,7 +1082,7 @@ export function ImagePlaceholder({
             </p>
             <div className="flex gap-2">
               <button
-                onClick={() => handleGenerate(false)}
+                onClick={() => handleGenerate()}
                 className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium text-sm hover:bg-emerald-500 transition-colors"
               >
                 Try Again
@@ -819,80 +1110,7 @@ export function ImagePlaceholder({
               {description}
             </p>
 
-            {!isPresenting && (
-              <div
-                className="flex items-center gap-1 px-1.5 py-1.5 rounded-lg border border-white/10"
-                style={{ backgroundColor: 'rgba(0, 0, 0, 0.95)' }}
-              >
-                {/* Generate split button */}
-                <div className="relative flex items-center">
-                  <button
-                    onClick={() => handleGenerate(false)}
-                    className="flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 text-white hover:bg-white/10 rounded-l-md text-xs font-medium transition-colors"
-                  >
-                    <Brush className="w-3.5 h-3.5" />
-                    Generate
-                  </button>
-                  <button
-                    onClick={() => setShowGenerateDropdown(!showGenerateDropdown)}
-                    className="flex items-center px-1 py-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded-r-md transition-colors border-l border-white/10"
-                    title="Choose style"
-                  >
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-
-                  {/* Style dropdown */}
-                  <AnimatePresence>
-                    {showGenerateDropdown && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-[100]"
-                          onClick={() => setShowGenerateDropdown(false)}
-                        />
-                        <div className="absolute left-0 top-full mt-1.5 z-[101]">
-                          <motion.div
-                            initial={{ opacity: 0, y: -4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -4 }}
-                            transition={{ duration: 0.1 }}
-                            className="w-48 rounded-lg shadow-2xl overflow-hidden"
-                            style={{
-                              backgroundColor: '#09090b',
-                              border: '1px solid #27272a',
-                            }}
-                          >
-                            <div style={{ backgroundColor: '#09090b' }}>
-                              <div className="px-2.5 py-1.5 border-b border-[#27272a]">
-                                <p className="text-[10px] text-[#71717a] uppercase tracking-wider">Generate with style</p>
-                              </div>
-                              <div className="p-1 max-h-48 overflow-y-auto">
-                                {IMAGE_STYLE_PRESETS.map((preset) => (
-                                  <button
-                                    key={preset.id}
-                                    onClick={() => handleGenerate(false, preset.id)}
-                                    className="w-full text-left px-2.5 py-1.5 text-xs text-white/90 hover:text-white hover:bg-white/10 rounded transition-colors"
-                                  >
-                                    {preset.name}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          </motion.div>
-                        </div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
-                <div className="w-px h-4 bg-white/20" />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-white hover:bg-white/10 rounded-md text-xs font-medium transition-colors"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  Upload
-                </button>
-              </div>
-            )}
+            {!isPresenting && renderEmptyActionMenu()}
           </>
         )}
       </motion.div>

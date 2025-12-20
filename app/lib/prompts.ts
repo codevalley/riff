@@ -471,18 +471,30 @@ $<confidential • Demo deck • 2025>
 
 $<confidential • Demo deck • 2025>`;
 
-export const DECK_METADATA_PROMPT = `You extract title and theme from presentation content.
+export const DECK_METADATA_PROMPT = `You extract title, theme, and image context from presentation content.
 
 Given the deck content, output ONLY a JSON object:
 {
   "title": "Short punchy deck title (3-6 words)",
-  "themePrompt": "Theme description for CSS generation (e.g., 'Dark minimal with cyan accents, modern tech feel')"
+  "themePrompt": "Theme description for CSS generation (e.g., 'Dark minimal with cyan accents, modern tech feel')",
+  "imageContext": "Scene setting for AI-generated images (location, recurring characters, thematic elements)"
 }
 
 Rules:
 - Title should capture the essence, not be generic
 - Theme should describe: color mood, font style, overall vibe
-- Output ONLY the JSON, no markdown fences, no explanation`;
+- Image context describes the SCENE SETTING (NOT artistic style):
+  - Location/setting: "Set in Turkey", "Modern office", "Medieval castle"
+  - Recurring characters: "A friendly cartoon mascot", "Team of diverse professionals"
+  - Thematic elements: "Turkish patterns", "Sustainability motifs", "Tech aesthetic"
+- Keep imageContext to 1-2 sentences max
+- Output ONLY the JSON, no markdown fences, no explanation
+
+Examples of good imageContext:
+- "Set in Turkey with traditional Turkish architecture and Mediterranean scenery"
+- "Corporate office environment with a diverse team of professionals"
+- "Featuring a friendly robot mascot named Spark in a futuristic lab setting"
+- "Outdoor adventure theme with mountain landscapes and camping gear"`;
 
 export const DEFAULT_SLIDE_SYSTEM_PROMPT = `You are a presentation designer. Transform slide content into visually compelling HTML layouts.
 

@@ -13,6 +13,7 @@ interface PresenterClientProps {
   initialSlide: number;
   themeCSS?: string;
   isSharedView?: boolean;
+  sceneContext?: string;
 }
 
 export function PresenterClient({
@@ -21,6 +22,7 @@ export function PresenterClient({
   initialSlide,
   themeCSS,
   isSharedView = false,
+  sceneContext,
 }: PresenterClientProps) {
   return (
     <Presenter
@@ -29,6 +31,7 @@ export function PresenterClient({
       initialSlide={initialSlide}
       themeCSS={themeCSS}
       isSharedView={isSharedView}
+      sceneContext={sceneContext}
     />
   );
 }

@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getMetadata, deleteTheme, applyThemeFromHistory } from '@/lib/blob';
+import { getMetadata, deleteTheme, applyThemeFromHistory, saveMetadata } from '@/lib/blob';
 
 // GET: Fetch theme and history
 export async function GET(
@@ -53,7 +53,7 @@ export async function GET(
   }
 }
 
-// PATCH: Apply theme from history (swap current with history entry)
+// PATCH: Apply theme from history OR update imageContext
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -65,11 +65,21 @@ export async function PATCH(
     }
 
     const deckId = decodeURIComponent(params.id);
-    const { historyIndex } = await request.json();
+    const body = await request.json();
 
+    // Handle imageContext update
+    if (body.imageContext !== undefined) {
+      const metadata = await getMetadata(session.user.id, deckId) || { v: 3 as const };
+      metadata.imageContext = body.imageContext;
+      await saveMetadata(session.user.id, deckId, metadata);
+      return NextResponse.json({ success: true, imageContext: body.imageContext });
+    }
+
+    // Handle theme history application
+    const { historyIndex } = body;
     if (typeof historyIndex !== 'number' || historyIndex < 0) {
       return NextResponse.json(
-        { error: 'Invalid history index' },
+        { error: 'Invalid request - provide historyIndex or imageContext' },
         { status: 400 }
       );
     }
@@ -93,9 +103,9 @@ export async function PATCH(
       generatedAt: updatedMetadata.theme.generatedAt,
     });
   } catch (error) {
-    console.error('Error applying theme from history:', error);
+    console.error('Error in theme PATCH:', error);
     return NextResponse.json(
-      { error: 'Failed to apply theme', details: String(error) },
+      { error: 'Failed to update', details: String(error) },
       { status: 500 }
     );
   }

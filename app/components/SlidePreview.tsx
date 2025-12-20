@@ -5,7 +5,7 @@
 // Minimal, Vercel-inspired design with Add/Revamp
 // ============================================
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft,
@@ -19,19 +19,20 @@ import {
   Check,
   Sparkles,
   Trash2,
+  Images,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { SlideRenderer } from './SlideRenderer';
 import { ThemeCustomizer } from './ThemeCustomizer';
-import { ImageStyleSelector } from './ImageStyleSelector';
 import { AddSlideDialog } from './AddSlideDialog';
 import { RevampSlideDialog } from './RevampSlideDialog';
+import { SweepGenerateDialog } from './SweepGenerateDialog';
 import {
   countReveals,
   parseSlideMarkdown,
   stripFrontmatter,
 } from '@/lib/parser';
-import { ImageSlot } from '@/lib/types';
+import { ImageSlot, IMAGE_STYLE_PRESETS } from '@/lib/types';
 
 interface SlidePreviewProps {
   deckId: string;
@@ -41,6 +42,8 @@ interface SlidePreviewProps {
   isGeneratingTheme?: boolean;
   onImageChange?: (description: string, slot: ImageSlot, url: string) => void;
   onActiveSlotChange?: (description: string, slot: ImageSlot) => void;
+  sceneContext?: string;
+  onSceneContextChange?: (context: string) => void;
 }
 
 // ============================================
@@ -116,6 +119,8 @@ export function SlidePreview({
   isGeneratingTheme = false,
   onImageChange,
   onActiveSlotChange,
+  sceneContext,
+  onSceneContextChange,
 }: SlidePreviewProps) {
   const {
     parsedDeck,
@@ -129,6 +134,8 @@ export function SlidePreview({
     prevSlide,
     goToSlide,
     toggleSpeakerNotes,
+    imageStyle,
+    setImageStyle,
   } = useStore();
 
   // Navigator ref for auto-scrolling
@@ -161,6 +168,15 @@ export function SlidePreview({
 
   // Hover state for thumbnails
   const [hoveredThumbnail, setHoveredThumbnail] = useState<number | null>(null);
+
+  // Editable slide counter state
+  const [isEditingSlideNumber, setIsEditingSlideNumber] = useState(false);
+  const [slideNumberInput, setSlideNumberInput] = useState('');
+  const slideInputRef = useRef<HTMLInputElement>(null);
+
+  // Sweep generate state
+  const [showSweepDialog, setShowSweepDialog] = useState(false);
+  const [userCredits, setUserCredits] = useState(0);
 
   const currentSlide = parsedDeck?.slides[presentation.currentSlide];
   const totalSlides = parsedDeck?.slides.length || 0;
@@ -425,6 +441,205 @@ export function SlidePreview({
   }, []);
 
   // ============================================
+  // Sweep image generation handlers
+  // ============================================
+
+  // Extract all images from the deck
+  const extractDeckImages = useCallback(() => {
+    if (!parsedDeck) return [];
+
+    const images: Array<{
+      description: string;
+      slideIndex: number;
+      hasExistingImage: boolean;
+      existingUrl?: string;
+    }> = [];
+
+    parsedDeck.slides.forEach((slide, slideIndex) => {
+      // Use imageDescriptions from parsed slide
+      if (slide.imageDescriptions) {
+        slide.imageDescriptions.forEach((description) => {
+          // Check if image has a real URL in any slot
+          const manifestEntry = parsedDeck.imageManifest?.[description];
+          const activeSlot = manifestEntry?.active || 'generated';
+          const existingUrl = manifestEntry?.[activeSlot];
+          const hasExisting = !!(
+            manifestEntry?.generated ||
+            manifestEntry?.uploaded ||
+            manifestEntry?.restyled
+          );
+          images.push({
+            description,
+            slideIndex,
+            hasExistingImage: hasExisting,
+            existingUrl,
+          });
+        });
+      }
+    });
+
+    return images;
+  }, [parsedDeck]);
+
+  // Extract deck images with URLs for "From Library" picker in ImagePlaceholder
+  const deckImagesForLibrary = useMemo(() => {
+    if (!parsedDeck?.imageManifest) return [];
+
+    const images: Array<{
+      description: string;
+      url: string;
+      slideIndex?: number;
+    }> = [];
+
+    // Build a map of which slide each image description belongs to
+    const descriptionToSlide = new Map<string, number>();
+    parsedDeck.slides.forEach((slide, slideIndex) => {
+      slide.imageDescriptions?.forEach((desc) => {
+        descriptionToSlide.set(desc, slideIndex);
+      });
+    });
+
+    // Extract images from manifest that have URLs
+    Object.entries(parsedDeck.imageManifest).forEach(([description, entry]) => {
+      const activeSlot = entry.active || 'generated';
+      const url = entry[activeSlot];
+      if (url) {
+        images.push({
+          description,
+          url,
+          slideIndex: descriptionToSlide.get(description),
+        });
+      }
+    });
+
+    return images;
+  }, [parsedDeck]);
+
+  // Fetch user credits when opening sweep dialog
+  const handleOpenSweepDialog = useCallback(async () => {
+    try {
+      const response = await fetch('/api/credits');
+      if (response.ok) {
+        const data = await response.json();
+        setUserCredits(data.balance || 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch credits:', err);
+    }
+    setShowSweepDialog(true);
+  }, []);
+
+  // Generate a single image (used by sweep dialog for real progress)
+  const handleGenerateSingleImage = useCallback(async (
+    description: string,
+    modifiedPrompt?: string,
+    slideIndex?: number
+  ): Promise<{ url: string | null; error?: string }> => {
+    try {
+      // Use modifiedPrompt if provided, otherwise use original description
+      const promptToUse = modifiedPrompt?.trim() || description;
+
+      const response = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: promptToUse,
+          styleId: imageStyle,
+          sceneContext,
+          forceRegenerate: true, // Always regenerate for sweep
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { url: null, error: data.error || 'Generation failed' };
+      }
+
+      // Update image manifest with the ORIGINAL description as the key
+      // (since that's how images are referenced in slides)
+      // IMPORTANT: Must await to ensure metadata.images is updated before returning
+      if (data.url && onImageChange) {
+        try {
+          await onImageChange(description, 'generated', data.url);
+        } catch (err) {
+          console.error('Failed to save image to manifest:', err);
+          // Don't fail the generation - image is in cache, just not in manifest
+        }
+      }
+
+      return { url: data.url };
+    } catch (err) {
+      return { url: null, error: String(err) };
+    }
+  }, [imageStyle, sceneContext, onImageChange]);
+
+  // Refresh user credits
+  const handleRefreshCredits = useCallback(async () => {
+    try {
+      const response = await fetch('/api/credits');
+      if (response.ok) {
+        const data = await response.json();
+        setUserCredits(data.balance || 0);
+      }
+    } catch (err) {
+      console.error('Failed to refresh credits:', err);
+    }
+  }, []);
+
+  // Handle image style change
+  const handleStyleChange = useCallback((styleId: typeof imageStyle) => {
+    setImageStyle(styleId);
+  }, [setImageStyle]);
+
+  // ============================================
+  // Editable slide counter handlers
+  // ============================================
+
+  const handleSlideNumberClick = useCallback(() => {
+    setSlideNumberInput(String(presentation.currentSlide + 1));
+    setIsEditingSlideNumber(true);
+  }, [presentation.currentSlide]);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditingSlideNumber && slideInputRef.current) {
+      slideInputRef.current.focus();
+      slideInputRef.current.select();
+    }
+  }, [isEditingSlideNumber]);
+
+  const handleSlideNumberSubmit = useCallback(() => {
+    const num = parseInt(slideNumberInput, 10);
+    if (!isNaN(num) && num >= 1 && num <= totalSlides) {
+      goToSlide(num - 1);
+    }
+    setIsEditingSlideNumber(false);
+  }, [slideNumberInput, totalSlides, goToSlide]);
+
+  const handleSlideNumberKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSlideNumberSubmit();
+    } else if (e.key === 'Escape') {
+      setIsEditingSlideNumber(false);
+    }
+  }, [handleSlideNumberSubmit]);
+
+  // ============================================
+  // Navigator scroll handlers
+  // ============================================
+
+  const scrollNavigator = useCallback((direction: 'left' | 'right') => {
+    if (navigatorRef.current) {
+      const scrollAmount = 200; // pixels to scroll
+      navigatorRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      });
+    }
+  }, []);
+
+  // ============================================
   // Get slide to render (with comparison support)
   // ============================================
 
@@ -671,6 +886,8 @@ export function SlidePreview({
           imageManifest={parsedDeck.imageManifest}
           onImageChange={onImageChange}
           onActiveSlotChange={onActiveSlotChange}
+          sceneContext={sceneContext}
+          deckImages={deckImagesForLibrary}
         />
 
         {/* Navigation overlays */}
@@ -714,12 +931,32 @@ export function SlidePreview({
 
       {/* Controls bar */}
       <div className="flex items-center justify-between px-4 py-2.5 border-t border-border">
-        {/* Slide counter */}
+        {/* Slide counter - editable */}
         <div className="flex items-center gap-3">
-          <span className="text-sm font-mono text-text-secondary">
-            {presentation.currentSlide + 1}
-            <span className="text-text-quaternary"> / {totalSlides}</span>
-          </span>
+          {isEditingSlideNumber ? (
+            <div className="flex items-center text-sm font-mono">
+              <input
+                ref={slideInputRef}
+                type="text"
+                value={slideNumberInput}
+                onChange={(e) => setSlideNumberInput(e.target.value.replace(/\D/g, ''))}
+                onBlur={handleSlideNumberSubmit}
+                onKeyDown={handleSlideNumberKeyDown}
+                className="w-8 px-1 py-0.5 bg-surface-hover rounded text-center text-text-primary outline-none border-0 ring-0 focus:ring-0 focus:outline-none"
+                maxLength={4}
+              />
+              <span className="text-text-quaternary"> / {totalSlides}</span>
+            </div>
+          ) : (
+            <button
+              onClick={handleSlideNumberClick}
+              className="text-sm font-mono text-text-secondary hover:text-text-primary hover:bg-surface px-1.5 py-0.5 -mx-1.5 rounded transition-colors"
+              title="Click to jump to slide"
+            >
+              {presentation.currentSlide + 1}
+              <span className="text-text-quaternary"> / {totalSlides}</span>
+            </button>
+          )}
           {currentReveals > 1 && (
             <span className="text-xs text-text-quaternary">
               step {presentation.currentReveal + 1}/{currentReveals}
@@ -738,7 +975,20 @@ export function SlidePreview({
             />
           )}
 
-          <ImageStyleSelector />
+          <button
+            onClick={handleOpenSweepDialog}
+            className="
+              flex items-center gap-1.5 px-2.5 py-1.5
+              hover:bg-surface
+              border border-border hover:border-border-hover
+              rounded-md text-text-secondary hover:text-text-primary
+              transition-all duration-fast text-xs
+            "
+            title="Generate all images"
+          >
+            <Images className="w-4 h-4" />
+            <span>Images</span>
+          </button>
 
           <div className="w-px h-5 bg-border" />
 
@@ -778,12 +1028,23 @@ export function SlidePreview({
       </div>
 
       {/* Mini slide navigator with add/revamp */}
-      <div
-        ref={navigatorRef}
-        className="px-4 py-3 border-t border-border overflow-x-auto scrollbar-hide"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-      >
-        <div className="flex gap-2 items-center">
+      <div className="flex items-center gap-2 px-2 py-3 border-t border-border">
+        {/* Left scroll arrow */}
+        <button
+          onClick={() => scrollNavigator('left')}
+          className="flex-shrink-0 p-1.5 rounded-md text-text-quaternary hover:text-text-secondary hover:bg-surface transition-colors"
+          title="Scroll left"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        {/* Scrollable navigator */}
+        <div
+          ref={navigatorRef}
+          className="flex-1 overflow-x-auto scrollbar-hide"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          <div className="flex gap-2 items-center">
           {parsedDeck.slides.map((slide, index) => {
             const isCurrent = index === presentation.currentSlide;
             const isHovered = hoveredThumbnail === index;
@@ -918,7 +1179,17 @@ export function SlidePreview({
               </div>
             );
           })}
+          </div>
         </div>
+
+        {/* Right scroll arrow */}
+        <button
+          onClick={() => scrollNavigator('right')}
+          className="flex-shrink-0 p-1.5 rounded-md text-text-quaternary hover:text-text-secondary hover:bg-surface transition-colors"
+          title="Scroll right"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Dialogs */}
@@ -936,6 +1207,19 @@ export function SlidePreview({
         onRevamp={handleRevampSlide}
         slideIndex={revampSlideIndex}
         isRevamping={isRevamping}
+      />
+
+      <SweepGenerateDialog
+        isOpen={showSweepDialog}
+        onClose={() => setShowSweepDialog(false)}
+        images={extractDeckImages()}
+        sceneContext={sceneContext}
+        onSceneContextChange={onSceneContextChange}
+        currentStyleId={imageStyle}
+        onStyleChange={handleStyleChange}
+        onGenerateSingle={handleGenerateSingleImage}
+        userCredits={userCredits}
+        onRefreshCredits={handleRefreshCredits}
       />
     </div>
   );

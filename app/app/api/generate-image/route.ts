@@ -10,23 +10,41 @@ import { getImageFromCache, saveImageToCache, deleteImageFromCache } from '@/lib
 import { IMAGE_STYLE_PRESETS, ImageStyleId } from '@/lib/types';
 import { requireCredits, deductCredits, CREDIT_COSTS, isInsufficientCreditsError } from '@/lib/credits';
 
-// Get the prompt template for a given style, with optional background color
-function getPromptForStyle(description: string, styleId: ImageStyleId, backgroundColor?: string): string {
+// Get the prompt template for a given style, with optional background color and scene context
+function getPromptForStyle(
+  description: string,
+  styleId: ImageStyleId,
+  backgroundColor?: string,
+  sceneContext?: string
+): string {
   const preset = IMAGE_STYLE_PRESETS.find((p) => p.id === styleId);
 
-  // Add STRONG background color instruction at the START if provided
-  // Image models tend to ignore instructions at the end, so we put it first
-  const bgInstruction = backgroundColor
-    ? `IMPORTANT: Use a solid ${backgroundColor} background color. The background MUST be ${backgroundColor}. `
-    : '';
+  // Build prompt prefix in order of priority:
+  // 1. Scene context (location, characters, thematic elements) - highest priority
+  // 2. Background color instruction
+  // 3. Style-specific prompt
 
-  if (!preset) {
-    // Fallback to default
-    return `${bgInstruction}${description}. Style: professional, high-quality, presentation-style. Create a clean, visually striking image suitable for a presentation slide. Aspect ratio 16:9.`;
+  let prefix = '';
+
+  // Scene context first (sets the world/setting for the image)
+  if (sceneContext && sceneContext.trim()) {
+    prefix += `${sceneContext.trim()}. `;
   }
 
-  // Prepend background instruction to the styled prompt
-  return bgInstruction + preset.promptTemplate.replace('{description}', description);
+  // Add background color instruction
+  if (backgroundColor) {
+    prefix += `IMPORTANT: Use a solid ${backgroundColor} background color. The background MUST be ${backgroundColor}. `;
+  }
+
+  if (!preset) {
+    // Fallback to default with scene context
+    return `${prefix}Subject: ${description}. Style: professional, high-quality, presentation-style. Create a clean, visually striking image suitable for a presentation slide. Aspect ratio 16:9.`;
+  }
+
+  // Prepend prefix to the styled prompt
+  // Note: We add "Subject: " before description to clearly separate context from subject
+  const descriptionWithSubject = sceneContext ? `Subject: ${description}` : description;
+  return prefix + preset.promptTemplate.replace('{description}', descriptionWithSubject);
 }
 
 // Extract image data from Gemini response
@@ -46,7 +64,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { description, styleId, forceRegenerate, backgroundColor } = await request.json();
+    const { description, styleId, forceRegenerate, backgroundColor, sceneContext } = await request.json();
 
     if (!description || typeof description !== 'string') {
       return NextResponse.json(
@@ -84,8 +102,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(creditCheck.error, { status: 402 });
     }
 
-    // Build the prompt using style preset, including background color
-    const fullPrompt = getPromptForStyle(description, styleId || 'none', backgroundColor);
+    // Build the prompt using style preset, including background color and scene context
+    const fullPrompt = getPromptForStyle(description, styleId || 'none', backgroundColor, sceneContext);
 
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!apiKey) {

@@ -69,6 +69,7 @@ function EditorContent() {
   const [isImportingRiff, setIsImportingRiff] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [sceneContext, setSceneContext] = useState<string | undefined>(undefined);
 
   // Refs
   const riffInputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +120,13 @@ function EditorContent() {
           ...parsed.imageManifest,
           ...data.metadata.images,
         };
+      }
+
+      // Extract scene context from metadata for AI-generated images
+      if (data.metadata?.imageContext) {
+        setSceneContext(data.metadata.imageContext);
+      } else {
+        setSceneContext(undefined);
       }
 
       setParsedDeck(parsed);
@@ -616,6 +624,24 @@ function EditorContent() {
     }
   }, [currentDeckId, parsedDeck, setParsedDeck, setError]);
 
+  // Handle scene context change - persist to metadata via theme endpoint
+  const handleSceneContextChange = useCallback(async (context: string) => {
+    if (!currentDeckId) return;
+
+    setSceneContext(context);
+
+    try {
+      // Save to metadata via theme API (same metadata file)
+      await fetch(`/api/theme/${encodeURIComponent(currentDeckId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageContext: context }),
+      });
+    } catch (err) {
+      console.error('Failed to save scene context:', err);
+    }
+  }, [currentDeckId]);
+
   // Handle deck revamp with AI
   const handleRevamp = useCallback(async (instructions: string) => {
     if (!currentDeckId || !currentDeckContent) return;
@@ -859,6 +885,8 @@ function EditorContent() {
                 isGeneratingTheme={isGeneratingTheme}
                 onImageChange={handleImageChange}
                 onActiveSlotChange={handleActiveSlotChange}
+                sceneContext={sceneContext}
+                onSceneContextChange={handleSceneContextChange}
               />
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-text-tertiary">

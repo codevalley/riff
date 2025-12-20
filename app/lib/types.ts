@@ -195,6 +195,38 @@ export interface DeckSettings {
   // Future: transition, exportFormat, etc.
 }
 
+// ============================================
+// Image Generation Queue - Sweep Generation
+// ============================================
+
+/**
+ * Individual image in a generation queue
+ */
+export interface ImageQueueItem {
+  id: string;
+  description: string;        // Original from markdown
+  modifiedPrompt?: string;    // User-edited version (if different)
+  status: 'pending' | 'generating' | 'completed' | 'failed' | 'skipped';
+  error?: string;
+  resultUrl?: string;
+  slideIndex: number;         // Which slide this belongs to
+}
+
+/**
+ * Batch image generation queue
+ * Stored in metadata for persistence across page refresh
+ */
+export interface ImageGenerationQueue {
+  id: string;
+  deckId: string;
+  items: ImageQueueItem[];
+  contextUsed: string;        // Snapshot of imageContext when queue started
+  status: 'pending' | 'running' | 'paused' | 'completed' | 'failed';
+  progress: number;           // 0-100
+  createdAt: string;          // ISO timestamp
+  updatedAt: string;          // ISO timestamp
+}
+
 /**
  * Unified deck metadata (v3 format)
  * - Replaces embedded YAML frontmatter
@@ -207,6 +239,9 @@ export interface DeckMetadataV3 {
   theme?: ThemeData;
   themeHistory?: ThemeData[]; // Previous themes for quantization
   settings?: DeckSettings;
+  // Image management (new in Session 22)
+  imageContext?: string;      // Scene setting for visual consistency (NOT style, but location/characters/theme)
+  imageQueue?: ImageGenerationQueue; // Batch generation queue (persists across refresh)
 }
 
 /**

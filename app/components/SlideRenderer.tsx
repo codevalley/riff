@@ -52,6 +52,13 @@ function hasSplitLayout(slide: Slide): boolean {
   return !!slide.imagePosition;
 }
 
+// Library image for "From Library" picker in ImagePlaceholder
+interface DeckLibraryImage {
+  description: string;
+  url: string;
+  slideIndex?: number;
+}
+
 interface SlideRendererProps {
   slide: Slide;
   revealStep: number;
@@ -59,6 +66,10 @@ interface SlideRendererProps {
   imageManifest?: ImageManifest;
   onImageChange?: (description: string, slot: ImageSlot, url: string) => void;
   onActiveSlotChange?: (description: string, slot: ImageSlot) => void;
+  // Scene context for visual consistency across images (location, characters, thematic elements)
+  sceneContext?: string;
+  // All deck images for "From Library" picker
+  deckImages?: DeckLibraryImage[];
 }
 
 export function SlideRenderer({
@@ -68,6 +79,8 @@ export function SlideRenderer({
   imageManifest,
   onImageChange,
   onActiveSlotChange,
+  sceneContext,
+  deckImages,
 }: SlideRendererProps) {
   const visibleElements = getVisibleElements(slide, revealStep);
 
@@ -176,6 +189,8 @@ export function SlideRenderer({
               manifestEntry={imageManifest?.[imageElement.content]}
               onImageChange={onImageChange ? (slot, url) => onImageChange(imageElement.content, slot, url) : undefined}
               onActiveSlotChange={onActiveSlotChange ? (slot) => onActiveSlotChange(imageElement.content, slot) : undefined}
+              sceneContext={sceneContext}
+              deckImages={deckImages}
             />
           </div>
 
@@ -199,6 +214,8 @@ export function SlideRenderer({
                     imageManifest={imageManifest}
                     onImageChange={onImageChange}
                     onActiveSlotChange={onActiveSlotChange}
+                    sceneContext={sceneContext}
+                    deckImages={deckImages}
                   />
                 ))}
               </AnimatePresence>
@@ -254,6 +271,8 @@ export function SlideRenderer({
               imageManifest={imageManifest}
               onImageChange={onImageChange}
               onActiveSlotChange={onActiveSlotChange}
+              sceneContext={sceneContext}
+              deckImages={deckImages}
             />
           ))}
         </AnimatePresence>
@@ -292,6 +311,8 @@ interface ElementRendererProps {
   imageManifest?: ImageManifest;
   onImageChange?: (description: string, slot: ImageSlot, url: string) => void;
   onActiveSlotChange?: (description: string, slot: ImageSlot) => void;
+  sceneContext?: string;
+  deckImages?: DeckLibraryImage[];
 }
 
 const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(function ElementRenderer({
@@ -302,6 +323,8 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
   imageManifest,
   onImageChange,
   onActiveSlotChange,
+  sceneContext,
+  deckImages,
 }, ref) {
   // Get effect class from metadata (e.g. "effect-anvil" for [anvil] decorator)
   const effectClass = element.metadata?.effect ? `effect-${element.metadata.effect}` : '';
@@ -410,6 +433,8 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
               manifestEntry={imageManifest?.[element.content]}
               onImageChange={onImageChange ? (slot, url) => onImageChange(element.content, slot, url) : undefined}
               onActiveSlotChange={onActiveSlotChange ? (slot) => onActiveSlotChange(element.content, slot) : undefined}
+              sceneContext={sceneContext}
+              deckImages={deckImages}
             />
           </div>
         );
@@ -474,6 +499,8 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
                   imageManifest={imageManifest}
                   onImageChange={onImageChange}
                   onActiveSlotChange={onActiveSlotChange}
+                  sceneContext={sceneContext}
+                  deckImages={deckImages}
                 />
               ))}
             </div>
@@ -804,6 +831,8 @@ interface GridCardProps {
   imageManifest?: ImageManifest;
   onImageChange?: (description: string, slot: ImageSlot, url: string) => void;
   onActiveSlotChange?: (description: string, slot: ImageSlot) => void;
+  sceneContext?: string;
+  deckImages?: DeckLibraryImage[];
 }
 
 function GridCard({
@@ -813,6 +842,8 @@ function GridCard({
   imageManifest,
   onImageChange,
   onActiveSlotChange,
+  sceneContext,
+  deckImages,
 }: GridCardProps) {
   // Check if this grid item should be visible based on its revealOrder
   const itemRevealOrder = item.revealOrder ?? 0;
@@ -845,6 +876,8 @@ function GridCard({
           imageManifest={imageManifest}
           onImageChange={onImageChange}
           onActiveSlotChange={onActiveSlotChange}
+          sceneContext={sceneContext}
+          deckImages={deckImages}
         />
       ))}
     </motion.div>
@@ -861,6 +894,8 @@ interface GridRowProps {
   imageManifest?: ImageManifest;
   onImageChange?: (description: string, slot: ImageSlot, url: string) => void;
   onActiveSlotChange?: (description: string, slot: ImageSlot) => void;
+  sceneContext?: string;
+  deckImages?: DeckLibraryImage[];
 }
 
 function GridRowRenderer({
@@ -869,6 +904,8 @@ function GridRowRenderer({
   imageManifest,
   onImageChange,
   onActiveSlotChange,
+  sceneContext,
+  deckImages,
 }: GridRowProps) {
   // Handle icon rows
   if (row.type === 'icon') {
@@ -889,6 +926,8 @@ function GridRowRenderer({
           manifestEntry={imageManifest?.[row.value]}
           onImageChange={onImageChange ? (slot, url) => onImageChange(row.value, slot, url) : undefined}
           onActiveSlotChange={onActiveSlotChange ? (slot) => onActiveSlotChange(row.value, slot) : undefined}
+          sceneContext={sceneContext}
+          deckImages={deckImages}
         />
       </div>
     );
