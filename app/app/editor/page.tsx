@@ -6,7 +6,7 @@
 
 import { useEffect, useState, useCallback, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PanelLeftClose, PanelLeft, X, Loader2, Plus, FileSymlink, CloudDownload, Upload, ChevronDown, File, FolderOpen } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, X, Loader2, Plus, FileSymlink, Upload, ChevronDown, File, FolderOpen } from 'lucide-react';
 import { RiffIcon } from '@/components/RiffIcon';
 import { useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
@@ -19,6 +19,7 @@ import { DocumentUploader } from '@/components/DocumentUploader';
 import { RevampDeckDialog } from '@/components/RevampDeckDialog';
 import { UserMenu } from '@/components/auth/UserMenu';
 import { PublishPopover, PublishStatus } from '@/components/sharing/PublishPopover';
+import { ExportDropdown } from '@/components/ExportDropdown';
 import { CreditsDisplay } from '@/components/CreditsDisplay';
 import { PurchaseCreditsModal } from '@/components/PurchaseCreditsModal';
 import { CreditsLedgerModal } from '@/components/CreditsLedgerModal';
@@ -80,7 +81,6 @@ function EditorContent() {
   } = useCreditsContext();
   const [isRevamping, setIsRevamping] = useState(false);
   const [isImportingRiff, setIsImportingRiff] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [sceneContext, setSceneContext] = useState<string | undefined>(undefined);
 
@@ -375,37 +375,6 @@ function EditorContent() {
       console.error('Save error:', err);
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  // Export current deck as .riff file
-  const exportRiff = async () => {
-    if (!currentDeckId || isExporting) return;
-
-    setIsExporting(true);
-    try {
-      const response = await fetch(`/api/decks/${encodeURIComponent(currentDeckId)}/export`);
-      if (!response.ok) throw new Error('Failed to export');
-
-      const blob = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filenameMatch = contentDisposition?.match(/filename="(.+)"/);
-      const filename = filenameMatch ? filenameMatch[1] : 'deck.riff';
-
-      // Create download link
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      setError('Failed to export deck');
-      console.error('Export error:', err);
-    } finally {
-      setIsExporting(false);
     }
   };
 
@@ -804,31 +773,21 @@ function EditorContent() {
           {/* Right: Deck actions & user */}
           <div className="flex items-center gap-0.5">
             {/* Deck actions */}
-            {currentDeckId && (
+            {currentDeckId && currentDeck && (
               <>
-                {/* Download */}
-                <button
-                  onClick={exportRiff}
-                  disabled={isExporting}
-                  className="p-2 text-white/40 hover:text-white/80 hover:bg-white/[0.06] rounded-lg transition-colors disabled:opacity-40"
-                  title="Download .riff"
-                >
-                  {isExporting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <CloudDownload className="w-4 h-4" />
-                  )}
-                </button>
+                {/* Export dropdown */}
+                <ExportDropdown
+                  deckId={currentDeckId}
+                  deckName={currentDeck.name}
+                />
 
                 {/* Publish */}
-                {currentDeck && (
-                  <PublishPopover
-                    deckId={currentDeckId}
-                    deckName={currentDeck.name}
-                    publishStatus={publishStatus}
-                    onPublishStatusChange={setPublishStatus}
-                  />
-                )}
+                <PublishPopover
+                  deckId={currentDeckId}
+                  deckName={currentDeck.name}
+                  publishStatus={publishStatus}
+                  onPublishStatusChange={setPublishStatus}
+                />
 
                 <div className="w-px h-5 bg-white/[0.08] mx-2" />
               </>
