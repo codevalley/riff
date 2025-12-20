@@ -2,7 +2,7 @@
 
 // ============================================
 // VIBE SLIDES - Slide Editor Component
-// Clean editor with header slide indicator
+// CodeMirror-based editor with syntax highlighting
 // ============================================
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -11,6 +11,7 @@ import { Save, FileText, Circle, Wand2 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { parseSlideMarkdown } from '@/lib/parser';
 import { FormatHelpDialog } from '@/components/FormatHelpDialog';
+import { CodeMirrorEditor } from '@/components/CodeMirrorEditor';
 
 interface SlideEditorProps {
   content: string;
@@ -21,45 +22,16 @@ interface SlideEditorProps {
   isLegacy?: boolean;
 }
 
-// Find the character position where slide N starts (0-indexed)
-function getSlidePosition(content: string, slideIndex: number): number {
-  if (slideIndex === 0) return 0;
-
-  const lines = content.split('\n');
-  let slideCount = 0;
-  let charPos = 0;
-
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].trim() === '---') {
-      slideCount++;
-      if (slideCount === slideIndex) {
-        return charPos + lines[i].length + 1;
-      }
-    }
-    charPos += lines[i].length + 1;
-  }
-
-  return 0;
-}
-
-// Find which slide the cursor is in based on character position
-function getSlideFromPosition(content: string, cursorPos: number): number {
-  const textBefore = content.substring(0, cursorPos);
-  const separators = textBefore.match(/^---$/gm);
-  return separators ? separators.length : 0;
-}
-
 export function SlideEditor({ content, onChange, onSave, onRevamp, isSaving = false, isLegacy = false }: SlideEditorProps) {
   const [localContent, setLocalContent] = useState(content);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [editorSlide, setEditorSlide] = useState(0);
+  const [totalSlides, setTotalSlides] = useState(1);
   const { setParsedDeck, presentation, goToSlide, parsedDeck } = useStore();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const lastSavedContent = useRef(content);
-  const lastScrolledSlide = useRef(-1);
-  const isEditorDriven = useRef(false);
 
+  // Sync content from props (e.g., after external load)
   useEffect(() => {
     if (content !== lastSavedContent.current && !hasUnsavedChanges) {
       setLocalContent(content);
@@ -68,52 +40,27 @@ export function SlideEditor({ content, onChange, onSave, onRevamp, isSaving = fa
     }
   }, [content, hasUnsavedChanges]);
 
-  // Handle cursor position changes - update preview to match
-  const handleCursorChange = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea || !parsedDeck) return;
+  // Handle slide change from CodeMirror (cursor moved to different slide)
+  const handleSlideChange = useCallback(
+    (slideIndex: number, total: number) => {
+      // Clamp to actual parsed slide count
+      const clampedIndex = parsedDeck
+        ? Math.min(slideIndex, parsedDeck.slides.length - 1)
+        : slideIndex;
+      const finalIndex = Math.max(0, clampedIndex);
 
-    const cursorPos = textarea.selectionStart;
-    let slideIndex = getSlideFromPosition(textarea.value, cursorPos);
+      setEditorSlide(finalIndex);
+      setTotalSlides(total);
 
-    // Clamp to actual parsed slide count (parser filters empty slides)
-    slideIndex = Math.min(slideIndex, parsedDeck.slides.length - 1);
-    slideIndex = Math.max(0, slideIndex);
+      // Sync with preview
+      if (finalIndex !== presentation.currentSlide) {
+        goToSlide(finalIndex);
+      }
+    },
+    [presentation.currentSlide, goToSlide, parsedDeck]
+  );
 
-    setEditorSlide(slideIndex);
-
-    if (slideIndex !== presentation.currentSlide) {
-      isEditorDriven.current = true;
-      lastScrolledSlide.current = slideIndex;
-      goToSlide(slideIndex);
-    }
-  }, [presentation.currentSlide, goToSlide, parsedDeck]);
-
-  // Scroll editor to current slide when preview changes (don't steal focus)
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    if (isEditorDriven.current) {
-      isEditorDriven.current = false;
-      return;
-    }
-
-    if (presentation.currentSlide === lastScrolledSlide.current) return;
-    lastScrolledSlide.current = presentation.currentSlide;
-
-    const pos = getSlidePosition(localContent, presentation.currentSlide);
-
-    // Calculate scroll position
-    const textBefore = localContent.substring(0, pos);
-    const lineNumber = textBefore.split('\n').length;
-    const lineHeight = 24;
-    const scrollTarget = Math.max(0, (lineNumber - 3) * lineHeight);
-
-    textarea.scrollTop = scrollTarget;
-    setEditorSlide(presentation.currentSlide);
-  }, [presentation.currentSlide, localContent]);
-
+  // Parse content with debounce
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
@@ -127,6 +74,7 @@ export function SlideEditor({ content, onChange, onSave, onRevamp, isSaving = fa
     return () => clearTimeout(timer);
   }, [localContent, setParsedDeck]);
 
+  // Handle content change from CodeMirror
   const handleChange = useCallback(
     (value: string) => {
       setLocalContent(value);
@@ -136,26 +84,19 @@ export function SlideEditor({ content, onChange, onSave, onRevamp, isSaving = fa
     [onChange]
   );
 
+  // Handle save
   const handleSave = useCallback(() => {
     onSave();
     lastSavedContent.current = localContent;
     setHasUnsavedChanges(false);
   }, [onSave, localContent]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault();
-        handleSave();
-      }
-    };
+  // Use actual parsed slide count
+  const slideCount = parsedDeck?.slides.length || totalSlides;
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSave]);
-
-  // Use actual parsed slide count (parser filters empty slides)
-  const slideCount = parsedDeck?.slides.length || 1;
+  // Current slide for CodeMirror (for external navigation sync)
+  // Always pass the current slide - CodeMirrorEditor handles the loop prevention
+  const currentSlideForEditor = presentation.currentSlide;
 
   return (
     <div className="flex flex-col h-full bg-background rounded-lg overflow-hidden border border-border">
@@ -167,6 +108,9 @@ export function SlideEditor({ content, onChange, onSave, onRevamp, isSaving = fa
           <span className="text-xs font-mono px-1.5 py-0.5 bg-surface rounded">
             <span className="text-text-primary">{editorSlide + 1}</span>
             <span className="text-text-quaternary"> / {slideCount}</span>
+          </span>
+          <span className="text-[10px] text-text-quaternary px-1.5 py-0.5 bg-cyan-500/10 text-cyan-400 rounded">
+            /
           </span>
         </div>
 
@@ -217,52 +161,25 @@ export function SlideEditor({ content, onChange, onSave, onRevamp, isSaving = fa
         </div>
       </div>
 
-      {/* Editor */}
+      {/* CodeMirror Editor */}
       <div className="flex-1 overflow-hidden">
-        <textarea
-          ref={textareaRef}
+        <CodeMirrorEditor
           value={localContent}
-          onChange={(e) => handleChange(e.target.value)}
-          onClick={handleCursorChange}
-          onKeyUp={handleCursorChange}
-          onSelect={handleCursorChange}
-          className="
-            w-full h-full p-4
-            bg-transparent text-text-primary font-mono text-sm
-            resize-none outline-none
-            placeholder:text-text-quaternary
-          "
-          style={{ lineHeight: '24px' }}
-          placeholder={`# Your Presentation Title
-### Subtitle goes here
-
-> Speaker notes start with >
-
----
-
-# New Slide
-
-**pause**
-
-### Elements after pause appear on click
-
----
-
-[image: Description of the image you want]
-
-# Images are auto-generated!`}
-          spellCheck={false}
+          onChange={handleChange}
+          onSlideChange={handleSlideChange}
+          currentSlide={currentSlideForEditor}
+          onSave={handleSave}
         />
       </div>
 
-      {/* Footer */}
+      {/* Footer with hints */}
       <div className="px-4 py-2 border-t border-border flex items-center justify-between">
         <p className="text-xs text-text-quaternary">
-          <code className="text-text-tertiary">---</code> separate slides
+          Type <code className="text-cyan-400 bg-cyan-500/10 px-1 rounded">/</code> for commands
+          <span className="mx-2 text-border">·</span>
+          <code className="text-text-tertiary">---</code> separates slides
           <span className="mx-2 text-border">·</span>
           <code className="text-text-tertiary">**pause**</code> for reveals
-          <span className="mx-2 text-border">·</span>
-          <code className="text-text-tertiary">`text`</code> to highlight
         </p>
         <FormatHelpDialog />
       </div>

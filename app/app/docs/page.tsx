@@ -35,6 +35,7 @@ const TOC = [
       { id: 'what-is-riff', title: 'What is Riff?' },
       { id: 'quick-start', title: 'Quick Start' },
       { id: 'editor-overview', title: 'Editor Overview' },
+      { id: 'slash-commands', title: 'Slash Commands' },
     ],
   },
   {
@@ -424,7 +425,7 @@ Questions?`} />
                 </div>
               </section>
 
-              <section data-section="editor-overview" className="mb-16 scroll-mt-24">
+              <section data-section="editor-overview" className="mb-12 scroll-mt-24">
                 <h3 className="text-xl font-medium mb-4 text-white/90">Editor Overview</h3>
                 <div className="prose-custom">
                   <p>The editor has three main areas:</p>
@@ -433,6 +434,61 @@ Questions?`} />
                     <li><strong className="text-white/80">Right panel:</strong> Live preview of your current slide</li>
                     <li><strong className="text-white/80">Top bar:</strong> Tools for themes, images, publishing, and presenting</li>
                   </ul>
+                  <p className="mt-4">
+                    The editor features syntax highlighting for slide-specific tokens like <code>---</code> delimiters,
+                    <code>**pause**</code> markers, and <code>[image:]</code> placeholders.
+                  </p>
+                </div>
+              </section>
+
+              <section data-section="slash-commands" className="mb-16 scroll-mt-24">
+                <h3 className="text-xl font-medium mb-4 text-white/90">Slash Commands</h3>
+                <div className="prose-custom">
+                  <p>
+                    Type <code>/</code> anywhere in the editor to open a command menu.
+                    Quickly insert common elements without memorizing syntax.
+                  </p>
+                  <div className="mt-6 space-y-4">
+                    <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                      <p className="text-cyan-400 text-[13px] font-medium mb-2">Layout Commands</p>
+                      <div className="grid grid-cols-2 gap-2 text-[13px]">
+                        <div><code>/section</code> <span className="text-white/40">Section header</span></div>
+                        <div><code>/grid</code> <span className="text-white/40">Grid cards</span></div>
+                        <div><code>/space</code> <span className="text-white/40">Vertical spacer</span></div>
+                        <div><code>/footer</code> <span className="text-white/40">Slide footer</span></div>
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                      <p className="text-emerald-400 text-[13px] font-medium mb-2">Image Commands</p>
+                      <div className="grid grid-cols-2 gap-2 text-[13px]">
+                        <div><code>/image</code> <span className="text-white/40">Full-slide image</span></div>
+                        <div><code>/image-left</code> <span className="text-white/40">30/70 split</span></div>
+                        <div><code>/image-right</code> <span className="text-white/40">70/30 split</span></div>
+                        <div><code>/icon</code> <span className="text-white/40">Lucide icon</span></div>
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                      <p className="text-rose-400 text-[13px] font-medium mb-2">Effect Commands</p>
+                      <div className="grid grid-cols-2 gap-2 text-[13px]">
+                        <div><code>/pause</code> <span className="text-white/40">Reveal beat</span></div>
+                        <div><code>/anvil</code> <span className="text-white/40">Drop animation</span></div>
+                        <div><code>/typewriter</code> <span className="text-white/40">Type effect</span></div>
+                        <div><code>/glow</code> <span className="text-white/40">Pulsing glow</span></div>
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                      <p className="text-violet-400 text-[13px] font-medium mb-2">Background Commands</p>
+                      <div className="grid grid-cols-2 gap-2 text-[13px]">
+                        <div><code>/bg-glow</code> <span className="text-white/40">Radial glow</span></div>
+                        <div><code>/bg-grid</code> <span className="text-white/40">Grid pattern</span></div>
+                        <div><code>/bg-retrogrid</code> <span className="text-white/40">Perspective grid</span></div>
+                        <div><code>/bg-dots</code> <span className="text-white/40">Dot pattern</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-4 text-[14px] text-white/40">
+                    Start typing after <code>/</code> to filter commands. Press <Kbd>Enter</Kbd> or <Kbd>Tab</Kbd> to insert.
+                  </p>
                 </div>
               </section>
 
