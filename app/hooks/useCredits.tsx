@@ -7,8 +7,19 @@
 
 import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
 
+// Transaction type matching API response
+export interface CreditTransaction {
+  id: string;
+  amount: number;
+  type: 'purchase' | 'usage' | 'bonus' | 'refund' | 'initial';
+  description: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string; // ISO date string from API
+}
+
 interface UseCreditsReturn {
   balance: number | null;
+  transactions: CreditTransaction[];
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -17,6 +28,7 @@ interface UseCreditsReturn {
 
 export function useCredits(): UseCreditsReturn {
   const [balance, setBalance] = useState<number | null>(null);
+  const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,6 +41,7 @@ export function useCredits(): UseCreditsReturn {
         if (res.status === 401) {
           // Not logged in - that's okay
           setBalance(null);
+          setTransactions([]);
           return;
         }
         throw new Error('Failed to fetch credits');
@@ -36,6 +49,7 @@ export function useCredits(): UseCreditsReturn {
 
       const data = await res.json();
       setBalance(data.balance);
+      setTransactions(data.transactions || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch credits');
     } finally {
@@ -53,6 +67,7 @@ export function useCredits(): UseCreditsReturn {
 
   return {
     balance,
+    transactions,
     isLoading,
     error,
     refetch: fetchBalance,
@@ -67,6 +82,8 @@ export function useCredits(): UseCreditsReturn {
 interface CreditsContextType extends UseCreditsReturn {
   showPurchaseModal: boolean;
   setShowPurchaseModal: (show: boolean) => void;
+  showLedgerModal: boolean;
+  setShowLedgerModal: (show: boolean) => void;
   showInsufficientModal: boolean;
   insufficientModalProps: {
     requiredCredits: number;
@@ -81,6 +98,7 @@ const CreditsContext = createContext<CreditsContextType | null>(null);
 export function CreditsProvider({ children }: { children: ReactNode }) {
   const credits = useCredits();
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showLedgerModal, setShowLedgerModal] = useState(false);
   const [showInsufficientModal, setShowInsufficientModal] = useState(false);
   const [insufficientModalProps, setInsufficientModalProps] = useState<{
     requiredCredits: number;
@@ -103,6 +121,8 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
         ...credits,
         showPurchaseModal,
         setShowPurchaseModal,
+        showLedgerModal,
+        setShowLedgerModal,
         showInsufficientModal,
         insufficientModalProps,
         triggerInsufficientModal,

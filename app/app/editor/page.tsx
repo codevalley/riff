@@ -21,6 +21,8 @@ import { UserMenu } from '@/components/auth/UserMenu';
 import { PublishPopover, PublishStatus } from '@/components/sharing/PublishPopover';
 import { CreditsDisplay } from '@/components/CreditsDisplay';
 import { PurchaseCreditsModal } from '@/components/PurchaseCreditsModal';
+import { CreditsLedgerModal } from '@/components/CreditsLedgerModal';
+import { useCreditsContext } from '@/hooks/useCredits';
 
 // Wrapper component to handle Suspense for useSearchParams
 function EditorContent() {
@@ -63,8 +65,19 @@ function EditorContent() {
   const [publishStatus, setPublishStatus] = useState<PublishStatus | null>(null);
   const [newDeckName, setNewDeckName] = useState('');
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
-  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showRevampDialog, setShowRevampDialog] = useState(false);
+
+  // Credits context for ledger and purchase modals
+  const {
+    balance: creditsBalance,
+    transactions,
+    isLoading: creditsLoading,
+    refetch: refetchCredits,
+    showPurchaseModal,
+    setShowPurchaseModal,
+    showLedgerModal,
+    setShowLedgerModal,
+  } = useCreditsContext();
   const [isRevamping, setIsRevamping] = useState(false);
   const [isImportingRiff, setIsImportingRiff] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -822,7 +835,7 @@ function EditorContent() {
             )}
 
             {/* User section */}
-            <CreditsDisplay onPurchaseClick={() => setShowPurchaseModal(true)} />
+            <CreditsDisplay onPurchaseClick={() => setShowLedgerModal(true)} />
             <UserMenu />
 
             {/* Editor toggle - far right */}
@@ -1003,10 +1016,26 @@ function EditorContent() {
         />
       )}
 
+      {/* Credits Ledger Modal */}
+      <CreditsLedgerModal
+        isOpen={showLedgerModal}
+        onClose={() => setShowLedgerModal(false)}
+        onAddCredits={() => {
+          setShowLedgerModal(false);
+          setShowPurchaseModal(true);
+        }}
+        balance={creditsBalance}
+        transactions={transactions}
+        isLoading={creditsLoading}
+      />
+
       {/* Purchase Credits Modal */}
       <PurchaseCreditsModal
         isOpen={showPurchaseModal}
-        onClose={() => setShowPurchaseModal(false)}
+        onClose={() => {
+          setShowPurchaseModal(false);
+          refetchCredits(); // Refresh after purchase
+        }}
       />
 
       {/* Revamp Deck Dialog */}

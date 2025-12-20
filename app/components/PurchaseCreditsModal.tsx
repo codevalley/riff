@@ -93,7 +93,7 @@ function getValueTier(dollars: number) {
     return {
       tier: 'project' as const,
       headline: 'A whole project',
-      description: `Create ${estimatedDecks} decks with a 100s of images. Serious sales pitch?`,
+      description: `Create ${estimatedDecks} decks with ${images} images. Serious sales pitch?`,
       color: 'sky',
       Icon: TierIcons.project,
     };
@@ -102,7 +102,7 @@ function getValueTier(dollars: number) {
     return {
       tier: 'several' as const,
       headline: 'Several presentations',
-      description: `Build ${estimatedDecks} polished decks with a dozens of images. Experimenting?`,
+      description: `Build ${estimatedDecks} polished decks with ${images} images. Experimenting?`,
       color: 'violet',
       Icon: TierIcons.several,
     };
@@ -111,7 +111,7 @@ function getValueTier(dollars: number) {
     return {
       tier: 'couple' as const,
       headline: 'A couple of decks',
-      description: `One monster deck or a bunch. ${images} images — about ${estimatedDecks || 1} presentation${estimatedDecks > 1 ? 's' : ''}.`,
+      description: `One deck or a few. ${images} images — about ${estimatedDecks || 1} presentation${estimatedDecks > 1 ? 's' : ''}.`,
       color: 'rose',
       Icon: TierIcons.couple,
     };
@@ -119,7 +119,7 @@ function getValueTier(dollars: number) {
   return {
     tier: 'starter' as const,
     headline: 'A quick top-up',
-    description: `Polish your deck. ${images} image${images > 1 ? 's' : ''} or ${themes} theme changes. Deadline tomorrow?`,
+    description: `Polish your deck. ${images} image${images > 1 ? 's' : ''} or ${themes} theme${themes > 1 ? 's' : ''}. Deadline tomorrow?`,
     color: 'zinc',
     Icon: TierIcons.starter,
   };

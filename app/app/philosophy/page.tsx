@@ -243,19 +243,19 @@ export default function PhilosophyPage() {
               className="p-6 rounded-xl bg-white/[0.02] border border-white/[0.06]"
             >
               <p className="text-[13px] uppercase tracking-[0.15em] text-white/30 mb-4 font-medium">
-                Our actual costs
+                Our actual costs (per image/deck)
               </p>
               <div className="space-y-2.5 text-[15px]">
-                <CostRow label="AI model costs" value="~$0.02-0.03" />
-                <CostRow label="Infrastructure" value="~$0.005" />
-                <CostRow label="Risk buffer" value="~$0.005" />
-                <CostRow label="Margin to keep running" value="~$0.01" />
+                <CostRow label="AI model costs" value="~$0.10-0.15" />
+                <CostRow label="Infrastructure" value="~$0.02" />
+                <CostRow label="Risk buffer" value="~$0.03" />
+                <CostRow label="Margin to keep running" value="~$0.05" />
                 <div className="pt-2.5 mt-2.5 border-t border-white/[0.06]">
-                  <CostRow label="What we charge" value="$0.05" highlight />
+                  <CostRow label="What we charge" value="$0.25" highlight />
                 </div>
               </div>
               <p className="mt-4 text-[14px] text-white/40">
-                Per credit. $1 gets you 20 credits.
+                Per AI image or deck operation. $1 gets you 4 images.
               </p>
             </motion.div>
 

@@ -17,8 +17,8 @@ export async function GET() {
 
     const { balance } = await getBalance(session.user.id);
 
-    // Get recent transactions for display
-    const transactions = await getTransactionHistory(session.user.id, 10);
+    // Get transaction history for ledger display (default: 50)
+    const transactions = await getTransactionHistory(session.user.id);
 
     return NextResponse.json({
       balance,

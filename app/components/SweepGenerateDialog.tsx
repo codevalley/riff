@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { IMAGE_STYLE_PRESETS, ImageStyleId } from '@/lib/types';
 import { DancingPixels } from './DancingPixels';
+import { useCreditsContext } from '@/hooks/useCredits';
 
 interface ImageItem {
   id: string;
@@ -76,6 +77,9 @@ export function SweepGenerateDialog({
   userCredits = 0,
   onRefreshCredits,
 }: SweepGenerateDialogProps) {
+  // Credits context
+  const { setShowLedgerModal } = useCreditsContext();
+
   // State
   const [masterContext, setMasterContext] = useState(sceneContext);
   const [imageItems, setImageItems] = useState<ImageItem[]>([]);
@@ -918,12 +922,17 @@ export function SweepGenerateDialog({
               <div className="flex-1" />
 
               {/* Credits Display */}
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${
-                hasEnoughCredits ? 'bg-white/[0.03] text-white/50' : 'bg-red-500/10 text-red-400'
-              }`}>
+              <button
+                onClick={() => setShowLedgerModal(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+                  hasEnoughCredits
+                    ? 'bg-white/[0.03] text-white/50 hover:text-amber-400 hover:bg-amber-500/10'
+                    : 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
+                }`}
+              >
                 <span className="text-xs font-medium">{displayCredits}</span>
                 <span className="text-xs">credits</span>
-              </div>
+              </button>
             </div>
 
             {/* Scene Context Editor */}
@@ -1113,14 +1122,17 @@ Example: Set in a modern Tokyo office with floor-to-ceiling windows, featuring a
                       <span className="text-white/90 font-medium">{selectedCount}</span> selected
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowLedgerModal(true)}
+                    className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                  >
                     <div className={`w-2 h-2 rounded-full ${hasEnoughCredits ? 'bg-emerald-500/60' : 'bg-red-500/60'}`} />
                     <span className={`text-sm ${hasEnoughCredits ? 'text-white/60' : 'text-red-400/90'}`}>
                       <span className={hasEnoughCredits ? 'text-white/90 font-medium' : 'text-red-400 font-medium'}>
                         {creditCost}
                       </span> credits
                     </span>
-                  </div>
+                  </button>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -1150,10 +1162,13 @@ Example: Set in a modern Tokyo office with floor-to-ceiling windows, featuring a
 
               {/* Credit warning */}
               {!hasEnoughCredits && selectedCount > 0 && (
-                <div className="flex items-center gap-1.5 mt-3 text-xs text-red-400/90">
+                <button
+                  onClick={() => setShowLedgerModal(true)}
+                  className="flex items-center gap-1.5 mt-3 text-xs text-red-400/90 hover:text-red-300 transition-colors"
+                >
                   <AlertCircle className="w-3.5 h-3.5" />
                   <span>Need {creditCost - displayCredits} more credits to generate {selectedCount} images</span>
-                </div>
+                </button>
               )}
             </div>
           </>

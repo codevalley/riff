@@ -310,10 +310,11 @@ export async function getTransactionHistory(
     amount: number;
     type: string;
     description: string | null;
+    metadata: Record<string, unknown> | null;
     createdAt: Date;
   }>
 > {
-  return await prisma.creditTransaction.findMany({
+  const transactions = await prisma.creditTransaction.findMany({
     where: { userId },
     orderBy: { createdAt: 'desc' },
     take: limit,
@@ -322,9 +323,16 @@ export async function getTransactionHistory(
       amount: true,
       type: true,
       description: true,
+      metadata: true,
       createdAt: true,
     },
   });
+
+  // Cast Prisma's JsonValue to our expected type
+  return transactions.map((t) => ({
+    ...t,
+    metadata: t.metadata as Record<string, unknown> | null,
+  }));
 }
 
 // ============================================

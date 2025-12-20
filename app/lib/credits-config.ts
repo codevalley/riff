@@ -4,14 +4,15 @@
 // ============================================
 
 // Credit costs for different actions
+// Pricing: $1 = 20 credits, so 5 credits = $0.25, 1 credit = $0.05
 export const CREDIT_COSTS = {
-  IMAGE_GENERATION: 1,
-  IMAGE_RESTYLE: 1,
-  DOCUMENT_CONVERSION: 2,  // Premium model for deck generation
-  DECK_REVAMP: 1.5,        // Premium model for deck revamp
-  THEME_GENERATION: 0.2,
-  ADD_SLIDE: 0.2,          // Single slide generation
-  SLIDE_REVAMP: 0.2,       // Single slide revamp
+  IMAGE_GENERATION: 5,     // AI image generation (~$0.25)
+  IMAGE_RESTYLE: 5,        // AI image restyle (~$0.25)
+  DOCUMENT_CONVERSION: 5,  // Premium model for deck generation (~$0.25)
+  DECK_REVAMP: 5,          // Premium model for deck revamp (~$0.25)
+  THEME_GENERATION: 1,     // Theme generation (~$0.05)
+  ADD_SLIDE: 1,            // Single slide generation (~$0.05)
+  SLIDE_REVAMP: 1,         // Single slide revamp (~$0.05)
 } as const;
 
 // ============================================

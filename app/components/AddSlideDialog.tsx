@@ -19,6 +19,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { CREDIT_COSTS } from '@/lib/credits-config';
+import { useCreditsContext } from '@/hooks/useCredits';
 
 // Rotating status messages during generation
 const GENERATION_MESSAGES = [
@@ -93,6 +94,7 @@ export function AddSlideDialog({
   const [description, setDescription] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [currentMessage, setCurrentMessage] = useState(0);
+  const { setShowLedgerModal } = useCreditsContext();
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -315,9 +317,13 @@ export function AddSlideDialog({
           {/* Credit notice */}
           <div className="flex items-center gap-2 text-xs text-white/40">
             <div className="w-1.5 h-1.5 rounded-full bg-amber-500/60" />
-            <span>
+            <button
+              type="button"
+              onClick={() => setShowLedgerModal(true)}
+              className="hover:text-amber-400 transition-colors text-left"
+            >
               Uses <span className="text-white/60">{CREDIT_COSTS.ADD_SLIDE} credits</span>
-            </span>
+            </button>
           </div>
         </div>
 

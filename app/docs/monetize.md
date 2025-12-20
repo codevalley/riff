@@ -12,9 +12,10 @@ Credits let you pay only for AI-powered actions that actually cost us money. Eve
 
 ### Free to Start
 Every new user gets **50 free credits**. That's enough to:
-- Generate ~50 AI images
-- Create ~250 custom themes
-- Convert ~50 documents to slides
+- Generate ~10 AI images
+- Create ~50 custom themes
+- Convert ~10 documents to slides
+- Add ~50 AI-generated slides
 
 ### Pay What You Use
 When you run out, buy exactly what you need:
@@ -28,12 +29,15 @@ No subscriptions. No auto-renewals. No tricks.
 
 ## What Costs Credits
 
-| Action | Credits | Why |
-|--------|---------|-----|
-| AI Image Generation | 1 | Uses expensive image AI models |
-| AI Image Restyle | 1 | Same cost as generation |
-| Document Conversion | 1 | AI processes your document |
-| Theme Generation | 0.2 | Uses lighter text models |
+| Action | Credits | Price | Why |
+|--------|---------|-------|-----|
+| AI Image Generation | 5 | ~$0.25 | Uses expensive image AI models |
+| AI Image Restyle | 5 | ~$0.25 | Same cost as generation |
+| Document Conversion | 5 | ~$0.25 | Premium model for high-quality deck generation |
+| Deck Revamp | 5 | ~$0.25 | Premium model for refining entire deck |
+| Theme Generation | 1 | ~$0.05 | Uses lighter text models |
+| Add Slide | 1 | ~$0.05 | Generate a single slide |
+| Slide Revamp | 1 | ~$0.05 | Revamp a single slide |
 
 ### What's Free
 
@@ -105,10 +109,13 @@ Just buy them. There's no maximum. The price is the same whether you buy $1 or $
 ### Credit Costs by API
 
 ```
-POST /api/generate-image    → 1 credit
-POST /api/restyle-image     → 1 credit
-POST /api/convert-document  → 1 credit
-POST /api/generate-theme    → 0.2 credits
+POST /api/generate-image    → 5 credits (~$0.25)
+POST /api/restyle-image     → 5 credits (~$0.25)
+POST /api/convert-document  → 5 credits (~$0.25)
+POST /api/revamp-deck       → 5 credits (~$0.25)
+POST /api/generate-theme    → 1 credit (~$0.05)
+POST /api/add-slide         → 1 credit (~$0.05)
+POST /api/revamp-slide      → 1 credit (~$0.05)
 ```
 
 ### Error Response

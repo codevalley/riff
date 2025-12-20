@@ -62,10 +62,13 @@ model CreditTransaction {
 #### Constants (lib/credits-config.ts)
 ```typescript
 CREDIT_COSTS = {
-  IMAGE_GENERATION: 1,
-  IMAGE_RESTYLE: 1,
-  DOCUMENT_CONVERSION: 1,
-  THEME_GENERATION: 0.2,
+  IMAGE_GENERATION: 5,      // Generate new AI image (~$0.25)
+  IMAGE_RESTYLE: 5,         // Apply style to existing image (~$0.25)
+  DOCUMENT_CONVERSION: 5,   // Convert document to deck (~$0.25)
+  DECK_REVAMP: 5,           // Refine existing deck (~$0.25)
+  THEME_GENERATION: 1,      // Generate color theme (~$0.05)
+  ADD_SLIDE: 1,             // Generate single slide (~$0.05)
+  SLIDE_REVAMP: 1,          // Revamp single slide (~$0.05)
 }
 
 CREDITS_PER_DOLLAR = 20     // $1 = 20 credits

@@ -25,6 +25,7 @@ import {
   MousePointerClick,
 } from 'lucide-react';
 import { CREDIT_COSTS } from '@/lib/credits-config';
+import { useCreditsContext } from '@/hooks/useCredits';
 
 // Rotating status messages during revamp
 const REVAMP_MESSAGES = [
@@ -108,6 +109,7 @@ export function RevampDeckDialog({
   const [activeSuggestions, setActiveSuggestions] = useState<Set<string>>(new Set());
   const [currentMessage, setCurrentMessage] = useState(0);
   const [currentTip, setCurrentTip] = useState(0);
+  const { setShowLedgerModal } = useCreditsContext();
 
   // Reset state when dialog opens, auto-select upgrade if legacy
   useEffect(() => {
@@ -437,9 +439,13 @@ export function RevampDeckDialog({
           {/* Credit notice */}
           <div className="flex items-center gap-2 text-xs text-white/40">
             <div className="w-1.5 h-1.5 rounded-full bg-amber-500/60" />
-            <span>
-              Uses <span className="text-white/60">{CREDIT_COSTS.DECK_REVAMP} credit</span> · Content will be replaced
-            </span>
+            <button
+              type="button"
+              onClick={() => setShowLedgerModal(true)}
+              className="hover:text-amber-400 transition-colors text-left"
+            >
+              Uses <span className="text-white/60">{CREDIT_COSTS.DECK_REVAMP} credits</span> · Content will be replaced
+            </button>
           </div>
         </div>
 

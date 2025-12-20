@@ -26,6 +26,8 @@ import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/store';
 import { DancingPixels } from './DancingPixels';
 import { IMAGE_STYLE_PRESETS, ImageManifestEntry, ImageSlot } from '@/lib/types';
+import { CREDIT_COSTS } from '@/lib/credits-config';
+import { useCreditsContext } from '@/hooks/useCredits';
 
 // Library image for "From Library" picker
 interface LibraryImage {
@@ -103,6 +105,7 @@ export function ImagePlaceholder({
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const { imageCache, cacheImage, imageStyle } = useStore();
+  const { setShowLedgerModal } = useCreditsContext();
 
   // Get the current slide background color from CSS variables
   const getBackgroundColor = () => {
@@ -638,20 +641,30 @@ export function ImagePlaceholder({
             </div>
 
             {/* Footer - compact */}
-            <div className="flex justify-end gap-2 px-4 py-3 border-t border-white/5">
+            <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
               <button
-                onClick={() => setShowRestyleModal(false)}
-                className="px-3 py-1.5 text-xs text-white/50 hover:text-white/70 transition-colors"
+                type="button"
+                onClick={() => setShowLedgerModal(true)}
+                className="flex items-center gap-1.5 text-[10px] text-white/40 hover:text-amber-400 transition-colors"
               >
-                Cancel
+                <div className="w-1 h-1 rounded-full bg-amber-500/60" />
+                Uses {CREDIT_COSTS.IMAGE_RESTYLE} credits
               </button>
-              <button
-                onClick={handleRestyle}
-                disabled={!selectedPreset && !customPrompt.trim()}
-                className="px-4 py-1.5 bg-white text-black text-xs font-medium rounded-lg transition-colors hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Apply
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowRestyleModal(false)}
+                  className="px-3 py-1.5 text-xs text-white/50 hover:text-white/70 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRestyle}
+                  disabled={!selectedPreset && !customPrompt.trim()}
+                  className="px-4 py-1.5 bg-white text-black text-xs font-medium rounded-lg transition-colors hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Apply
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>

@@ -19,6 +19,7 @@ import {
   Maximize2,
 } from 'lucide-react';
 import { CREDIT_COSTS } from '@/lib/credits-config';
+import { useCreditsContext } from '@/hooks/useCredits';
 
 // Rotating status messages during revamp
 const REVAMP_MESSAGES = [
@@ -63,6 +64,7 @@ export function RevampSlideDialog({
   const [instructions, setInstructions] = useState('');
   const [activeSuggestions, setActiveSuggestions] = useState<Set<string>>(new Set());
   const [currentMessage, setCurrentMessage] = useState(0);
+  const { setShowLedgerModal } = useCreditsContext();
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -296,9 +298,13 @@ export function RevampSlideDialog({
           {/* Credit notice */}
           <div className="flex items-center gap-2 text-xs text-white/40">
             <div className="w-1.5 h-1.5 rounded-full bg-amber-500/60" />
-            <span>
-              Uses <span className="text-white/60">{CREDIT_COSTS.SLIDE_REVAMP} credits</span> · You can compare before applying
-            </span>
+            <button
+              type="button"
+              onClick={() => setShowLedgerModal(true)}
+              className="hover:text-amber-400 transition-colors text-left"
+            >
+              Uses <span className="text-white/60 group-hover:text-amber-300">{CREDIT_COSTS.SLIDE_REVAMP} credits</span> · You can compare before applying
+            </button>
           </div>
         </div>
 

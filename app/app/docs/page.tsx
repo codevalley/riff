@@ -1009,28 +1009,38 @@ Final reveal!`} />
                   <p>Here&apos;s what each AI feature costs:</p>
                   <div className="mt-6 p-5 rounded-xl bg-white/[0.02] border border-white/[0.06]">
                     <div className="space-y-3">
+                      {/* Major operations - 5 credits ($0.25) */}
                       <div className="flex justify-between items-center py-2 border-b border-white/[0.06]">
                         <span className="text-white/70">Generate image</span>
-                        <span className="text-amber-400 font-medium tabular-nums">1 credit</span>
+                        <span className="text-amber-400 font-medium tabular-nums">5 credits</span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b border-white/[0.06]">
                         <span className="text-white/70">Restyle image</span>
-                        <span className="text-amber-400 font-medium tabular-nums">1 credit</span>
+                        <span className="text-amber-400 font-medium tabular-nums">5 credits</span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b border-white/[0.06]">
                         <div>
                           <span className="text-white/70">Import document</span>
-                          <span className="text-white/40 text-[13px] ml-2">(premium AI + auto-theme)</span>
+                          <span className="text-white/40 text-[13px] ml-2">(premium AI conversion)</span>
                         </div>
-                        <span className="text-amber-400 font-medium tabular-nums">2.2 credits</span>
+                        <span className="text-amber-400 font-medium tabular-nums">5 credits</span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b border-white/[0.06]">
                         <span className="text-white/70">Revamp deck</span>
+                        <span className="text-amber-400 font-medium tabular-nums">5 credits</span>
+                      </div>
+                      {/* Minor operations - 1 credit ($0.05) */}
+                      <div className="flex justify-between items-center py-2 border-b border-white/[0.06]">
+                        <span className="text-white/70">Generate theme</span>
+                        <span className="text-amber-400 font-medium tabular-nums">1 credit</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-white/[0.06]">
+                        <span className="text-white/70">Add slide</span>
                         <span className="text-amber-400 font-medium tabular-nums">1 credit</span>
                       </div>
                       <div className="flex justify-between items-center py-2">
-                        <span className="text-white/70">Generate theme</span>
-                        <span className="text-amber-400 font-medium tabular-nums">0.2 credits</span>
+                        <span className="text-white/70">Revamp slide</span>
+                        <span className="text-amber-400 font-medium tabular-nums">1 credit</span>
                       </div>
                     </div>
                   </div>
