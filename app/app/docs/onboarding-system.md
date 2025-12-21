@@ -283,10 +283,46 @@ All illustrations use:
 - Amber accent color (`#f59e0b`)
 - Cyan highlight for commands (`#06b6d4`)
 
+## OnboardingTooltip
+
+Contextual hints that anchor to target elements:
+
+```tsx
+import { OnboardingTooltip } from '@/components/onboarding';
+
+function FeatureComponent() {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const { activeStep, dismissActiveStep } = useOnboarding();
+
+  const showTooltip = activeStep?.id === 'image-generation' && activeStep.type === 'tooltip';
+
+  return (
+    <>
+      <button ref={buttonRef}>Generate</button>
+
+      <OnboardingTooltip
+        isOpen={showTooltip}
+        onDismiss={dismissActiveStep}
+        title={activeStep?.title || ''}
+        description={activeStep?.description || ''}
+        targetRef={buttonRef}
+        preferredPosition="bottom"
+      />
+    </>
+  );
+}
+```
+
+### Positioning
+
+- `preferredPosition`: Direction the arrow points FROM (`top`, `bottom`, `left`, `right`)
+- Tooltip appears on the opposite side
+- Auto-flips if not enough space
+
 ## Phase Implementation Status
 
 - [x] Phase 1: Core infrastructure (schema, API, config, hook, provider)
 - [x] Phase 2: Welcome dialog + illustrations + multi-step tour
-- [ ] Phase 3: Contextual tooltips
-- [ ] Phase 4: Feature triggers in components
+- [x] Phase 3: OnboardingTooltip component
+- [ ] Phase 4: Feature triggers (recordFeatureUse) in components
 - [ ] Phase 5: Polish & keyboard navigation

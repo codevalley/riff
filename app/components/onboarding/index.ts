@@ -3,6 +3,7 @@
 // ============================================
 
 export { OnboardingDialog } from './OnboardingDialog';
+export { OnboardingTooltip } from './OnboardingTooltip';
 
 // Illustrations
 export { WelcomeIllustration } from './illustrations/WelcomeIllustration';
