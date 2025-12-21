@@ -28,7 +28,13 @@ export type OnboardingStepId =
   | 'publish-web'
   | 'publish-embed'
   | 'publish-social'
-  // Feature-triggered
+  // Credits tour
+  | 'credits-intro-philosophy'
+  | 'credits-intro-never-expire'
+  | 'credits-intro-what-costs'
+  | 'credits-intro-transparency'
+  | 'credits-intro-trust'
+  // Feature-triggered (standalone)
   | 'theme-customization'
   | 'pricing-philosophy';
 
@@ -81,6 +87,7 @@ export type FeatureKey =
   | 'image-placeholder-click'
   | 'theme-panel-open'
   | 'sharing-click'      // Export or Publish button
+  | 'credits-click'      // Credits display or ledger modal
   | 'first-credit-spend';
 
 // ============================================
@@ -308,7 +315,86 @@ export const ONBOARDING_STEPS: Record<OnboardingStepId, OnboardingStep> = {
   },
 
   /**
-   * Pricing philosophy - First credit spend
+   * Credits Tour - Step 1: Philosophy
+   */
+  'credits-intro-philosophy': {
+    id: 'credits-intro-philosophy',
+    type: 'tour-step',
+    tourId: 'credits-intro',
+    tourOrder: 0,
+    title: 'Pay for What You Use',
+    description: 'No subscriptions. No monthly fees. You only pay when you use features that cost us compute—like image generation.',
+    trigger: 'first-feature-use',
+    featureKey: 'credits-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Credits Tour - Step 2: Never Expire
+   */
+  'credits-intro-never-expire': {
+    id: 'credits-intro-never-expire',
+    type: 'tour-step',
+    tourId: 'credits-intro',
+    tourOrder: 1,
+    title: 'Credits Never Expire',
+    description: 'Buy credits once, use them whenever. No pressure to "use it or lose it." We\'d rather you buy less and trust us more.',
+    trigger: 'first-feature-use',
+    featureKey: 'credits-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Credits Tour - Step 3: What Uses Credits
+   */
+  'credits-intro-what-costs': {
+    id: 'credits-intro-what-costs',
+    type: 'tour-step',
+    tourId: 'credits-intro',
+    tourOrder: 2,
+    title: 'What Uses Credits',
+    description: 'Image generation, theme creation, and deck revamps cost credits. Editing, exporting, and everything else is free.',
+    trigger: 'first-feature-use',
+    featureKey: 'credits-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Credits Tour - Step 4: Transparent Pricing
+   */
+  'credits-intro-transparency': {
+    id: 'credits-intro-transparency',
+    type: 'tour-step',
+    tourId: 'credits-intro',
+    tourOrder: 3,
+    title: 'Transparent Pricing',
+    description: 'We show our actual costs: model fees, infrastructure, margin. No hidden markups. `$1` gets you `4` images.',
+    trigger: 'first-feature-use',
+    featureKey: 'credits-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Credits Tour - Step 5: Our Promise
+   */
+  'credits-intro-trust': {
+    id: 'credits-intro-trust',
+    type: 'tour-step',
+    tourId: 'credits-intro',
+    tourOrder: 4,
+    title: 'Our Promise',
+    description: 'No countdown timers. No "limited offers." Your work exports as markdown—take it anywhere. We earn your return visits.',
+    trigger: 'first-feature-use',
+    featureKey: 'credits-click',
+    primaryAction: { label: 'Got it', action: 'dismiss' },
+  },
+
+  /**
+   * Pricing philosophy - First credit spend (standalone)
    */
   'pricing-philosophy': {
     id: 'pricing-philosophy',

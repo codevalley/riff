@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Coins, TrendingDown, Sparkles } from 'lucide-react';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 interface CreditsDisplayProps {
   onPurchaseClick?: () => void;
@@ -19,6 +20,7 @@ export function CreditsDisplay({ onPurchaseClick, className = '' }: CreditsDispl
   const [isLoading, setIsLoading] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
   const [lastBalance, setLastBalance] = useState<number | null>(null);
+  const { recordFeatureUse } = useOnboarding();
 
   // Fetch balance on mount and periodically
   useEffect(() => {
@@ -64,9 +66,15 @@ export function CreditsDisplay({ onPurchaseClick, className = '' }: CreditsDispl
     return null;
   }
 
+  // Trigger credits tour on first click
+  const handleClick = () => {
+    recordFeatureUse('credits-click');
+    onPurchaseClick?.();
+  };
+
   return (
     <motion.button
-      onClick={onPurchaseClick}
+      onClick={handleClick}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
       className={`

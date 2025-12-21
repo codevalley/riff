@@ -616,6 +616,109 @@ const handleToggle = () => {
 
 ---
 
+## Part 11: Credits Philosophy Tour (5-Step Philosophy Tour)
+
+### Overview
+
+Full tour covering Riff's pricing philosophy, triggered by:
+- Clicking the **Credits display** in the toolbar
+- Opening the **Credits Ledger Modal**
+
+Both use the same `credits-click` feature key for unified deduplication.
+
+### Tour Steps
+
+| Step | Title | Description |
+|------|-------|-------------|
+| 1 | Pay for What You Use | No subscriptions, no monthly fees—only pay for compute |
+| 2 | Credits Never Expire | Buy once, use anytime, no "use it or lose it" pressure |
+| 3 | What Uses Credits | Images, themes, revamps cost credits; everything else free |
+| 4 | Transparent Pricing | Show actual costs: model fees, infra, margin. `$1` = `4` images |
+| 5 | Our Promise | No countdown timers, no dark patterns, export as markdown anytime |
+
+### Illustrations
+
+| Component | Visual Description |
+|-----------|-------------------|
+| `CreditsPhilosophyIllustration` | Crossed-out subscription calendar vs. coin stack with "Pay as you go" badge |
+| `CreditsNeverExpireIllustration` | Crossed-out clock with infinity symbol, floating coins with "Forever" badge |
+| `CreditsWhatCostsIllustration` | Top: Image/Theme/Revamp cards with credit costs. Bottom: Free items (edit/export/share) |
+| `CreditsTransparencyIllustration` | $1 coin → 4 image cards, mini cost breakdown (model/infra/buffer/margin) |
+| `CreditsTrustIllustration` | Crossed-out countdown timer, shield with checkmark, markdown export with arrow |
+
+### Trigger Integration
+
+```typescript
+// In CreditsDisplay.tsx
+const { recordFeatureUse } = useOnboarding();
+
+const handleClick = () => {
+  recordFeatureUse('credits-click');
+  onPurchaseClick?.();
+};
+
+// In CreditsLedgerModal.tsx
+useEffect(() => {
+  if (isOpen) {
+    recordFeatureUse('credits-click');
+  }
+}, [isOpen, recordFeatureUse]);
+```
+
+**Unified trigger**: Same feature key means tour shows once regardless of entry point.
+
+---
+
+## Updated Files Summary
+
+### All Illustration Files
+
+| File | Tour | Purpose |
+|------|------|---------|
+| `WelcomeIllustration.tsx` | Welcome | Split view editor/preview |
+| `MarkdownIllustration.tsx` | Welcome | Markdown syntax demo |
+| `SlashCommandsIllustration.tsx` | Welcome | Command palette |
+| `ImageGenIllustration.tsx` | Image | One-click generation |
+| `ImageStylesIllustration.tsx` | Image | Visual consistency presets |
+| `ImageRestyleIllustration.tsx` | Image | Before/after transformation |
+| `ImageLibraryIllustration.tsx` | Image | Library grid + upload |
+| `ImageCreditsIllustration.tsx` | Image | Progress, timing, credits |
+| `PublishIntroIllustration.tsx` | Publishing | Share overview |
+| `PublishExportIllustration.tsx` | Publishing | File format options |
+| `PublishWebIllustration.tsx` | Publishing | Web publishing + analytics |
+| `PublishEmbedIllustration.tsx` | Publishing | Embed code + platforms |
+| `PublishSocialIllustration.tsx` | Publishing | Social sharing |
+| `CreditsPhilosophyIllustration.tsx` | Credits | No subscriptions concept |
+| `CreditsNeverExpireIllustration.tsx` | Credits | Infinity + permanence |
+| `CreditsWhatCostsIllustration.tsx` | Credits | Credit costs vs. free items |
+| `CreditsTransparencyIllustration.tsx` | Credits | $1 = 4 images breakdown |
+| `CreditsTrustIllustration.tsx` | Credits | Trust + portability promise |
+
+### Modified Files (Credits Tour)
+
+| File | Changes |
+|------|---------|
+| `lib/onboarding-config.ts` | Added 5 credits tour steps, `credits-click` feature key |
+| `components/onboarding/index.ts` | Export 5 new credits illustrations |
+| `app/editor/page.tsx` | Map credits tour illustrations |
+| `components/CreditsDisplay.tsx` | Add `credits-click` trigger on click |
+| `components/CreditsLedgerModal.tsx` | Add `credits-click` trigger on modal open |
+
+---
+
+## Complete Tour Summary
+
+| Tour | Steps | Trigger |
+|------|-------|---------|
+| Welcome | 3 | First editor visit |
+| Image | 5 | First image interaction |
+| Publishing | 5 | First export/publish click |
+| Credits | 5 | First credits display/ledger click |
+
+**Total**: 18 illustrated onboarding steps across 4 feature tours.
+
+---
+
 ### Next Phase
 - [ ] Phase 5: Keyboard navigation (Esc to dismiss, Enter to proceed)
 - [ ] Theme customization dialog with illustration

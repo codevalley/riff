@@ -5,9 +5,10 @@
 // Editorial design with accordion history
 // ============================================
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import NumberFlow from '@number-flow/react';
+import { useOnboarding } from '@/hooks/useOnboarding';
 import {
   X,
   Plus,
@@ -318,6 +319,15 @@ export function CreditsLedgerModal({
   transactions,
   isLoading,
 }: CreditsLedgerModalProps) {
+  const { recordFeatureUse } = useOnboarding();
+
+  // Trigger credits tour when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      recordFeatureUse('credits-click');
+    }
+  }, [isOpen, recordFeatureUse]);
+
   const groupedTransactions = useMemo(
     () => groupTransactionsByPeriod(transactions),
     [transactions]

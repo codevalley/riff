@@ -23,3 +23,10 @@ export { PublishExportIllustration } from './illustrations/PublishExportIllustra
 export { PublishWebIllustration } from './illustrations/PublishWebIllustration';
 export { PublishEmbedIllustration } from './illustrations/PublishEmbedIllustration';
 export { PublishSocialIllustration } from './illustrations/PublishSocialIllustration';
+
+// Illustrations - Credits Tour
+export { CreditsPhilosophyIllustration } from './illustrations/CreditsPhilosophyIllustration';
+export { CreditsNeverExpireIllustration } from './illustrations/CreditsNeverExpireIllustration';
+export { CreditsWhatCostsIllustration } from './illustrations/CreditsWhatCostsIllustration';
+export { CreditsTransparencyIllustration } from './illustrations/CreditsTransparencyIllustration';
+export { CreditsTrustIllustration } from './illustrations/CreditsTrustIllustration';

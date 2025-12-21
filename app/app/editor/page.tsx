@@ -40,6 +40,11 @@ import {
   PublishWebIllustration,
   PublishEmbedIllustration,
   PublishSocialIllustration,
+  CreditsPhilosophyIllustration,
+  CreditsNeverExpireIllustration,
+  CreditsWhatCostsIllustration,
+  CreditsTransparencyIllustration,
+  CreditsTrustIllustration,
 } from '@/components/onboarding';
 
 // Wrapper component to handle Suspense for useSearchParams
@@ -1070,6 +1075,12 @@ function EditorContent() {
             activeStep.id === 'publish-web' ? <PublishWebIllustration /> :
             activeStep.id === 'publish-embed' ? <PublishEmbedIllustration /> :
             activeStep.id === 'publish-social' ? <PublishSocialIllustration /> :
+            // Credits tour
+            activeStep.id === 'credits-intro-philosophy' ? <CreditsPhilosophyIllustration /> :
+            activeStep.id === 'credits-intro-never-expire' ? <CreditsNeverExpireIllustration /> :
+            activeStep.id === 'credits-intro-what-costs' ? <CreditsWhatCostsIllustration /> :
+            activeStep.id === 'credits-intro-transparency' ? <CreditsTransparencyIllustration /> :
+            activeStep.id === 'credits-intro-trust' ? <CreditsTrustIllustration /> :
             undefined
           }
           tourProgress={
