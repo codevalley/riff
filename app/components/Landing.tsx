@@ -16,6 +16,7 @@ import {
 import Link from 'next/link';
 import { DocumentUploader } from './DocumentUploader';
 import { RiffIcon } from './RiffIcon';
+import { SnowTrigger } from './SnowfallEffect';
 import { useOnboarding } from '@/hooks/useOnboarding';
 
 // Demo content for the animated preview
@@ -114,12 +115,15 @@ export function Landing() {
         {/* Navigation */}
         <nav className="fixed top-0 left-0 right-0 z-50 bg-[#030303]/80 backdrop-blur-xl border-b border-white/[0.05]">
           <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <RiffIcon size={26} primaryColor="rgba(255, 255, 255, 0.9)" secondaryColor="rgba(255, 255, 255, 0.5)" />
-              <span style={{ fontFamily: "'Playfair Display', Georgia, serif" }} className="text-xl font-semibold tracking-tight">
-                Riff
-              </span>
-            </Link>
+            <div className="flex items-center gap-1">
+              <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                <RiffIcon size={26} primaryColor="rgba(255, 255, 255, 0.9)" secondaryColor="rgba(255, 255, 255, 0.5)" />
+                <span style={{ fontFamily: "'Playfair Display', Georgia, serif" }} className="text-xl font-semibold tracking-tight">
+                  Riff
+                </span>
+              </Link>
+              <SnowTrigger className="ml-0.5 mb-2" />
+            </div>
             <div className="flex items-center gap-2">
               {/* Desktop nav links - hidden on mobile */}
               <div className="hidden md:flex items-center gap-1 mr-2">

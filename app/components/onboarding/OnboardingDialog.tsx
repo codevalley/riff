@@ -5,9 +5,10 @@
 // Refined dark aesthetic with illustration support
 // ============================================
 
-import { ReactNode, useMemo } from 'react';
+import { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 
 /**
  * Parse description text and highlight backtick-wrapped segments
@@ -34,6 +35,7 @@ function parseDescription(text: string): ReactNode[] {
 interface OnboardingDialogProps {
   isOpen: boolean;
   onDismiss: () => void;
+  onClose?: () => void; // For X button / backdrop - truly exits (defaults to onDismiss)
   onSecondaryAction?: () => void;
 
   // Content
@@ -58,6 +60,7 @@ const EASE_OUT = [0.22, 1, 0.36, 1];
 export function OnboardingDialog({
   isOpen,
   onDismiss,
+  onClose,
   onSecondaryAction,
   title,
   description,
@@ -66,6 +69,8 @@ export function OnboardingDialog({
   secondaryLabel,
   tourProgress,
 }: OnboardingDialogProps) {
+  // X button and backdrop use onClose if provided, otherwise fall back to onDismiss
+  const handleClose = onClose ?? onDismiss;
   return (
     <AnimatePresence>
       {isOpen && (
@@ -77,7 +82,7 @@ export function OnboardingDialog({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: EASE_OUT }}
             className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
-            onClick={onDismiss}
+            onClick={handleClose}
           />
 
           {/* Dialog Container */}
@@ -94,7 +99,7 @@ export function OnboardingDialog({
 
                 {/* Close button - subtle, top right */}
                 <button
-                  onClick={onDismiss}
+                  onClick={handleClose}
                   className="absolute top-4 right-4 z-10 p-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors duration-200"
                   aria-label="Close dialog"
                 >
@@ -188,6 +193,17 @@ export function OnboardingDialog({
                         {secondaryLabel}
                       </button>
                     )}
+
+                    {/* Docs footnote */}
+                    <div className="pt-3 mt-1 border-t border-white/[0.04]">
+                      <Link
+                        href="/docs"
+                        className="inline-flex items-center gap-1 text-xs text-white/25 hover:text-white/40 transition-colors duration-200"
+                      >
+                        Learn more in Docs
+                        <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    </div>
                   </motion.div>
                 </div>
               </div>

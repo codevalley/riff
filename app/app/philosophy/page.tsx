@@ -8,6 +8,7 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { RiffIcon } from '@/components/RiffIcon';
+import { SnowTrigger } from '@/components/SnowfallEffect';
 import { ArrowLeft } from 'lucide-react';
 
 // Elegant fade-in animation
@@ -65,15 +66,18 @@ export default function PhilosophyPage() {
       {/* Minimal header */}
       <nav className="fixed top-0 left-0 right-0 z-50 px-6 h-16 flex items-center border-b border-white/[0.04] bg-[#030303]/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto w-full flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 hover:opacity-70 transition-opacity">
-            <RiffIcon size={24} primaryColor="rgba(255, 255, 255, 0.85)" secondaryColor="rgba(255, 255, 255, 0.4)" />
-            <span
-              style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
-              className="text-lg font-medium tracking-tight"
-            >
-              Riff
-            </span>
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link href="/" className="flex items-center gap-3 hover:opacity-70 transition-opacity">
+              <RiffIcon size={24} primaryColor="rgba(255, 255, 255, 0.85)" secondaryColor="rgba(255, 255, 255, 0.4)" />
+              <span
+                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                className="text-lg font-medium tracking-tight"
+              >
+                Riff
+              </span>
+            </Link>
+            <SnowTrigger className="ml-0.5 mb-2" />
+          </div>
           <Link
             href="/"
             className="flex items-center gap-2 text-[13px] text-white/40 hover:text-white/70 transition-colors"

@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback, Suspense, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PanelLeftClose, PanelLeft, X, Loader2, Plus, FileSymlink, Upload, ChevronDown, File, FolderOpen } from 'lucide-react';
 import { RiffIcon } from '@/components/RiffIcon';
+import { SnowTrigger } from '@/components/SnowfallEffect';
 import { useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { parseSlideMarkdown, isLegacyDeck } from '@/lib/parser';
@@ -109,7 +110,7 @@ function EditorContent() {
   } = useCreditsContext();
 
   // Onboarding
-  const { activeStep, dismissActiveStep, skipAll, activeTour, nextTourStep, recordFeatureUse } = useOnboarding();
+  const { activeStep, dismissActiveStep, skipAll, activeTour, nextTourStep, exitTour, recordFeatureUse } = useOnboarding();
 
   const [isRevamping, setIsRevamping] = useState(false);
   const [isImportingRiff, setIsImportingRiff] = useState(false);
@@ -717,12 +718,15 @@ function EditorContent() {
           {/* Left: Logo, Deck selector & New dropdown */}
           <div className="flex items-center gap-2">
             {/* Logo */}
-            <a href="/" className="flex items-center gap-2 hover:opacity-70 transition-opacity mr-1">
-              <RiffIcon size={20} primaryColor="rgba(255, 255, 255, 0.85)" secondaryColor="rgba(255, 255, 255, 0.4)" />
-              <span style={{ fontFamily: "'Playfair Display', Georgia, serif" }} className="text-sm font-semibold tracking-tight text-white/90">
-                Riff
-              </span>
-            </a>
+            <div className="flex items-center gap-1 mr-1">
+              <a href="/" className="flex items-center gap-2 hover:opacity-70 transition-opacity">
+                <RiffIcon size={20} primaryColor="rgba(255, 255, 255, 0.85)" secondaryColor="rgba(255, 255, 255, 0.4)" />
+                <span style={{ fontFamily: "'Playfair Display', Georgia, serif" }} className="text-sm font-semibold tracking-tight text-white/90">
+                  Riff
+                </span>
+              </a>
+              <SnowTrigger className="ml-0.5 mb-2" />
+            </div>
 
             <DeckManager
               decks={decks}
@@ -1059,6 +1063,7 @@ function EditorContent() {
         <OnboardingDialog
           isOpen={true}
           onDismiss={activeTour ? nextTourStep : dismissActiveStep}
+          onClose={activeTour ? exitTour : dismissActiveStep}
           onSecondaryAction={skipAll}
           title={activeStep.title}
           description={activeStep.description}
