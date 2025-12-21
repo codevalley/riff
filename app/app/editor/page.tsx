@@ -35,6 +35,11 @@ import {
   ImageRestyleIllustration,
   ImageLibraryIllustration,
   ImageCreditsIllustration,
+  PublishIntroIllustration,
+  PublishExportIllustration,
+  PublishWebIllustration,
+  PublishEmbedIllustration,
+  PublishSocialIllustration,
 } from '@/components/onboarding';
 
 // Wrapper component to handle Suspense for useSearchParams
@@ -1059,6 +1064,12 @@ function EditorContent() {
             activeStep.id === 'image-intro-restyle' ? <ImageRestyleIllustration /> :
             activeStep.id === 'image-intro-library' ? <ImageLibraryIllustration /> :
             activeStep.id === 'image-intro-credits' ? <ImageCreditsIllustration /> :
+            // Publishing tour
+            activeStep.id === 'publish-intro' ? <PublishIntroIllustration /> :
+            activeStep.id === 'publish-export' ? <PublishExportIllustration /> :
+            activeStep.id === 'publish-web' ? <PublishWebIllustration /> :
+            activeStep.id === 'publish-embed' ? <PublishEmbedIllustration /> :
+            activeStep.id === 'publish-social' ? <PublishSocialIllustration /> :
             undefined
           }
           tourProgress={

@@ -22,9 +22,14 @@ export type OnboardingStepId =
   | 'image-intro-restyle'
   | 'image-intro-library'
   | 'image-intro-credits'
+  // Publishing tour
+  | 'publish-intro'
+  | 'publish-export'
+  | 'publish-web'
+  | 'publish-embed'
+  | 'publish-social'
   // Feature-triggered
   | 'theme-customization'
-  | 'publishing'
   | 'pricing-philosophy';
 
 /**
@@ -75,7 +80,7 @@ export interface OnboardingStep {
 export type FeatureKey =
   | 'image-placeholder-click'
   | 'theme-panel-open'
-  | 'publish-click'
+  | 'sharing-click'      // Export or Publish button
   | 'first-credit-spend';
 
 // ============================================
@@ -224,15 +229,81 @@ export const ONBOARDING_STEPS: Record<OnboardingStepId, OnboardingStep> = {
   },
 
   /**
-   * Publishing - First publish click
+   * Publishing Tour - Step 1: Introduction
    */
-  'publishing': {
-    id: 'publishing',
-    type: 'dialog',
-    title: 'Share Your Work',
-    description: 'Get a public link, embed on any website, or export as PDF. Your presentation, your way.',
+  'publish-intro': {
+    id: 'publish-intro',
+    type: 'tour-step',
+    tourId: 'publishing',
+    tourOrder: 0,
+    title: 'Share Your Creation',
+    description: 'Your presentation is ready for the world. Download it, publish online, embed anywhere, or share on social media.',
     trigger: 'first-feature-use',
-    featureKey: 'publish-click',
+    featureKey: 'sharing-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Publishing Tour - Step 2: Export Options
+   */
+  'publish-export': {
+    id: 'publish-export',
+    type: 'tour-step',
+    tourId: 'publishing',
+    tourOrder: 1,
+    title: 'Export & Download',
+    description: 'Download as `.riff` for full backup, `PDF` for universal viewing, or `PowerPoint` for editing in other tools.',
+    trigger: 'first-feature-use',
+    featureKey: 'sharing-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Publishing Tour - Step 3: Publish to Web
+   */
+  'publish-web': {
+    id: 'publish-web',
+    type: 'tour-step',
+    tourId: 'publishing',
+    tourOrder: 2,
+    title: 'Publish to the Web',
+    description: 'One click generates a shareable link. Works in any browser, no login required. Track `views` and engagement.',
+    trigger: 'first-feature-use',
+    featureKey: 'sharing-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Publishing Tour - Step 4: Embed Anywhere
+   */
+  'publish-embed': {
+    id: 'publish-embed',
+    type: 'tour-step',
+    tourId: 'publishing',
+    tourOrder: 3,
+    title: 'Embed Anywhere',
+    description: 'Copy the embed code to add your presentation to Notion, Medium, personal blogs, or any website.',
+    trigger: 'first-feature-use',
+    featureKey: 'sharing-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Publishing Tour - Step 5: Social Sharing
+   */
+  'publish-social': {
+    id: 'publish-social',
+    type: 'tour-step',
+    tourId: 'publishing',
+    tourOrder: 4,
+    title: 'Share on Social',
+    description: 'Share your link on Twitter, LinkedIn, or anywhere. Riff generates beautiful preview cards automatically.',
+    trigger: 'first-feature-use',
+    featureKey: 'sharing-click',
     primaryAction: { label: 'Got it', action: 'dismiss' },
   },
 

@@ -523,6 +523,99 @@ const handleOpenSweepDialog = useCallback(async () => {
 
 ---
 
+## Part 10: Publishing Tour (5-Step Sharing Tour)
+
+### Overview
+
+Full tour for sharing/publishing features, triggered by clicking either:
+- **Export/Download button** (CloudDownload icon)
+- **Publish button** (Cloud icon)
+
+Both use the same `sharing-click` feature key for unified deduplication.
+
+### Tour Steps
+
+| Step | Title | Description |
+|------|-------|-------------|
+| 1 | Share Your Creation | Overview of all sharing options |
+| 2 | Export & Download | `.riff`, `PDF`, `PowerPoint` formats |
+| 3 | Publish to the Web | One-click link, no login needed, `views` tracking |
+| 4 | Embed Anywhere | Embed code for Notion, Medium, blogs |
+| 5 | Share on Social | Auto preview cards for Twitter, LinkedIn |
+
+### Illustrations
+
+| Component | Visual Description |
+|-----------|-------------------|
+| `PublishIntroIllustration` | Central presentation with 4 radiating paths to destinations |
+| `PublishExportIllustration` | Three file icons (.riff blue, PDF red, PPTX amber) with labels |
+| `PublishWebIllustration` | Globe, shareable URL bar, analytics preview with chart |
+| `PublishEmbedIllustration` | Browser window with embedded slide, platform logos (Notion, Medium) |
+| `PublishSocialIllustration` | Social preview card, X/LinkedIn icons, flying share indicators |
+
+### Trigger Integration
+
+```typescript
+// In ExportDropdown.tsx and PublishPopover.tsx
+
+const { recordFeatureUse } = useOnboarding();
+
+const handleToggle = () => {
+  if (!isOpen) {
+    recordFeatureUse('sharing-click');
+  }
+  setIsOpen(!isOpen);
+};
+```
+
+**Unified trigger**: Same feature key means tour shows once regardless of which button is clicked first.
+
+---
+
+## Updated Files Summary
+
+### All Illustration Files
+
+| File | Tour | Purpose |
+|------|------|---------|
+| `WelcomeIllustration.tsx` | Welcome | Split view editor/preview |
+| `MarkdownIllustration.tsx` | Welcome | Markdown syntax demo |
+| `SlashCommandsIllustration.tsx` | Welcome | Command palette |
+| `ImageGenIllustration.tsx` | Image | One-click generation |
+| `ImageStylesIllustration.tsx` | Image | Visual consistency presets |
+| `ImageRestyleIllustration.tsx` | Image | Before/after transformation |
+| `ImageLibraryIllustration.tsx` | Image | Library grid + upload |
+| `ImageCreditsIllustration.tsx` | Image | Progress, timing, credits |
+| `PublishIntroIllustration.tsx` | Publishing | Share overview |
+| `PublishExportIllustration.tsx` | Publishing | File format options |
+| `PublishWebIllustration.tsx` | Publishing | Web publishing + analytics |
+| `PublishEmbedIllustration.tsx` | Publishing | Embed code + platforms |
+| `PublishSocialIllustration.tsx` | Publishing | Social sharing |
+
+### Modified Files (Publishing Tour)
+
+| File | Changes |
+|------|---------|
+| `lib/onboarding-config.ts` | Added 5 publishing tour steps, `sharing-click` feature key |
+| `components/onboarding/index.ts` | Export 5 new publishing illustrations |
+| `app/editor/page.tsx` | Map publishing tour illustrations |
+| `components/ExportDropdown.tsx` | Add `sharing-click` trigger |
+| `components/sharing/PublishPopover.tsx` | Add `sharing-click` trigger |
+
+---
+
+## Complete Tour Summary
+
+| Tour | Steps | Trigger |
+|------|-------|---------|
+| Welcome | 3 | First editor visit |
+| Image | 5 | First image interaction |
+| Publishing | 5 | First export/publish click |
+
+**Total**: 13 illustrated onboarding steps across 3 feature tours.
+
+---
+
 ### Next Phase
 - [ ] Phase 5: Keyboard navigation (Esc to dismiss, Enter to proceed)
 - [ ] Theme customization dialog with illustration

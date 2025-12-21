@@ -16,3 +16,10 @@ export { ImageStylesIllustration } from './illustrations/ImageStylesIllustration
 export { ImageRestyleIllustration } from './illustrations/ImageRestyleIllustration';
 export { ImageLibraryIllustration } from './illustrations/ImageLibraryIllustration';
 export { ImageCreditsIllustration } from './illustrations/ImageCreditsIllustration';
+
+// Illustrations - Publishing Tour
+export { PublishIntroIllustration } from './illustrations/PublishIntroIllustration';
+export { PublishExportIllustration } from './illustrations/PublishExportIllustration';
+export { PublishWebIllustration } from './illustrations/PublishWebIllustration';
+export { PublishEmbedIllustration } from './illustrations/PublishEmbedIllustration';
+export { PublishSocialIllustration } from './illustrations/PublishSocialIllustration';

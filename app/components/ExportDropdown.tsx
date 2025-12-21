@@ -18,6 +18,7 @@ import {
   Coins,
 } from 'lucide-react';
 import { useCreditsContext } from '@/hooks/useCredits';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 type ExportFormat = 'riff' | 'pdf' | 'pptx';
 
@@ -70,6 +71,15 @@ export function ExportDropdown({ deckId, deckName }: ExportDropdownProps) {
   const [error, setError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { balance, hasEnough, refetch, triggerInsufficientModal } = useCreditsContext();
+  const { recordFeatureUse } = useOnboarding();
+
+  // Trigger publishing tour when dropdown opens
+  const handleToggle = () => {
+    if (!isOpen) {
+      recordFeatureUse('sharing-click');
+    }
+    setIsOpen(!isOpen);
+  };
 
   // Close on outside click
   useEffect(() => {
@@ -197,7 +207,7 @@ export function ExportDropdown({ deckId, deckName }: ExportDropdownProps) {
     <div className="relative" ref={dropdownRef}>
       {/* Trigger button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         disabled={exporting !== null}
         className="p-2 text-white/40 hover:text-white/80 hover:bg-white/[0.06] rounded-lg transition-colors disabled:opacity-40 flex items-center gap-1"
         title="Export deck"

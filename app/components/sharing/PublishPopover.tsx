@@ -22,6 +22,7 @@ import {
   CloudBackup,
   BarChart3,
 } from 'lucide-react';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 export interface PublishStatus {
   isPublished: boolean;
@@ -62,6 +63,15 @@ export function PublishPopover({
   const [embedCopied, setEmbedCopied] = useState(false);
   const [unpublishing, setUnpublishing] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const { recordFeatureUse } = useOnboarding();
+
+  // Trigger publishing tour when popover opens
+  const handleToggle = () => {
+    if (!isOpen) {
+      recordFeatureUse('sharing-click');
+    }
+    setIsOpen(!isOpen);
+  };
 
   // Update status when prop changes
   useEffect(() => {
@@ -234,7 +244,7 @@ export function PublishPopover({
     <div className="relative" ref={popoverRef}>
       {/* Trigger Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className={`
           flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200
           ${buttonState.variant === 'success'
