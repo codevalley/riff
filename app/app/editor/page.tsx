@@ -29,7 +29,12 @@ import {
   OnboardingDialog,
   WelcomeIllustration,
   MarkdownIllustration,
-  SlashCommandsIllustration
+  SlashCommandsIllustration,
+  ImageGenIllustration,
+  ImageStylesIllustration,
+  ImageRestyleIllustration,
+  ImageLibraryIllustration,
+  ImageCreditsIllustration,
 } from '@/components/onboarding';
 
 // Wrapper component to handle Suspense for useSearchParams
@@ -1044,9 +1049,16 @@ function EditorContent() {
           }
           secondaryLabel={activeStep.secondaryAction?.label}
           illustration={
+            // Welcome tour
             activeStep.id === 'welcome-editor' ? <WelcomeIllustration /> :
             activeStep.id === 'markdown-intro' ? <MarkdownIllustration /> :
             activeStep.id === 'slash-commands' ? <SlashCommandsIllustration /> :
+            // Image tour
+            activeStep.id === 'image-intro-generate' ? <ImageGenIllustration /> :
+            activeStep.id === 'image-intro-styles' ? <ImageStylesIllustration /> :
+            activeStep.id === 'image-intro-restyle' ? <ImageRestyleIllustration /> :
+            activeStep.id === 'image-intro-library' ? <ImageLibraryIllustration /> :
+            activeStep.id === 'image-intro-credits' ? <ImageCreditsIllustration /> :
             undefined
           }
           tourProgress={

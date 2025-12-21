@@ -381,7 +381,148 @@ const { activeStep, activeTour, nextTourStep, skipAll } = useOnboarding();
 - [x] Reset + replay from user menu
 - [x] Documentation
 
+---
+
+## Part 8: Contextual Tooltips (Phase 3 & 4)
+
+### OnboardingTooltip Component
+
+Positioned tooltips that anchor to target elements:
+
+```tsx
+<OnboardingTooltip
+  isOpen={showTooltip}
+  onDismiss={dismissActiveStep}
+  title="Generate Any Image"
+  description="Describe what you want..."
+  targetRef={buttonRef}
+  preferredPosition="top"  // Arrow points FROM this direction
+/>
+```
+
+**Positioning logic:**
+- Calculate position relative to target element
+- Support 4 directions: `top`, `bottom`, `left`, `right`
+- Auto-flip when not enough space
+- Update on scroll/resize
+
+### Feature Integration
+
+| Component | Feature Key | Trigger |
+|-----------|-------------|---------|
+| ThemeCustomizer | `theme-panel-open` | First time opening theme panel |
+| ImagePlaceholder | `image-placeholder-click` | First time clicking "Add Image" |
+
+**Integration pattern:**
+
+```tsx
+const { recordFeatureUse, activeStep, dismissActiveStep } = useOnboarding();
+const buttonRef = useRef<HTMLButtonElement>(null);
+
+// Record first interaction
+if (!hasRecorded.current) {
+  hasRecorded.current = true;
+  recordFeatureUse('theme-panel-open');
+}
+
+// Show tooltip when this step is active
+const showTooltip = activeStep?.id === 'theme-customization';
+```
+
+---
+
+## Part 9: Image Tour (5-Step Feature Tour)
+
+### Overview
+
+Full tour for image-related features, triggered by any of:
+- Opening the **Generate Images** (sweep) dialog
+- Navigating to a slide with an image placeholder
+- Clicking on an image placeholder
+
+### Tour Steps
+
+| Step | Title | Description |
+|------|-------|-------------|
+| 1 | One-Click Images | Click `Generate` on any image placeholder |
+| 2 | Visual Consistency | Set `Scene context` (global) + `Style` preset (aesthetic) |
+| 3 | Restyle Any Image | Click `Restyle` to transform with new style/prompt |
+| 4 | Upload or Reuse | Upload your own or pick from deck library |
+| 5 | Quality Takes Time | SOTA models, 30-60s generation, costs credits |
+
+### Configuration
+
+```typescript
+'image-intro-generate': {
+  id: 'image-intro-generate',
+  type: 'tour-step',
+  tourId: 'image-intro',
+  tourOrder: 0,
+  title: 'One-Click Images',
+  description: 'Click `Generate` on any image placeholder...',
+  trigger: 'first-feature-use',
+  featureKey: 'image-placeholder-click',
+  primaryAction: { label: 'Next', action: 'next' },
+},
+// ... 4 more steps
+```
+
+### New Illustrations
+
+| Component | Visual Description |
+|-----------|-------------------|
+| `ImageGenIllustration` | Dashed placeholder with Generate button, cursor indicator |
+| `ImageStylesIllustration` | 3 images with same style, preset chips, scene context input |
+| `ImageRestyleIllustration` | Before/after transformation with arrow, sparkle |
+| `ImageLibraryIllustration` | Library grid with selection, upload area with drag hint |
+| `ImageCreditsIllustration` | Progress bar, dancing dots, time estimate, credits badge |
+
+### Trigger Integration
+
+```typescript
+// In SlidePreview.tsx
+
+// Trigger when slide with images is displayed
+useEffect(() => {
+  if (currentSlide?.imageDescriptions?.length > 0) {
+    recordFeatureUse('image-placeholder-click');
+  }
+}, [currentSlide?.imageDescriptions, recordFeatureUse]);
+
+// Trigger when sweep dialog opens
+const handleOpenSweepDialog = useCallback(async () => {
+  recordFeatureUse('image-placeholder-click');
+  // ... rest of handler
+}, [recordFeatureUse]);
+```
+
+**Deduplication**: Same `featureKey` for all entry points ensures tour only shows once.
+
+---
+
+## Updated Files Summary
+
+### New Illustration Files
+
+| File | Purpose |
+|------|---------|
+| `ImageGenIllustration.tsx` | One-click generation visual |
+| `ImageStylesIllustration.tsx` | Visual consistency with presets |
+| `ImageRestyleIllustration.tsx` | Before/after transformation |
+| `ImageLibraryIllustration.tsx` | Library grid + upload |
+| `ImageCreditsIllustration.tsx` | Progress, timing, credits |
+
+### Modified Files
+
+| File | Changes |
+|------|---------|
+| `lib/onboarding-config.ts` | Added 5 image tour steps |
+| `components/onboarding/index.ts` | Export new illustrations |
+| `app/editor/page.tsx` | Map image tour illustrations |
+| `components/SlidePreview.tsx` | Add image tour triggers |
+
+---
+
 ### Next Phase
-- [ ] Phase 3: Contextual tooltips (OnboardingTooltip component)
-- [ ] Phase 4: Feature triggers (recordFeatureUse integration)
 - [ ] Phase 5: Keyboard navigation (Esc to dismiss, Enter to proceed)
+- [ ] Theme customization dialog with illustration

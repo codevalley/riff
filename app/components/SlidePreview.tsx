@@ -33,6 +33,7 @@ import {
   stripFrontmatter,
 } from '@/lib/parser';
 import { ImageSlot, IMAGE_STYLE_PRESETS } from '@/lib/types';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 interface SlidePreviewProps {
   deckId: string;
@@ -138,6 +139,9 @@ export function SlidePreview({
     setImageStyle,
   } = useStore();
 
+  // Onboarding
+  const { recordFeatureUse } = useOnboarding();
+
   // Navigator ref for auto-scrolling
   const navigatorRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<Map<number, HTMLDivElement>>(new Map());
@@ -203,6 +207,13 @@ export function SlidePreview({
       }
     }
   }, [presentation.currentSlide]);
+
+  // Trigger image tour when slide with images is displayed
+  useEffect(() => {
+    if (currentSlide?.imageDescriptions && currentSlide.imageDescriptions.length > 0) {
+      recordFeatureUse('image-placeholder-click');
+    }
+  }, [currentSlide?.imageDescriptions, recordFeatureUse]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -517,6 +528,9 @@ export function SlidePreview({
 
   // Fetch user credits when opening sweep dialog
   const handleOpenSweepDialog = useCallback(async () => {
+    // Trigger image tour on first sweep dialog open
+    recordFeatureUse('image-placeholder-click');
+
     try {
       const response = await fetch('/api/credits');
       if (response.ok) {
@@ -527,7 +541,7 @@ export function SlidePreview({
       console.error('Failed to fetch credits:', err);
     }
     setShowSweepDialog(true);
-  }, []);
+  }, [recordFeatureUse]);
 
   // Generate a single image (used by sweep dialog for real progress)
   const handleGenerateSingleImage = useCallback(async (

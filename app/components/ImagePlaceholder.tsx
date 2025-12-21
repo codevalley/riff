@@ -29,7 +29,6 @@ import { IMAGE_STYLE_PRESETS, ImageManifestEntry, ImageSlot } from '@/lib/types'
 import { CREDIT_COSTS } from '@/lib/credits-config';
 import { useCreditsContext } from '@/hooks/useCredits';
 import { useOnboarding } from '@/hooks/useOnboarding';
-import { OnboardingTooltip } from '@/components/onboarding';
 
 // Library image for "From Library" picker
 interface LibraryImage {
@@ -108,13 +107,7 @@ export function ImagePlaceholder({
 
   const { imageCache, cacheImage, imageStyle } = useStore();
   const { setShowLedgerModal } = useCreditsContext();
-  const { recordFeatureUse, activeStep, dismissActiveStep } = useOnboarding();
-
-  // Track first interaction for onboarding
-  const hasRecordedInteraction = useRef(false);
-
-  // Show tooltip when this is the active onboarding step
-  const showOnboardingTooltip = activeStep?.id === 'image-generation' && activeStep.type === 'tooltip';
+  const { recordFeatureUse } = useOnboarding();
 
   // Get the current slide background color from CSS variables
   const getBackgroundColor = () => {
@@ -876,11 +869,8 @@ export function ImagePlaceholder({
     const handleToggleMenu = () => {
       if (!showActionMenu) {
         updateMenuPosition();
-        // Record first interaction for onboarding
-        if (!hasRecordedInteraction.current) {
-          hasRecordedInteraction.current = true;
-          recordFeatureUse('image-placeholder-click');
-        }
+        // Record first interaction for onboarding (hook handles deduplication)
+        recordFeatureUse('image-placeholder-click');
       }
       setShowActionMenu(!showActionMenu);
     };
@@ -1139,18 +1129,6 @@ export function ImagePlaceholder({
 
             {!isPresenting && renderEmptyActionMenu()}
           </>
-        )}
-
-        {/* Onboarding tooltip for image generation */}
-        {showOnboardingTooltip && activeStep && (
-          <OnboardingTooltip
-            isOpen={showOnboardingTooltip}
-            onDismiss={dismissActiveStep}
-            title={activeStep.title}
-            description={activeStep.description}
-            targetRef={menuButtonRef}
-            preferredPosition="top"
-          />
         )}
       </motion.div>
     </>

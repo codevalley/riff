@@ -16,7 +16,13 @@ export type OnboardingStepId =
   | 'welcome-editor'
   | 'markdown-intro'
   | 'slash-commands'
-  | 'image-generation'
+  // Image tour
+  | 'image-intro-generate'
+  | 'image-intro-styles'
+  | 'image-intro-restyle'
+  | 'image-intro-library'
+  | 'image-intro-credits'
+  // Feature-triggered
   | 'theme-customization'
   | 'publishing'
   | 'pricing-philosophy';
@@ -126,13 +132,79 @@ export const ONBOARDING_STEPS: Record<OnboardingStepId, OnboardingStep> = {
   },
 
   /**
-   * Image generation - First image placeholder click
+   * Image Tour - Step 1: One-click generation
    */
-  'image-generation': {
-    id: 'image-generation',
-    type: 'tooltip',
-    title: 'Generate Any Image',
-    description: 'Describe what you want to see. Choose a style for visual consistency across your entire deck.',
+  'image-intro-generate': {
+    id: 'image-intro-generate',
+    type: 'tour-step',
+    tourId: 'image-intro',
+    tourOrder: 0,
+    title: 'One-Click Images',
+    description: 'Click `Generate` on any image placeholder. Describe what you want and Riff creates it instantly.',
+    trigger: 'first-feature-use',
+    featureKey: 'image-placeholder-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Image Tour - Step 2: Styles & Scene Context
+   */
+  'image-intro-styles': {
+    id: 'image-intro-styles',
+    type: 'tour-step',
+    tourId: 'image-intro',
+    tourOrder: 1,
+    title: 'Visual Consistency',
+    description: 'Set a `Scene context` to describe your global visual elements (e.g., "trip to Turkey"). Choose a `Style` preset for the aesthetic for an individual image.',
+    trigger: 'first-feature-use',
+    featureKey: 'image-placeholder-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Image Tour - Step 3: Restyle & Tweak
+   */
+  'image-intro-restyle': {
+    id: 'image-intro-restyle',
+    type: 'tour-step',
+    tourId: 'image-intro',
+    tourOrder: 2,
+    title: 'Restyle Any Image',
+    description: 'Already have an image? Click `Restyle` to transform it with a new style or custom prompt.',
+    trigger: 'first-feature-use',
+    featureKey: 'image-placeholder-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Image Tour - Step 4: Library & Upload
+   */
+  'image-intro-library': {
+    id: 'image-intro-library',
+    type: 'tour-step',
+    tourId: 'image-intro',
+    tourOrder: 3,
+    title: 'Upload or Reuse',
+    description: 'Upload your own images or pick from your deck\'s library. Every image you create is saved for reuse.',
+    trigger: 'first-feature-use',
+    featureKey: 'image-placeholder-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Image Tour - Step 5: Credits & Timing
+   */
+  'image-intro-credits': {
+    id: 'image-intro-credits',
+    type: 'tour-step',
+    tourId: 'image-intro',
+    tourOrder: 4,
+    title: 'Quality Takes Time',
+    description: 'Riff uses state-of-the-art models for stunning results. Generation takes 30-60 seconds and costs credits.',
     trigger: 'first-feature-use',
     featureKey: 'image-placeholder-click',
     primaryAction: { label: 'Got it', action: 'dismiss' },
@@ -143,7 +215,7 @@ export const ONBOARDING_STEPS: Record<OnboardingStepId, OnboardingStep> = {
    */
   'theme-customization': {
     id: 'theme-customization',
-    type: 'tooltip',
+    type: 'dialog',
     title: 'Design Your Theme',
     description: 'Describe any mood or aesthetic. Riff creates matching colors, fonts, and spacing automatically.',
     trigger: 'first-feature-use',
