@@ -324,5 +324,7 @@ function FeatureComponent() {
 - [x] Phase 1: Core infrastructure (schema, API, config, hook, provider)
 - [x] Phase 2: Welcome dialog + illustrations + multi-step tour
 - [x] Phase 3: OnboardingTooltip component
-- [ ] Phase 4: Feature triggers (recordFeatureUse) in components
+- [x] Phase 4: Feature triggers (recordFeatureUse) in components
+  - ThemeCustomizer: `recordFeatureUse('theme-panel-open')`
+  - ImagePlaceholder: `recordFeatureUse('image-placeholder-click')`
 - [ ] Phase 5: Polish & keyboard navigation

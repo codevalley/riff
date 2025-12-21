@@ -5,11 +5,13 @@
 // AI-powered theme generation with elegant UI
 // ============================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Paintbrush, X, ChevronDown, RotateCcw, Code, Copy, Check } from 'lucide-react';
 import { DEFAULT_THEME_SYSTEM_PROMPT } from '@/lib/prompts';
 import { useStore } from '@/lib/store';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { OnboardingTooltip } from '@/components/onboarding';
 
 interface ThemeCustomizerProps {
   currentPrompt: string;
@@ -58,6 +60,7 @@ export function ThemeCustomizer({
   isGenerating = false,
 }: ThemeCustomizerProps) {
   const { customThemeSystemPrompt, setCustomThemeSystemPrompt } = useStore();
+  const { recordFeatureUse, activeStep, dismissActiveStep } = useOnboarding();
 
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState(currentPrompt);
@@ -66,6 +69,21 @@ export function ThemeCustomizer({
   const [systemPrompt, setSystemPrompt] = useState(
     customThemeSystemPrompt || DEFAULT_THEME_SYSTEM_PROMPT
   );
+
+  // Ref for onboarding tooltip positioning
+  const triggerButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Record first open for onboarding
+  const hasRecordedOpen = useRef(false);
+  useEffect(() => {
+    if (isOpen && !hasRecordedOpen.current) {
+      hasRecordedOpen.current = true;
+      recordFeatureUse('theme-panel-open');
+    }
+  }, [isOpen, recordFeatureUse]);
+
+  // Show tooltip when this is the active onboarding step
+  const showTooltip = activeStep?.id === 'theme-customization' && activeStep.type === 'tooltip';
 
   // Hydrate from localStorage on mount
   useEffect(() => {
@@ -110,6 +128,7 @@ export function ThemeCustomizer({
     <div className="relative">
       {/* Trigger button - matches ImageStyleSelector */}
       <button
+        ref={triggerButtonRef}
         onClick={() => setIsOpen(!isOpen)}
         className="
           flex items-center gap-1.5 px-2.5 py-1.5
@@ -372,6 +391,18 @@ export function ThemeCustomizer({
           </>
         )}
       </AnimatePresence>
+
+      {/* Onboarding tooltip */}
+      {showTooltip && activeStep && (
+        <OnboardingTooltip
+          isOpen={showTooltip}
+          onDismiss={dismissActiveStep}
+          title={activeStep.title}
+          description={activeStep.description}
+          targetRef={triggerButtonRef}
+          preferredPosition="top"
+        />
+      )}
     </div>
   );
 }
