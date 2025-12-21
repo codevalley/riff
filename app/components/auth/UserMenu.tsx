@@ -8,13 +8,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CircleUserRound, Settings, User, ChevronDown } from 'lucide-react';
+import { CircleUserRound, Settings, User, ChevronDown, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 export function UserMenu() {
   const { data: session, status } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { resetOnboarding } = useOnboarding();
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -97,6 +99,19 @@ export function UserMenu() {
                 <Settings className="w-4 h-4" />
                 Settings
               </Link>
+
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  resetOnboarding();
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Show tutorials
+              </button>
+
+              <div className="my-1 border-t border-white/5" />
 
               <button
                 onClick={() => {

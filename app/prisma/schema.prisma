@@ -77,6 +77,9 @@ model User {
   credits      UserCredits?
   transactions CreditTransaction[]
 
+  // Onboarding state (tracks completed tutorials, skipped status)
+  onboardingState Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

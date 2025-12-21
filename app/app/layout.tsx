@@ -3,6 +3,7 @@ import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 import { AuthProvider } from '@/components/auth/AuthProvider';
 import { CreditsProvider } from '@/hooks/useCredits';
+import { OnboardingProvider } from '@/hooks/useOnboarding';
 
 export const metadata: Metadata = {
   title: {
@@ -46,7 +47,9 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <AuthProvider>
-          <CreditsProvider>{children}</CreditsProvider>
+          <CreditsProvider>
+            <OnboardingProvider>{children}</OnboardingProvider>
+          </CreditsProvider>
         </AuthProvider>
         <Analytics />
       </body>

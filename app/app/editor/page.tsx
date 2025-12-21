@@ -24,6 +24,13 @@ import { CreditsDisplay } from '@/components/CreditsDisplay';
 import { PurchaseCreditsModal } from '@/components/PurchaseCreditsModal';
 import { CreditsLedgerModal } from '@/components/CreditsLedgerModal';
 import { useCreditsContext } from '@/hooks/useCredits';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import {
+  OnboardingDialog,
+  WelcomeIllustration,
+  MarkdownIllustration,
+  SlashCommandsIllustration
+} from '@/components/onboarding';
 
 // Wrapper component to handle Suspense for useSearchParams
 function EditorContent() {
@@ -79,6 +86,10 @@ function EditorContent() {
     showLedgerModal,
     setShowLedgerModal,
   } = useCreditsContext();
+
+  // Onboarding
+  const { activeStep, dismissActiveStep, skipAll, activeTour, nextTourStep } = useOnboarding();
+
   const [isRevamping, setIsRevamping] = useState(false);
   const [isImportingRiff, setIsImportingRiff] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -1015,6 +1026,36 @@ function EditorContent() {
         onChange={handleRiffFileChange}
         className="hidden"
       />
+
+      {/* Onboarding Dialog (handles both standalone dialogs and tour steps) */}
+      {activeStep && (activeStep.type === 'dialog' || activeStep.type === 'tour-step') && (
+        <OnboardingDialog
+          isOpen={true}
+          onDismiss={activeTour ? nextTourStep : dismissActiveStep}
+          onSecondaryAction={skipAll}
+          title={activeStep.title}
+          description={activeStep.description}
+          primaryLabel={
+            activeTour
+              ? activeTour.currentIndex === activeTour.steps.length - 1
+                ? 'Done'
+                : 'Next'
+              : activeStep.primaryAction.label
+          }
+          secondaryLabel={activeStep.secondaryAction?.label}
+          illustration={
+            activeStep.id === 'welcome-editor' ? <WelcomeIllustration /> :
+            activeStep.id === 'markdown-intro' ? <MarkdownIllustration /> :
+            activeStep.id === 'slash-commands' ? <SlashCommandsIllustration /> :
+            undefined
+          }
+          tourProgress={
+            activeTour
+              ? { current: activeTour.currentIndex, total: activeTour.steps.length }
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }
