@@ -34,6 +34,11 @@ export type OnboardingStepId =
   | 'credits-intro-what-costs'
   | 'credits-intro-transparency'
   | 'credits-intro-trust'
+  // Creating tour
+  | 'creating-intro'
+  | 'creating-from-content'
+  | 'creating-from-scratch'
+  | 'creating-import-riff'
   // Feature-triggered (standalone)
   | 'theme-customization'
   | 'pricing-philosophy';
@@ -88,6 +93,7 @@ export type FeatureKey =
   | 'theme-panel-open'
   | 'sharing-click'      // Export or Publish button
   | 'credits-click'      // Credits display or ledger modal
+  | 'creating-click'     // New deck button or I have content
   | 'first-credit-spend';
 
 // ============================================
@@ -390,6 +396,69 @@ export const ONBOARDING_STEPS: Record<OnboardingStepId, OnboardingStep> = {
     description: 'No countdown timers. No "limited offers." Your work exports as markdown—take it anywhere. We earn your return visits.',
     trigger: 'first-feature-use',
     featureKey: 'credits-click',
+    primaryAction: { label: 'Got it', action: 'dismiss' },
+  },
+
+  /**
+   * Creating Tour - Step 0: Introduction
+   */
+  'creating-intro': {
+    id: 'creating-intro',
+    type: 'tour-step',
+    tourId: 'creating',
+    tourOrder: 0,
+    title: 'Create a New Riff',
+    description: 'Three ways to start building. Pick the one that fits how you work—or switch anytime.',
+    trigger: 'first-feature-use',
+    featureKey: 'creating-click',
+    primaryAction: { label: 'Show me', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Creating Tour - Step 1: From Your Content
+   */
+  'creating-from-content': {
+    id: 'creating-from-content',
+    type: 'tour-step',
+    tourId: 'creating',
+    tourOrder: 1,
+    title: 'From Your Content',
+    description: 'Drop a document, paste text, or bring your notes. Riff converts them into polished slides automatically.',
+    trigger: 'first-feature-use',
+    featureKey: 'creating-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Creating Tour - Step 2: Write from Scratch
+   */
+  'creating-from-scratch': {
+    id: 'creating-from-scratch',
+    type: 'tour-step',
+    tourId: 'creating',
+    tourOrder: 2,
+    title: 'Write from Scratch',
+    description: 'Start with an empty deck and compose in markdown. Familiar syntax gives you full creative control.',
+    trigger: 'first-feature-use',
+    featureKey: 'creating-click',
+    primaryAction: { label: 'Next', action: 'next' },
+    secondaryAction: { label: 'Skip tour', action: 'skip-all' },
+  },
+
+  /**
+   * Creating Tour - Step 3: Import a .riff
+   */
+  'creating-import-riff': {
+    id: 'creating-import-riff',
+    type: 'tour-step',
+    tourId: 'creating',
+    tourOrder: 3,
+    title: 'Import a .riff',
+    description: 'Restore a complete backup—slides, images, themes, and all metadata imported in one file.',
+    trigger: 'first-feature-use',
+    featureKey: 'creating-click',
     primaryAction: { label: 'Got it', action: 'dismiss' },
   },
 

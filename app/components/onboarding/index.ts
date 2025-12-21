@@ -30,3 +30,9 @@ export { CreditsNeverExpireIllustration } from './illustrations/CreditsNeverExpi
 export { CreditsWhatCostsIllustration } from './illustrations/CreditsWhatCostsIllustration';
 export { CreditsTransparencyIllustration } from './illustrations/CreditsTransparencyIllustration';
 export { CreditsTrustIllustration } from './illustrations/CreditsTrustIllustration';
+
+// Illustrations - Creating Tour
+export { CreatingIntroIllustration } from './illustrations/CreatingIntroIllustration';
+export { CreatingFromContentIllustration } from './illustrations/CreatingFromContentIllustration';
+export { CreatingFromScratchIllustration } from './illustrations/CreatingFromScratchIllustration';
+export { CreatingImportRiffIllustration } from './illustrations/CreatingImportRiffIllustration';

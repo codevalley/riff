@@ -45,6 +45,10 @@ import {
   CreditsWhatCostsIllustration,
   CreditsTransparencyIllustration,
   CreditsTrustIllustration,
+  CreatingIntroIllustration,
+  CreatingFromContentIllustration,
+  CreatingFromScratchIllustration,
+  CreatingImportRiffIllustration,
 } from '@/components/onboarding';
 
 // Wrapper component to handle Suspense for useSearchParams
@@ -103,7 +107,7 @@ function EditorContent() {
   } = useCreditsContext();
 
   // Onboarding
-  const { activeStep, dismissActiveStep, skipAll, activeTour, nextTourStep } = useOnboarding();
+  const { activeStep, dismissActiveStep, skipAll, activeTour, nextTourStep, recordFeatureUse } = useOnboarding();
 
   const [isRevamping, setIsRevamping] = useState(false);
   const [isImportingRiff, setIsImportingRiff] = useState(false);
@@ -730,7 +734,10 @@ function EditorContent() {
             {/* New dropdown - single button that opens menu */}
             <div className="relative" ref={moreMenuRef}>
               <button
-                onClick={() => setShowMoreMenu(!showMoreMenu)}
+                onClick={() => {
+                  if (!showMoreMenu) recordFeatureUse('creating-click');
+                  setShowMoreMenu(!showMoreMenu);
+                }}
                 className={`
                   flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-md transition-all
                   ${showMoreMenu
@@ -1081,6 +1088,11 @@ function EditorContent() {
             activeStep.id === 'credits-intro-what-costs' ? <CreditsWhatCostsIllustration /> :
             activeStep.id === 'credits-intro-transparency' ? <CreditsTransparencyIllustration /> :
             activeStep.id === 'credits-intro-trust' ? <CreditsTrustIllustration /> :
+            // Creating tour
+            activeStep.id === 'creating-intro' ? <CreatingIntroIllustration /> :
+            activeStep.id === 'creating-from-content' ? <CreatingFromContentIllustration /> :
+            activeStep.id === 'creating-from-scratch' ? <CreatingFromScratchIllustration /> :
+            activeStep.id === 'creating-import-riff' ? <CreatingImportRiffIllustration /> :
             undefined
           }
           tourProgress={
