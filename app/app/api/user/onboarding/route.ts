@@ -3,6 +3,8 @@
 // Get and update user's onboarding state
 // ============================================
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -22,6 +24,16 @@ const DEFAULT_STATE: OnboardingState = {
   completedSteps: [],
   skippedAll: false,
 };
+
+/**
+ * Check if error is due to missing column (migration not yet applied)
+ */
+function isColumnNotFoundError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2022'
+  );
+}
 
 /**
  * GET /api/user/onboarding
@@ -44,6 +56,12 @@ export async function GET() {
 
     return NextResponse.json({ state });
   } catch (error) {
+    // If column doesn't exist yet (migration pending), return default state
+    if (isColumnNotFoundError(error)) {
+      console.warn('onboardingState column not found - migration pending, using default state');
+      return NextResponse.json({ state: DEFAULT_STATE });
+    }
+
     console.error('Error fetching onboarding state:', error);
     return NextResponse.json(
       { error: 'Failed to fetch onboarding state' },
@@ -99,6 +117,12 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ state: newState });
   } catch (error) {
+    // If column doesn't exist yet, silently succeed (state stored in localStorage)
+    if (isColumnNotFoundError(error)) {
+      console.warn('onboardingState column not found - migration pending, skipping DB update');
+      return NextResponse.json({ state: DEFAULT_STATE });
+    }
+
     console.error('Error updating onboarding state:', error);
     return NextResponse.json(
       { error: 'Failed to update onboarding state' },
@@ -126,6 +150,12 @@ export async function DELETE() {
 
     return NextResponse.json({ state: DEFAULT_STATE });
   } catch (error) {
+    // If column doesn't exist yet, silently succeed
+    if (isColumnNotFoundError(error)) {
+      console.warn('onboardingState column not found - migration pending, skipping DB update');
+      return NextResponse.json({ state: DEFAULT_STATE });
+    }
+
     console.error('Error resetting onboarding state:', error);
     return NextResponse.json(
       { error: 'Failed to reset onboarding state' },

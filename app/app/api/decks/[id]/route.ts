@@ -4,6 +4,8 @@
 // Now with v3 metadata migration: extracts frontmatter to JSON
 // ============================================
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
