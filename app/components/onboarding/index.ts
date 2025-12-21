@@ -36,3 +36,7 @@ export { CreatingIntroIllustration } from './illustrations/CreatingIntroIllustra
 export { CreatingFromContentIllustration } from './illustrations/CreatingFromContentIllustration';
 export { CreatingFromScratchIllustration } from './illustrations/CreatingFromScratchIllustration';
 export { CreatingImportRiffIllustration } from './illustrations/CreatingImportRiffIllustration';
+
+// Illustrations - Standalone Dialogs
+export { ThemeIllustration } from './illustrations/ThemeIllustration';
+export { RevampIllustration } from './illustrations/RevampIllustration';

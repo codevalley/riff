@@ -49,6 +49,8 @@ import {
   CreatingFromContentIllustration,
   CreatingFromScratchIllustration,
   CreatingImportRiffIllustration,
+  ThemeIllustration,
+  RevampIllustration,
 } from '@/components/onboarding';
 
 // Wrapper component to handle Suspense for useSearchParams
@@ -869,7 +871,10 @@ function EditorContent() {
                   content={currentDeckContent}
                   onChange={handleContentChange}
                   onSave={saveDeck}
-                  onRevamp={() => setShowRevampDialog(true)}
+                  onRevamp={() => {
+                    recordFeatureUse('revamp-click');
+                    setShowRevampDialog(true);
+                  }}
                   isSaving={isSaving}
                   isLegacy={isLegacyDeck(currentDeckContent)}
                 />
@@ -1093,6 +1098,9 @@ function EditorContent() {
             activeStep.id === 'creating-from-content' ? <CreatingFromContentIllustration /> :
             activeStep.id === 'creating-from-scratch' ? <CreatingFromScratchIllustration /> :
             activeStep.id === 'creating-import-riff' ? <CreatingImportRiffIllustration /> :
+            // Standalone dialogs
+            activeStep.id === 'theme-customization' ? <ThemeIllustration /> :
+            activeStep.id === 'revamp-intro' ? <RevampIllustration /> :
             undefined
           }
           tourProgress={

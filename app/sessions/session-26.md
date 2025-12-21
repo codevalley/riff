@@ -719,6 +719,141 @@ useEffect(() => {
 
 ---
 
+## Part 12: Creating Tour (4-Step Creation Tour)
+
+### Overview
+
+Full tour explaining the ways to create a new deck, triggered by:
+- Clicking **"I have content"** button on Landing page
+- Clicking **"Empty deck"** link on Landing page
+- Opening the **"+New"** dropdown in editor
+
+All use the same `creating-click` feature key for unified deduplication.
+
+### Tour Steps
+
+| Step | Title | Description |
+|------|-------|-------------|
+| 0 | Create a New Riff | Cover: Three ways to start building, pick what fits |
+| 1 | From Your Content | Drop document, paste text, bring notes → polished slides |
+| 2 | Write from Scratch | Empty deck with markdown composition, full creative control |
+| 3 | Import a .riff | Restore complete backup: slides, images, themes, metadata |
+
+### Illustrations
+
+| Component | Visual Description |
+|-----------|-------------------|
+| `CreatingIntroIllustration` | Center plus icon, 3 radiating paths to Content/Scratch/Import |
+| `CreatingFromContentIllustration` | Documents/notes on left → transformation arrow → polished slides on right |
+| `CreatingFromScratchIllustration` | Split editor view: markdown left, preview right, blinking cursor |
+| `CreatingImportRiffIllustration` | Center .riff file with 4 surrounding boxes (Slides/Images/Theme/Metadata) |
+
+### Trigger Integration
+
+```typescript
+// In Landing.tsx
+const { recordFeatureUse } = useOnboarding();
+
+const handleShowUploader = () => {
+  recordFeatureUse('creating-click');
+  setShowUploader(true);
+};
+
+// "Empty deck" Link
+<Link
+  href="/editor"
+  onClick={() => recordFeatureUse('creating-click')}
+>
+  Empty deck
+</Link>
+
+// In editor page.tsx - "+New" dropdown
+<button
+  onClick={() => {
+    if (!showMoreMenu) recordFeatureUse('creating-click');
+    setShowMoreMenu(!showMoreMenu);
+  }}
+>
+  <Plus /> New
+</button>
+```
+
+**Unified trigger**: Same feature key means tour shows once regardless of entry point.
+
+---
+
+## Part 13: Standalone Feature Dialogs
+
+### Theme Customization
+
+Single dialog explaining theme generation, triggered by first theme panel open.
+
+| Step | Title | Description |
+|------|-------|-------------|
+| theme-customization | Design Your Theme | Describe mood/aesthetic → Riff creates colors, fonts, spacing |
+
+**Illustration**: `ThemeIllustration` - Color palette dots, font samples, prompt input, magic transformation
+
+### Revamp Dialog
+
+Single dialog explaining deck revamp, triggered by clicking the Revamp button.
+
+| Step | Title | Description |
+|------|-------|-------------|
+| revamp-intro | Revamp Your Deck | Complete redesign end-to-end based on your instructions |
+
+**Illustration**: `RevampIllustration` - Before/after deck transformation with suggestion input
+
+---
+
+## Updated Files Summary
+
+### All Illustration Files
+
+| File | Tour/Feature | Purpose |
+|------|--------------|---------|
+| `WelcomeIllustration.tsx` | Welcome | Split view editor/preview |
+| `MarkdownIllustration.tsx` | Welcome | Markdown syntax demo |
+| `SlashCommandsIllustration.tsx` | Welcome | Command palette |
+| `ImageGenIllustration.tsx` | Image | One-click generation |
+| `ImageStylesIllustration.tsx` | Image | Visual consistency presets |
+| `ImageRestyleIllustration.tsx` | Image | Before/after transformation |
+| `ImageLibraryIllustration.tsx` | Image | Library grid + upload |
+| `ImageCreditsIllustration.tsx` | Image | Progress, timing, credits |
+| `PublishIntroIllustration.tsx` | Publishing | Share overview |
+| `PublishExportIllustration.tsx` | Publishing | File format options |
+| `PublishWebIllustration.tsx` | Publishing | Web publishing + analytics |
+| `PublishEmbedIllustration.tsx` | Publishing | Embed code + platforms |
+| `PublishSocialIllustration.tsx` | Publishing | Social sharing |
+| `CreditsPhilosophyIllustration.tsx` | Credits | No subscriptions concept |
+| `CreditsNeverExpireIllustration.tsx` | Credits | Infinity + permanence |
+| `CreditsWhatCostsIllustration.tsx` | Credits | Credit costs vs. free items |
+| `CreditsTransparencyIllustration.tsx` | Credits | $1 = 4 images breakdown |
+| `CreditsTrustIllustration.tsx` | Credits | Trust + portability promise |
+| `CreatingIntroIllustration.tsx` | Creating | 3-path creation options |
+| `CreatingFromContentIllustration.tsx` | Creating | Document → slides transformation |
+| `CreatingFromScratchIllustration.tsx` | Creating | Markdown editor split view |
+| `CreatingImportRiffIllustration.tsx` | Creating | .riff file with all components |
+| `ThemeIllustration.tsx` | Theme | Color/font generation concept |
+| `RevampIllustration.tsx` | Revamp | Deck transformation concept |
+
+---
+
+## Complete Tour Summary
+
+| Tour/Feature | Steps | Trigger |
+|--------------|-------|---------|
+| Welcome | 3 | First editor visit |
+| Image | 5 | First image interaction |
+| Publishing | 5 | First export/publish click |
+| Credits | 5 | First credits display/ledger click |
+| Creating | 4 | First new deck/content click |
+| Theme | 1 | First theme panel open |
+| Revamp | 1 | First revamp button click |
+
+**Total**: 24 illustrated onboarding steps across 5 tours + 2 standalone dialogs.
+
+---
+
 ### Next Phase
 - [ ] Phase 5: Keyboard navigation (Esc to dismiss, Enter to proceed)
-- [ ] Theme customization dialog with illustration

@@ -41,6 +41,7 @@ export type OnboardingStepId =
   | 'creating-import-riff'
   // Feature-triggered (standalone)
   | 'theme-customization'
+  | 'revamp-intro'
   | 'pricing-philosophy';
 
 /**
@@ -94,6 +95,7 @@ export type FeatureKey =
   | 'sharing-click'      // Export or Publish button
   | 'credits-click'      // Credits display or ledger modal
   | 'creating-click'     // New deck button or I have content
+  | 'revamp-click'       // Revamp button click
   | 'first-credit-spend';
 
 // ============================================
@@ -238,6 +240,19 @@ export const ONBOARDING_STEPS: Record<OnboardingStepId, OnboardingStep> = {
     description: 'Describe any mood or aesthetic. Riff creates matching colors, fonts, and spacing automatically.',
     trigger: 'first-feature-use',
     featureKey: 'theme-panel-open',
+    primaryAction: { label: 'Got it', action: 'dismiss' },
+  },
+
+  /**
+   * Revamp - First revamp button click
+   */
+  'revamp-intro': {
+    id: 'revamp-intro',
+    type: 'dialog',
+    title: 'Revamp Your Deck',
+    description: 'Completely redesign your presentation end-to-end. Describe what you want changed—new style, different structure, fresh visuals—and Riff rebuilds everything.',
+    trigger: 'first-feature-use',
+    featureKey: 'revamp-click',
     primaryAction: { label: 'Got it', action: 'dismiss' },
   },
 
