@@ -52,6 +52,7 @@ import {
   CreatingImportRiffIllustration,
   ThemeIllustration,
   RevampIllustration,
+  TipThankYouIllustration,
 } from '@/components/onboarding';
 
 // Wrapper component to handle Suspense for useSearchParams
@@ -96,6 +97,7 @@ function EditorContent() {
   const [newDeckName, setNewDeckName] = useState('');
   const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
   const [showRevampDialog, setShowRevampDialog] = useState(false);
+  const [showTipThankYou, setShowTipThankYou] = useState(false);
 
   // Credits context for ledger and purchase modals
   const {
@@ -264,6 +266,14 @@ function EditorContent() {
 
   // Load decks on mount
   useEffect(() => {
+    // Check for tip success and show thank you modal
+    const tipStatus = searchParams.get('tip');
+    if (tipStatus === 'success') {
+      setShowTipThankYou(true);
+      // Clean up URL
+      window.history.replaceState({}, '', '/editor');
+    }
+
     const loadDecks = async () => {
       setLoading(true);
       setLoadingMessage('Loading your decks...');
@@ -1056,6 +1066,16 @@ function EditorContent() {
         accept=".riff,application/json"
         onChange={handleRiffFileChange}
         className="hidden"
+      />
+
+      {/* Tip Thank You Modal */}
+      <OnboardingDialog
+        isOpen={showTipThankYou}
+        onDismiss={() => setShowTipThankYou(false)}
+        title="Thank you!"
+        description="Your support means the world to us. Every tip helps us keep building Riff and staying true to our philosophy — no subscriptions, no lock-in, just honest tools."
+        illustration={<TipThankYouIllustration />}
+        primaryLabel="Back to creating"
       />
 
       {/* Onboarding Dialog (handles both standalone dialogs and tour steps) */}

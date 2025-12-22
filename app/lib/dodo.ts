@@ -70,12 +70,17 @@ export async function createCheckoutSession(params: {
   successUrl: string;
   metadata?: Record<string, string>;
 }): Promise<{ checkoutUrl: string; sessionId: string }> {
+  const creditsProductId = process.env.DODO_CREDITS_PRODUCT_ID;
+  if (!creditsProductId) {
+    throw new Error('DODO_CREDITS_PRODUCT_ID environment variable is not configured');
+  }
+
   try {
     // Use checkoutSessions.create (payments.create is deprecated)
     const session = await dodo.checkoutSessions.create({
       product_cart: [
         {
-          product_id: process.env.DODO_CREDITS_PRODUCT_ID || 'riff_credits',
+          product_id: creditsProductId,
           quantity: params.dollarAmount, // $1 × dollarAmount = total
         },
       ],
@@ -152,6 +157,55 @@ export function parseWebhookPayload(body: string): WebhookPayload | null {
     return JSON.parse(body);
   } catch {
     return null;
+  }
+}
+
+// ============================================
+// Tip/Donation Checkout
+// ============================================
+
+/**
+ * Create a tip/donation checkout session
+ * Uses a special "pay what you want" product for tips
+ */
+export async function createTipCheckout(params: {
+  customerEmail: string;
+  customerName?: string;
+  userId?: string; // Optional - for attribution if logged in
+  returnUrl: string;
+}): Promise<{ checkoutUrl: string; sessionId: string }> {
+  const tipProductId = process.env.DODO_TIP_PRODUCT_ID;
+  if (!tipProductId) {
+    throw new Error('DODO_TIP_PRODUCT_ID environment variable is not configured');
+  }
+
+  try {
+    const session = await dodo.checkoutSessions.create({
+      product_cart: [
+        {
+          product_id: tipProductId,
+          quantity: 1,
+          // No amount - customer chooses on Dodo's PWYW checkout (min $2)
+        },
+      ],
+      customer: { email: params.customerEmail, name: params.customerName },
+      return_url: params.returnUrl,
+      metadata: {
+        type: 'tip',
+        user_id: params.userId || '', // Empty string if anonymous
+      },
+      customization: {
+        theme: 'dark',
+      },
+    });
+
+    return {
+      checkoutUrl: session.checkout_url,
+      sessionId: session.session_id,
+    };
+  } catch (error) {
+    console.error('Error creating tip checkout:', error);
+    throw new Error('Failed to create tip checkout');
   }
 }
 

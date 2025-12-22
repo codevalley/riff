@@ -8,7 +8,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CircleUserRound, Settings, User, ChevronDown, RotateCcw } from 'lucide-react';
+import { CircleUserRound, User, ChevronDown, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { useOnboarding } from '@/hooks/useOnboarding';
 
@@ -91,15 +91,6 @@ export function UserMenu() {
 
             {/* Menu Items */}
             <div className="p-2">
-              <Link
-                href="/settings"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-              >
-                <Settings className="w-4 h-4" />
-                Settings
-              </Link>
-
               <button
                 onClick={() => {
                   setIsOpen(false);

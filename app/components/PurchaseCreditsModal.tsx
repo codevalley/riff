@@ -140,6 +140,7 @@ const PLENTY_THRESHOLD = 50;
 export function PurchaseCreditsModal({ isOpen, onClose, currentBalance: propBalance }: PurchaseCreditsModalProps) {
   const [dollarAmount, setDollarAmount] = useState(3);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTipLoading, setIsTipLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchedBalance, setFetchedBalance] = useState<number | null>(null);
   const [bypassed, setBypassed] = useState(false);
@@ -184,6 +185,27 @@ export function PurchaseCreditsModal({ isOpen, onClose, currentBalance: propBala
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
       setIsLoading(false);
+    }
+  };
+
+  const handleTip = async () => {
+    setIsTipLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/tip', { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create tip checkout');
+      }
+
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setIsTipLoading(false);
     }
   };
 
@@ -470,17 +492,16 @@ export function PurchaseCreditsModal({ isOpen, onClose, currentBalance: propBala
                         Seriously, this is more credits than most people need in a year. But if you insist...
                       </p>
                       <div className="flex gap-2">
-                        <a
-                          href="https://buymeacoffee.com/riff"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-medium transition-colors"
+                        <button
+                          onClick={handleTip}
+                          disabled={isTipLoading}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 text-xs font-medium transition-colors disabled:opacity-50"
                         >
                           <Coffee className="w-3.5 h-3.5" />
-                          Buy us a coffee instead?
-                        </a>
+                          {isTipLoading ? 'Loading...' : 'Buy us a coffee instead?'}
+                        </button>
                         <a
-                          href="https://twitter.com/intent/tweet?text=I%20love%20using%20%40RiffApp%20for%20my%20presentations!"
+                          href="https://twitter.com/intent/tweet?text=Just%20discovered%20riff.im%20%E2%80%94%20turn%20your%20notes%20into%20stunning%20presentations%20with%20markdown.%20No%20subscriptions%2C%20credits%20never%20expire.%20Love%20the%20philosophy!&url=https%3A%2F%2Friff.im"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-xs font-medium transition-colors"

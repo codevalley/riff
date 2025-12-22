@@ -36,6 +36,36 @@ export async function POST(request: NextRequest) {
     if (payload.type === 'payment.succeeded' || payload.type === 'payment.completed') {
       const { payment_id, metadata } = payload.data;
 
+      // Handle tips/donations (log but don't add credits)
+      if (metadata?.type === 'tip') {
+        const { payment_id } = payload.data;
+        const userId = metadata?.user_id;
+        console.log('Tip received:', { payment_id, userId: userId || 'anonymous' });
+
+        // Log tip as a donation transaction (0 credits, just for record)
+        // Only log if we have a user ID (attributed tips show in user's history)
+        if (userId) {
+          try {
+            await prisma.creditTransaction.create({
+              data: {
+                userId,
+                amount: 0,
+                type: 'donation',
+                description: 'Tip - thank you for your support!',
+                metadata: { payment_id },
+              },
+            });
+            console.log('Tip logged for user:', userId);
+          } catch (err) {
+            console.error('Failed to log tip:', err);
+          }
+        } else {
+          console.log('Anonymous tip received (not logged to user history)');
+        }
+
+        return NextResponse.json({ received: true, status: 'tip_logged' });
+      }
+
       // Only process credit purchases
       if (metadata?.type !== 'credit_purchase') {
         console.log('Ignoring non-credit purchase webhook');

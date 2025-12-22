@@ -40,3 +40,4 @@ export { CreatingImportRiffIllustration } from './illustrations/CreatingImportRi
 // Illustrations - Standalone Dialogs
 export { ThemeIllustration } from './illustrations/ThemeIllustration';
 export { RevampIllustration } from './illustrations/RevampIllustration';
+export { TipThankYouIllustration } from './illustrations/TipThankYouIllustration';
