@@ -40,6 +40,7 @@ interface SlidePreviewProps {
   onSave?: () => Promise<void>;
   onGenerateTheme?: (prompt: string, systemPrompt?: string) => Promise<void>;
   onResetTheme?: () => void;
+  onApplyTheme?: (css: string, prompt: string) => void; // For applying from history
   isGeneratingTheme?: boolean;
   onImageChange?: (description: string, slot: ImageSlot, url: string) => void;
   onActiveSlotChange?: (description: string, slot: ImageSlot) => void;
@@ -117,6 +118,7 @@ export function SlidePreview({
   onSave,
   onGenerateTheme,
   onResetTheme,
+  onApplyTheme,
   isGeneratingTheme = false,
   onImageChange,
   onActiveSlotChange,
@@ -985,6 +987,8 @@ export function SlidePreview({
               currentPrompt={themePrompt}
               onGenerate={onGenerateTheme}
               onReset={onResetTheme || (() => {})}
+              onApplyTheme={onApplyTheme}
+              deckId={deckId}
               isGenerating={isGeneratingTheme}
             />
           )}

@@ -489,6 +489,8 @@ function EditorContent() {
           prompt,
           deckId: currentDeckId,
           customSystemPrompt,
+          // Pass current theme for contextual modifications (e.g., "change accent to blue")
+          currentTheme: themeCSS || undefined,
         }),
       });
 
@@ -540,6 +542,19 @@ function EditorContent() {
         console.error('Failed to delete theme:', err);
       }
     }
+  };
+
+  // Apply a theme from history (no LLM call needed)
+  const applyTheme = (css: string, prompt: string) => {
+    setThemeCSS(css);
+    setThemePrompt(prompt);
+    setTheme({
+      id: 'custom',
+      name: 'Custom Theme',
+      prompt,
+      css,
+      fonts: { display: '', body: '', mono: '' },
+    });
   };
 
   const handleContentChange = useCallback(
@@ -906,6 +921,7 @@ function EditorContent() {
                 onSave={saveDeck}
                 onGenerateTheme={generateTheme}
                 onResetTheme={resetTheme}
+                onApplyTheme={applyTheme}
                 isGeneratingTheme={isGeneratingTheme}
                 onImageChange={handleImageChange}
                 onActiveSlotChange={handleActiveSlotChange}

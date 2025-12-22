@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(creditCheck.error, { status: 402 });
     }
 
-    const { prompt, deckId, customSystemPrompt } = await request.json();
+    const { prompt, deckId, customSystemPrompt, currentTheme } = await request.json();
 
     // Use custom system prompt if provided, otherwise use default
     const systemPrompt = customSystemPrompt || DEFAULT_THEME_SYSTEM_PROMPT;
@@ -44,9 +44,22 @@ export async function POST(request: NextRequest) {
 
     const modelId = process.env.AI_GATEWAY_MODEL || 'moonshotai/kimi-k2-0905';
 
+    // Build the prompt - include current theme if available for contextual changes
+    let fullPrompt = systemPrompt;
+
+    if (currentTheme && typeof currentTheme === 'string' && currentTheme.trim()) {
+      // User is making a contextual change to an existing theme
+      fullPrompt += `\n\n--- CURRENT THEME (modify this based on user request) ---\n${currentTheme}\n--- END CURRENT THEME ---`;
+      fullPrompt += `\n\nUser's modification request: "${prompt}"`;
+      fullPrompt += `\n\nIMPORTANT: The user wants to MODIFY the existing theme above, not create a completely new one. Preserve elements they didn't mention while applying their requested changes. Generate the complete updated CSS theme:`;
+    } else {
+      // Fresh theme generation
+      fullPrompt += `\n\nUser's theme request: "${prompt}"\n\nGenerate the CSS theme:`;
+    }
+
     const { text: responseText } = await generateText({
       model: gateway(modelId),
-      prompt: `${systemPrompt}\n\nUser's theme request: "${prompt}"\n\nGenerate the CSS theme:`,
+      prompt: fullPrompt,
       maxOutputTokens: 2048,
     });
 
