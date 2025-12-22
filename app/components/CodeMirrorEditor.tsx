@@ -5,7 +5,7 @@
 // Dynamically imports CodeMirror to avoid SSR issues
 // ============================================
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Extension } from '@codemirror/state';
 import { EditorView, placeholder as cmPlaceholder, keymap } from '@codemirror/view';
@@ -85,6 +85,19 @@ export const CodeMirrorEditor = memo(function CodeMirrorEditor({
   const isExternalScroll = useRef(false);
   const lastScrolledSlide = useRef(-1);
 
+  // Use refs for callbacks to keep extensions stable
+  const onSlideChangeRef = useRef(onSlideChange);
+  const onSaveRef = useRef(onSave);
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    onSlideChangeRef.current = onSlideChange;
+  }, [onSlideChange]);
+
+  useEffect(() => {
+    onSaveRef.current = onSave;
+  }, [onSave]);
+
   // Ensure we're on the client
   useEffect(() => {
     setIsClient(true);
@@ -123,7 +136,7 @@ export const CodeMirrorEditor = memo(function CodeMirrorEditor({
     }
   }, [currentSlide, editorView]);
 
-  // Handle slide change from cursor position
+  // Handle slide change from cursor position - use stable ref
   const handleSlideChange = useCallback(
     (slideIndex: number, totalSlides: number) => {
       // Ignore if this is from external scroll
@@ -131,13 +144,13 @@ export const CodeMirrorEditor = memo(function CodeMirrorEditor({
 
       // Update lastScrolledSlide so we don't re-scroll to the same slide
       lastScrolledSlide.current = slideIndex;
-      onSlideChange?.(slideIndex, totalSlides);
+      onSlideChangeRef.current?.(slideIndex, totalSlides);
     },
-    [onSlideChange]
+    [] // No dependencies - uses refs
   );
 
-  // Build extensions
-  const extensions: Extension[] = [
+  // Memoize extensions to prevent CodeMirror from reinitializing on every render
+  const extensions = useMemo<Extension[]>(() => [
     // Theme
     slideTheme,
     // Syntax highlighting
@@ -158,14 +171,14 @@ export const CodeMirrorEditor = memo(function CodeMirrorEditor({
       {
         key: 'Mod-s',
         run: () => {
-          onSave?.();
+          onSaveRef.current?.();
           return true;
         },
       },
     ]),
     // Line wrapping
     EditorView.lineWrapping,
-  ];
+  ], [handleSlideChange, placeholder]);
 
   if (!isClient) {
     return (

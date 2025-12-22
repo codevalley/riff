@@ -203,13 +203,15 @@ function createSlideDecorationPlugin(): Extension {
 
 /**
  * CSS styles for custom decorations
+ * Using higher specificity to override markdown's default link styling
  */
 export const slideDecorationStyles = EditorView.baseTheme({
   // Slide delimiter --- (amber, bold, full-width highlight)
   '.cm-slide-delimiter': {
-    color: '#f59e0b',
+    color: '#f59e0b !important',
     fontWeight: 'bold',
     backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    textDecoration: 'none !important',
     display: 'inline-block',
     borderRadius: '2px',
   },
@@ -233,58 +235,70 @@ export const slideDecorationStyles = EditorView.baseTheme({
 
   // Pause marker **pause** (rose)
   '.cm-pause-marker': {
-    color: '#f43f5e',
+    color: '#f43f5e !important',
     fontStyle: 'italic',
     backgroundColor: 'rgba(244, 63, 94, 0.1)',
+    textDecoration: 'none !important',
     borderRadius: '2px',
     padding: '0 2px',
   },
 
-  // Image placeholder [image: ...] (emerald)
+  // Image placeholder [image: ...] (muted green, subtle)
   '.cm-image-marker': {
-    color: '#10b981',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderRadius: '2px',
-    padding: '0 2px',
+    color: 'rgba(16, 185, 129, 0.7) !important',
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    textDecoration: 'none !important',
+    borderRadius: '3px',
+    padding: '1px 4px',
+    fontSize: '0.95em',
   },
 
-  // Layout markers [section], [grid], alignment (cyan)
+  // Layout markers [section], [grid], [space:n], [left, center] etc. (muted, subtle)
   '.cm-layout-marker': {
-    color: '#06b6d4',
-    backgroundColor: 'rgba(6, 182, 212, 0.1)',
-    borderRadius: '2px',
-    padding: '0 2px',
+    color: 'rgba(161, 161, 170, 0.6) !important',
+    backgroundColor: 'rgba(161, 161, 170, 0.08)',
+    textDecoration: 'none !important',
+    borderRadius: '3px',
+    padding: '1px 4px',
+    fontSize: '0.9em',
   },
 
-  // Text effects [anvil], [typewriter], etc. (rose)
+  // Text effects [anvil], [typewriter], etc. (muted rose)
   '.cm-effect-marker': {
-    color: '#f43f5e',
-    backgroundColor: 'rgba(244, 63, 94, 0.08)',
-    borderRadius: '2px',
-    padding: '0 2px',
+    color: 'rgba(244, 63, 94, 0.6) !important',
+    backgroundColor: 'rgba(244, 63, 94, 0.06)',
+    textDecoration: 'none !important',
+    borderRadius: '3px',
+    padding: '1px 4px',
+    fontSize: '0.9em',
   },
 
-  // Background markers [bg:...] (violet)
+  // Background markers [bg:...] (muted violet)
   '.cm-bg-marker': {
-    color: '#8b5cf6',
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-    borderRadius: '2px',
-    padding: '0 2px',
+    color: 'rgba(139, 92, 246, 0.6) !important',
+    backgroundColor: 'rgba(139, 92, 246, 0.08)',
+    textDecoration: 'none !important',
+    borderRadius: '3px',
+    padding: '1px 4px',
+    fontSize: '0.9em',
   },
 
   // Footer syntax $<...> (gray, italic)
   '.cm-footer-marker': {
-    color: '#666666',
+    color: '#555555 !important',
     fontStyle: 'italic',
-    backgroundColor: 'rgba(102, 102, 102, 0.1)',
-    borderRadius: '2px',
-    padding: '0 2px',
+    backgroundColor: 'rgba(102, 102, 102, 0.08)',
+    textDecoration: 'none !important',
+    borderRadius: '3px',
+    padding: '1px 4px',
+    fontSize: '0.9em',
   },
 
   // Speaker notes > ... (dim, italic)
   '.cm-speaker-note': {
-    color: '#444444',
+    color: '#444444 !important',
     fontStyle: 'italic',
+    textDecoration: 'none !important',
     opacity: '0.7',
   },
 });

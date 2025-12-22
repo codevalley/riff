@@ -220,9 +220,13 @@ export function SlidePreview({
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input, textarea, or CodeMirror editor
+      const target = e.target as HTMLElement;
       if (
-        e.target instanceof HTMLTextAreaElement ||
-        e.target instanceof HTMLInputElement
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLInputElement ||
+        target.closest('.cm-editor') || // CodeMirror editor
+        target.isContentEditable // Any contenteditable element
       ) {
         return;
       }

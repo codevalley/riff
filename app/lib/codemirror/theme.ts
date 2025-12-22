@@ -179,9 +179,9 @@ export const slideHighlighting = syntaxHighlighting(
     { tag: t.monospace, fontFamily: "'Geist Mono', monospace", color: colors.amber },
     { tag: t.processingInstruction, color: colors.textTertiary }, // Code block markers
 
-    // Links
-    { tag: t.link, color: colors.blue, textDecoration: 'underline' },
-    { tag: t.url, color: colors.blue },
+    // Links - subtle styling to not clash with bracket syntax
+    { tag: t.link, color: colors.textSecondary },
+    { tag: t.url, color: colors.textTertiary, fontStyle: 'italic' },
 
     // Lists
     { tag: t.list, color: colors.textSecondary },
