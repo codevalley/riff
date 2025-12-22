@@ -3,19 +3,26 @@
 // ============================================
 // Sign In Page
 // Supports: Google, GitHub OAuth
+// Contextual messaging for different entry points
 // ============================================
 
 import { useState, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Github, Loader2, LayoutGrid } from 'lucide-react';
+import { Github, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { RiffIcon } from '@/components/RiffIcon';
+import { SignInPromptIllustration } from '@/components/onboarding/illustrations/SignInPromptIllustration';
+import { WelcomeBackIllustration } from '@/components/onboarding/illustrations/WelcomeBackIllustration';
 
 function SignInContent() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/editor';
   const error = searchParams.get('error');
+  const fromContext = searchParams.get('from'); // 'document' when coming from doc upload
+
+  const isFromDocument = fromContext === 'document';
 
   const [isLoading, setIsLoading] = useState<string | null>(null);
 
@@ -32,21 +39,47 @@ function SignInContent() {
         className="w-full max-w-sm"
       >
         {/* Logo */}
-        <Link href="/" className="flex items-center justify-center gap-2 mb-8">
-          <LayoutGrid className="w-8 h-8 text-white" />
-          <span className="text-2xl font-bold text-white" style={{ fontFamily: 'Playfair Display, serif' }}>
+        <Link href="/" className="flex items-center justify-center gap-2.5 mb-6">
+          <RiffIcon size={28} primaryColor="rgba(255, 255, 255, 0.9)" secondaryColor="rgba(255, 255, 255, 0.5)" />
+          <span className="text-2xl font-semibold text-white" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
             Riff
           </span>
         </Link>
 
         {/* Card */}
-        <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
-          <h1 className="text-xl font-semibold text-white text-center mb-2">
-            Welcome back
-          </h1>
-          <p className="text-sm text-white/50 text-center mb-6">
-            Sign in to access your presentations
-          </p>
+        <div className="bg-white/[0.03] border border-white/10 rounded-2xl overflow-hidden">
+          {/* Illustration - contextual based on entry point */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className={`relative flex items-center justify-center ${
+              isFromDocument
+                ? 'h-[130px] bg-gradient-to-b from-amber-500/[0.04] to-transparent'
+                : 'h-[110px] bg-gradient-to-b from-white/[0.02] to-transparent'
+            }`}
+          >
+            <div className={`absolute inset-0 ${
+              isFromDocument
+                ? 'bg-[radial-gradient(ellipse_at_center,rgba(251,191,36,0.06)_0%,transparent_70%)]'
+                : 'bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.03)_0%,transparent_70%)]'
+            }`} />
+            {isFromDocument ? (
+              <SignInPromptIllustration className="scale-[0.85]" />
+            ) : (
+              <WelcomeBackIllustration className="scale-[0.9]" />
+            )}
+          </motion.div>
+
+          <div className="p-6">
+            {/* Contextual Header */}
+            <h1 className="text-xl font-semibold text-white text-center mb-2">
+              {isFromDocument ? 'Almost there!' : 'Welcome back'}
+            </h1>
+            <p className="text-sm text-white/50 text-center mb-5">
+              {isFromDocument
+                ? 'Your deck is ready — just one click away'
+                : 'Sign in to access your presentations'}
+            </p>
 
           {/* Error message */}
           {error && (
@@ -103,12 +136,15 @@ function SignInContent() {
               )}
               Continue with GitHub
             </button>
+            </div>
           </div>
         </div>
 
         {/* Footer */}
-        <p className="text-xs text-white/30 text-center mt-6">
-          By signing in, you agree to our terms of service
+        <p className="text-xs text-white/30 text-center mt-5">
+          {isFromDocument
+            ? "We'll pick up right where you left off"
+            : 'By signing in, you agree to our terms of service'}
         </p>
       </motion.div>
     </div>

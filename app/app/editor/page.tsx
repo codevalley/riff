@@ -220,50 +220,6 @@ function EditorContent() {
     }
   }, [setLoading, setError, setCurrentDeck, setParsedDeck, setThemePrompt, setTheme]);
 
-  // Convert pending document (stored in sessionStorage before auth redirect)
-  const convertPendingDocument = useCallback(async () => {
-    const pendingData = sessionStorage.getItem('riff-pending-document');
-    if (!pendingData) return false;
-
-    try {
-      const { content, name, options } = JSON.parse(pendingData);
-      sessionStorage.removeItem('riff-pending-document');
-
-      setLoading(true);
-      setLoadingMessage('Converting your document to slides...');
-      const response = await fetch('/api/convert-document', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          document: content,
-          documentName: name.replace(/\.(txt|md|markdown)$/i, ''),
-          options,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to convert document');
-      }
-
-      const data = await response.json();
-      if (data.deck) {
-        // Refresh deck list and load the new deck
-        const listResponse = await fetch('/api/decks');
-        const listData = await listResponse.json();
-        setDecks(listData.decks || []);
-        await loadDeck(data.deck.id);
-        return true;
-      }
-    } catch (err) {
-      console.error('Failed to convert pending document:', err);
-      setError('Failed to convert document. Please try again.');
-    } finally {
-      setLoading(false);
-      setLoadingMessage(null);
-    }
-    return false;
-  }, [loadDeck, setDecks, setLoading, setError]);
-
   // Load decks on mount
   useEffect(() => {
     // Check for tip success and show thank you modal
@@ -279,12 +235,12 @@ function EditorContent() {
       setLoadingMessage('Loading your decks...');
       try {
         // Check for pending document conversion first (from pre-auth upload)
-        const hadPending = await convertPendingDocument();
-        if (hadPending) {
-          setInitialDeckLoaded(true);
-          setLoadingMessage(null);
-          return;
-        }
+        // If found, open DocumentUploader to show proper progress dialog
+        const pendingData = sessionStorage.getItem('riff-pending-document');
+        const hasPendingDocument = !!pendingData;
+
+        // Still load the deck list even if we have pending document
+        // (the uploader will be shown after loading completes)
 
         // Check for deck query parameter - try to load directly
         // (handles case where deck was just created and not in cached list)
@@ -311,11 +267,17 @@ function EditorContent() {
         const data = await response.json();
         setDecks(data.decks || []);
 
-        // Load first deck if available
-        if (data.decks?.length > 0 && !currentDeckId) {
+        // Load first deck if available (unless we have a pending document)
+        if (data.decks?.length > 0 && !currentDeckId && !hasPendingDocument) {
           await loadDeck(data.decks[0].id);
         }
         setInitialDeckLoaded(true);
+
+        // Show DocumentUploader if there's a pending document from pre-auth upload
+        // The uploader will detect the pending document and auto-start conversion
+        if (hasPendingDocument) {
+          setShowUploader(true);
+        }
       } catch (err) {
         setError('Failed to load decks');
         console.error(err);

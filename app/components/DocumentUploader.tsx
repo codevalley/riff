@@ -12,12 +12,11 @@ import {
   FileText,
   AlertCircle,
   FileUp,
-  ChevronDown,
   Wand2,
   Check,
-  Lightbulb,
   Clipboard,
-  Plus,
+  Lightbulb,
+  ChevronDown,
   ImageIcon,
   Palette,
   Share2,
@@ -315,79 +314,6 @@ function StageProgress({
   );
 }
 
-// Custom select component
-function CustomSelect({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const selectedOption = options.find((o) => o.value === value);
-
-  return (
-    <div ref={ref} className="relative z-20">
-      <label className="block text-[11px] font-medium text-white/40 uppercase tracking-wider mb-2">
-        {label}
-      </label>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-sm text-white/90 text-left flex items-center justify-between hover:border-white/20 hover:bg-white/[0.05] transition-all duration-200"
-      >
-        <span>{selectedOption?.label}</span>
-        <ChevronDown
-          className={`w-4 h-4 text-white/40 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-        />
-      </button>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ duration: 0.15 }}
-            className="absolute z-50 w-full mt-2 py-1 bg-[#141414] border border-white/10 rounded-xl shadow-2xl overflow-hidden"
-          >
-            {options.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => {
-                  onChange(option.value);
-                  setIsOpen(false);
-                }}
-                className={`w-full px-4 py-2.5 text-sm text-left transition-colors ${
-                  value === option.value
-                    ? 'bg-white/10 text-white'
-                    : 'text-white/70 hover:bg-white/5 hover:text-white'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -401,8 +327,9 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
   const [slideCount, setSlideCount] = useState<number | null>(null);
   const [showParticles, setShowParticles] = useState(false);
 
-  const [options, setOptions] = useState<ConversionOptions>({
-    slideCount: 'auto',
+  // Simplified options - always full content with speaker notes
+  const [options] = useState<ConversionOptions>({
+    slideCount: 'full',
     style: 'professional',
     includeSpeakerNotes: true,
   });
@@ -410,7 +337,8 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
   const [isDragging, setIsDragging] = useState(false);
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [customContext, setCustomContext] = useState('');
-  const [showContextField, setShowContextField] = useState(false);
+  const [showNotesField, setShowNotesField] = useState(false);
+  const [pendingDocumentLoaded, setPendingDocumentLoaded] = useState(false);
 
   // Multi-stage conversion state
   const [conversionStage, setConversionStage] = useState<ConversionStage>('decksmith');
@@ -483,6 +411,122 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
     document.addEventListener('paste', handlePaste);
     return () => document.removeEventListener('paste', handlePaste);
   }, [documentContent, handlePastedText]);
+
+  // Check for pending document from pre-auth upload
+  useEffect(() => {
+    if (pendingDocumentLoaded) return;
+
+    const pendingData = sessionStorage.getItem('riff-pending-document');
+    if (!pendingData) return;
+
+    try {
+      const { content, name } = JSON.parse(pendingData);
+      sessionStorage.removeItem('riff-pending-document');
+      setPendingDocumentLoaded(true);
+
+      // Set the document state - conversion will be triggered by the next useEffect
+      setDocumentContent(content);
+      setFileName(name);
+    } catch (err) {
+      console.error('Failed to load pending document:', err);
+      sessionStorage.removeItem('riff-pending-document');
+    }
+  }, [pendingDocumentLoaded]);
+
+  // Auto-start conversion when pending document is loaded
+  useEffect(() => {
+    if (pendingDocumentLoaded && documentContent && fileName && status === 'idle') {
+      // Trigger conversion
+      const startConversion = async () => {
+        setStatus('converting');
+        setConversionStage('decksmith');
+        setError(null);
+
+        try {
+          // ===== STAGE 1: DeckSmith - Generate deck =====
+          const deckResponse = await fetch('/api/generate-deck', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              document: documentContent,
+              options,
+              context: customContext.trim() || undefined,
+            }),
+          });
+
+          if (!deckResponse.ok) {
+            const deckData = await deckResponse.json();
+            throw new Error(deckData.error || 'Failed to generate deck');
+          }
+
+          const { markdown, slideCount: generatedSlideCount } = await deckResponse.json();
+          setSlideCount(generatedSlideCount);
+
+          // ===== STAGE 2: Packaging =====
+          setConversionStage('packaging');
+          const metadataResponse = await fetch('/api/generate-deck-metadata', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ markdown }),
+          });
+
+          if (!metadataResponse.ok) {
+            throw new Error('Failed to extract metadata');
+          }
+
+          const { title, themePrompt, imageContext } = await metadataResponse.json();
+
+          // ===== STAGE 3: Theming =====
+          setConversionStage('theming');
+          const themeResponse = await fetch('/api/generate-theme', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: themePrompt }),
+          });
+
+          if (!themeResponse.ok) {
+            throw new Error('Failed to generate theme');
+          }
+
+          const { css: themeCSS } = await themeResponse.json();
+
+          // ===== STAGE 4: Saving =====
+          setConversionStage('saving');
+          const saveResponse = await fetch('/api/save-deck', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              markdown,
+              title: title || fileName?.replace(/\.(txt|md|markdown)$/i, '') || 'Untitled',
+              themeCss: themeCSS,
+              themePrompt,
+              imageContext,
+            }),
+          });
+
+          const saveData = await saveResponse.json();
+          if (!saveResponse.ok) {
+            throw new Error(saveData.error || 'Failed to save deck');
+          }
+
+          setCreatedDeckId(saveData.deck.id);
+          setCreatedDeckName(saveData.deck.name);
+          // Use actual slideCount from save response if available
+          if (saveData.slideCount) {
+            setSlideCount(saveData.slideCount);
+          }
+          setStatus('success');
+          setShowParticles(true);
+        } catch (err) {
+          console.error('Conversion error:', err);
+          setError(err instanceof Error ? err.message : 'Conversion failed');
+          setStatus('error');
+        }
+      };
+
+      startConversion();
+    }
+  }, [pendingDocumentLoaded, documentContent, fileName, status, options, customContext]);
 
   // Handle explicit paste button click (fallback for browsers with issues)
   const handlePasteFromClipboard = async () => {
@@ -580,9 +624,26 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
   const handleConvert = async () => {
     if (!documentContent || !fileName) return;
 
+    setError(null);
+
+    // Check auth status first (before showing any progress)
+    // This prevents the jarring flash of progress bar before login dialog
+    const authCheck = await fetch('/api/credits');
+    if (authCheck.status === 401) {
+      // Save document for after login
+      sessionStorage.setItem('riff-pending-document', JSON.stringify({
+        content: documentContent,
+        name: fileName,
+        options,
+      }));
+      // Redirect to sign-in with context for custom messaging
+      router.push('/auth/signin?callbackUrl=/editor&from=document');
+      return;
+    }
+
+    // User is authenticated - now show progress and start conversion
     setStatus('converting');
     setConversionStage('decksmith');
-    setError(null);
 
     try {
       // ===== STAGE 1: DeckSmith - Generate deck =====
@@ -595,16 +656,6 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
           context: customContext.trim() || undefined,
         }),
       });
-
-      if (deckResponse.status === 401) {
-        sessionStorage.setItem('riff-pending-document', JSON.stringify({
-          content: documentContent,
-          name: fileName,
-          options,
-        }));
-        router.push('/auth/signin?callbackUrl=/editor');
-        return;
-      }
 
       const deckData = await deckResponse.json();
       if (!deckResponse.ok) {
@@ -688,10 +739,18 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
     }
   };
 
-  const handleGoToEditor = () => {
+  const [isLoadingEditor, setIsLoadingEditor] = useState(false);
+
+  const handleGoToEditor = async () => {
     if (createdDeckId) {
       if (onSuccess) {
-        onSuccess(createdDeckId);
+        // Show loading state while deck loads
+        setIsLoadingEditor(true);
+        try {
+          await onSuccess(createdDeckId);
+        } finally {
+          setIsLoadingEditor(false);
+        }
         onClose();
       } else {
         router.push(`/editor?deck=${encodeURIComponent(createdDeckId)}`);
@@ -797,16 +856,30 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.35 }}
                   onClick={handleGoToEditor}
-                  className="mt-8 group relative inline-flex items-center gap-3 px-8 py-4 bg-white text-black rounded-xl font-medium text-sm overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-white/10"
+                  disabled={isLoadingEditor}
+                  className="mt-8 group relative inline-flex items-center gap-3 px-8 py-4 bg-white text-black rounded-xl font-medium text-sm overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-white/10 disabled:opacity-90"
                 >
-                  <span className="relative z-10">Start editing</span>
-                  <motion.span
-                    className="relative z-10"
-                    animate={{ x: [0, 4, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    →
-                  </motion.span>
+                  {isLoadingEditor ? (
+                    <>
+                      <motion.div
+                        className="relative z-10 w-4 h-4 border-2 border-black/20 border-t-black rounded-full"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      />
+                      <span className="relative z-10">Loading editor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="relative z-10">Start editing</span>
+                      <motion.span
+                        className="relative z-10"
+                        animate={{ x: [0, 4, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      >
+                        →
+                      </motion.span>
+                    </>
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-r from-white to-white/90 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </motion.button>
               </div>
@@ -874,38 +947,92 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
                   />
 
                   {documentContent ? (
-                    // File selected state - enhanced visual
+                    // Content preview - sealed document style
                     <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="p-5"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                      className="relative"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="relative">
-                          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                            <FileText className="w-6 h-6 text-emerald-400/80" />
-                          </div>
-                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
-                            <Check className="w-3 h-3 text-white" strokeWidth={3} />
-                          </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white truncate">
-                            {fileName}
-                          </p>
-                          <p className="text-xs text-white/40 mt-1">
-                            {(documentContent.length / 1000).toFixed(1)}K characters · Ready to convert
-                          </p>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            clearFile();
+                      {/* Paper-like preview card - warm sepia tone for "document" feel */}
+                      <div className="relative overflow-hidden rounded-xl bg-gradient-to-b from-[#1c1a16] to-[#15140f] border border-[#3d382a]/40">
+                        {/* Paper texture overlay */}
+                        <div
+                          className="absolute inset-0 opacity-[0.03]"
+                          style={{
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
                           }}
-                          className="p-2.5 hover:bg-white/10 rounded-lg text-white/30 hover:text-white/70 transition-all duration-200"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                        />
+
+                        {/* Decorative corner fold */}
+                        <div className="absolute top-0 right-0 w-6 h-6 overflow-hidden">
+                          <div className="absolute top-0 right-0 w-8 h-8 bg-gradient-to-bl from-[#0a0a0a] to-[#1c1a16] transform rotate-45 translate-x-4 -translate-y-4" />
+                        </div>
+
+                        {/* Header bar */}
+                        <div className="relative flex items-center justify-between px-4 py-3 border-b border-[#3d382a]/20">
+                          <div className="flex items-center gap-2.5">
+                            <FileText className="w-3.5 h-3.5 text-amber-600/50" />
+                            <span className="text-xs font-medium text-white/40 truncate max-w-[200px]">
+                              {fileName === 'Pasted content' ? 'From clipboard' : fileName}
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              clearFile();
+                            }}
+                            className="p-1.5 hover:bg-white/10 rounded-lg text-white/30 hover:text-white/60 transition-all duration-200"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Content preview - read-only document feel */}
+                        <div className="relative px-4 pt-4 pb-6">
+                          {/* Decorative line numbers - faded like old document */}
+                          <div className="absolute left-4 top-4 flex flex-col gap-[7px] text-[10px] text-amber-900/20 font-mono select-none">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <span key={n}>{n}</span>
+                            ))}
+                          </div>
+
+                          {/* Actual content preview */}
+                          <div className="pl-6 space-y-1.5">
+                            {documentContent
+                              .split('\n')
+                              .filter(line => line.trim())
+                              .slice(0, 5)
+                              .map((line, i) => (
+                                <motion.p
+                                  key={i}
+                                  initial={{ opacity: 0, x: -4 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: i * 0.05 }}
+                                  className="text-[13px] text-white/50 leading-relaxed truncate select-none"
+                                  style={{ fontFamily: "'Georgia', serif" }}
+                                >
+                                  {line.slice(0, 60)}{line.length > 60 ? '...' : ''}
+                                </motion.p>
+                              ))}
+                          </div>
+
+                          {/* Fade gradient with "more content" indicator */}
+                          <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#15140f] via-[#15140f]/80 to-transparent pointer-events-none" />
+                        </div>
+
+                        {/* Footer with stats and overflow indicator */}
+                        <div className="relative flex items-center justify-between px-4 py-2.5 border-t border-[#3d382a]/15 bg-[#0f0e0a]/50">
+                          <span className="text-[11px] text-white/25">
+                            {(documentContent.length / 1000).toFixed(1)}K characters
+                          </span>
+                          {/* More content indicator */}
+                          {documentContent.split('\n').filter(l => l.trim()).length > 5 && (
+                            <span className="text-[10px] text-amber-600/40 font-medium">
+                              +{documentContent.split('\n').filter(l => l.trim()).length - 5} more lines
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </motion.div>
                   ) : (
@@ -962,140 +1089,72 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
                   )}
                 </div>
 
-                {/* Options */}
+                {/* Notes for AI - Collapsible */}
                 <AnimatePresence>
                   {documentContent && (
                     <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="mt-5 space-y-5"
+                      transition={{ delay: 0.1 }}
+                      className="mt-4"
                     >
-                      <div className="grid grid-cols-2 gap-4 relative">
-                        <CustomSelect
-                          label="Slide count"
-                          value={
-                            options.slideCount === 'auto'
-                              ? 'auto'
-                              : options.slideCount === 'full'
-                              ? 'full'
-                              : String(options.slideCount)
-                          }
-                          onChange={(v) =>
-                            setOptions({
-                              ...options,
-                              slideCount: v === 'auto' ? 'auto' : v === 'full' ? 'full' : parseInt(v),
-                            })
-                          }
-                          options={[
-                            { value: 'auto', label: 'Auto-detect' },
-                            { value: 'full', label: 'Full (no reduction)' },
-                            { value: '10', label: '~10 slides' },
-                            { value: '15', label: '~15 slides' },
-                            { value: '20', label: '~20 slides' },
-                          ]}
-                        />
-                        <CustomSelect
-                          label="Style"
-                          value={options.style}
-                          onChange={(v) =>
-                            setOptions({
-                              ...options,
-                              style: v as ConversionOptions['style'],
-                            })
-                          }
-                          options={[
-                            { value: 'professional', label: 'Professional' },
-                            { value: 'minimal', label: 'Minimal' },
-                            { value: 'creative', label: 'Creative' },
-                          ]}
-                        />
-                      </div>
+                      {!showNotesField ? (
+                        // Collapsed state - clickable trigger
+                        <button
+                          onClick={() => setShowNotesField(true)}
+                          className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-amber-500/[0.06] border border-amber-500/20 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all duration-200 group"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Wand2 className="w-4 h-4 text-amber-400/70 group-hover:text-amber-400 transition-colors" />
+                            <span className="text-sm text-amber-400/80 group-hover:text-amber-400 transition-colors">
+                              Notes for AI
+                            </span>
+                            <span className="text-[10px] text-white/20 italic">optional</span>
+                          </div>
+                          <ChevronDown className="w-4 h-4 text-amber-400/40 group-hover:text-amber-400/60 transition-colors" />
+                        </button>
+                      ) : (
+                        // Expanded state - editable field
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="relative group"
+                        >
+                          {/* Amber glow effect on focus */}
+                          <div className="absolute -inset-px rounded-xl bg-gradient-to-r from-amber-500/0 via-amber-500/0 to-amber-500/0 group-focus-within:from-amber-500/20 group-focus-within:via-amber-500/10 group-focus-within:to-orange-500/20 transition-all duration-300 blur-sm" />
 
-                      {/* Checkbox */}
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            checked={options.includeSpeakerNotes}
-                            onChange={(e) =>
-                              setOptions({
-                                ...options,
-                                includeSpeakerNotes: e.target.checked,
-                              })
-                            }
-                            className="sr-only peer"
-                          />
-                          <div className="w-5 h-5 border border-white/20 rounded-md bg-white/[0.03] peer-checked:bg-white peer-checked:border-white transition-all duration-200" />
-                          <svg
-                            className="absolute inset-0 w-5 h-5 text-black opacity-0 peer-checked:opacity-100 transition-opacity duration-200 p-1"
-                            viewBox="0 0 12 12"
-                            fill="none"
-                          >
-                            <path
-                              d="M2 6L5 9L10 3"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </div>
-                        <span className="text-sm text-white/50 group-hover:text-white/70 transition-colors duration-200">
-                          Include speaker notes
-                        </span>
-                      </label>
-
-                      {/* Additional Context - Collapsible */}
-                      <AnimatePresence mode="wait">
-                        {!showContextField ? (
-                          <motion.button
-                            key="trigger"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0, height: 0 }}
-                            onClick={() => setShowContextField(true)}
-                            className="flex items-center gap-2 text-sm text-white/40 hover:text-white/60 transition-colors duration-200 py-1"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>Add instructions</span>
-                          </motion.button>
-                        ) : (
-                          <motion.div
-                            key="field"
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="relative p-3 bg-white/[0.02] rounded-lg border border-white/[0.06]">
-                              <div className="flex items-center justify-between mb-2">
-                                <label className="text-[11px] font-medium text-white/40 uppercase tracking-wider">
-                                  Instructions
-                                </label>
-                                <button
-                                  onClick={() => {
-                                    setShowContextField(false);
-                                    setCustomContext('');
-                                  }}
-                                  className="p-1 -mr-1 hover:bg-white/5 rounded text-white/30 hover:text-white/60 transition-all duration-200"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
+                          <div className="relative rounded-xl bg-[#141210] border border-amber-500/20 group-focus-within:border-amber-500/40 transition-colors duration-200 overflow-hidden">
+                            {/* Header with collapse button */}
+                            <button
+                              onClick={() => {
+                                if (!customContext.trim()) {
+                                  setShowNotesField(false);
+                                }
+                              }}
+                              className="w-full flex items-center justify-between px-3 pt-3 pb-2 hover:bg-white/[0.02] transition-colors"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Wand2 className="w-3.5 h-3.5 text-amber-400/60" />
+                                <span className="text-[11px] font-medium text-amber-400/70 uppercase tracking-wider">
+                                  Notes for AI
+                                </span>
                               </div>
-                              <textarea
-                                value={customContext}
-                                onChange={(e) => setCustomContext(e.target.value)}
-                                placeholder="e.g., This is for a tech-savvy startup audience. Keep it punchy and minimal..."
-                                rows={2}
-                                className="w-full bg-transparent text-sm text-white/80 placeholder:text-white/25 resize-none outline-none border-none focus:ring-0 leading-relaxed"
-                                style={{ boxShadow: 'none' }}
-                              />
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                              <ChevronDown className={`w-4 h-4 text-amber-400/40 transition-transform ${customContext.trim() ? 'opacity-30' : 'rotate-180'}`} />
+                            </button>
+
+                            <textarea
+                              value={customContext}
+                              onChange={(e) => setCustomContext(e.target.value)}
+                              placeholder="e.g., Focus on the key metrics. This is for executives who want a quick overview..."
+                              rows={2}
+                              autoFocus
+                              className="w-full px-3 pb-3 bg-transparent text-sm text-white/80 placeholder:text-white/25 resize-none outline-none border-none focus:ring-0 leading-relaxed"
+                              style={{ boxShadow: 'none' }}
+                            />
+                          </div>
+                        </motion.div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
