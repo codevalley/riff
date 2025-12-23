@@ -78,9 +78,15 @@ export default async function PresentPage({ params, searchParams }: PageProps) {
   // Load theme if available (user-scoped)
   const theme = await getTheme(session.user.id, deckId);
 
-  // Load metadata for scene context
+  // Load metadata for images and scene context
   const metadata = await getMetadata(session.user.id, deckId);
   const sceneContext = metadata?.imageContext;
+
+  // CRITICAL: Merge images from v3 metadata into parsed deck
+  // Without this, images won't display in present mode (v3 stores images in metadata JSON, not frontmatter)
+  if (metadata?.images) {
+    parsedDeck.imageManifest = metadata.images;
+  }
 
   return (
     <PresenterClient

@@ -674,21 +674,24 @@ export function ImagePlaceholder({
     </AnimatePresence>
   );
 
-  // Library picker modal
+  // Library picker modal - uses portal to avoid clipping by parent overflow/transform
   const renderLibraryPicker = () => {
     // Show ALL images with URLs (including current one, marked as "Current")
     const allImages = deckImages.filter(img => img.url);
 
     if (allImages.length === 0) return null;
 
-    return (
+    // Use portal to render to document.body, avoiding clipping issues
+    if (typeof document === 'undefined') return null;
+
+    return createPortal(
       <AnimatePresence>
         {showLibraryPicker && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80"
             onClick={() => setShowLibraryPicker(false)}
           >
             <motion.div
@@ -762,7 +765,8 @@ export function ImagePlaceholder({
             </motion.div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
     );
   };
 

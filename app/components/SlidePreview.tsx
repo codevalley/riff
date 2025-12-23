@@ -988,17 +988,17 @@ export function SlidePreview({
           deckImages={deckImagesForLibrary}
         />
 
-        {/* Navigation overlays */}
+        {/* Navigation overlays - z-30 ensures they're above slide content including images */}
         <button
           onClick={prevSlide}
-          className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-surface/90 hover:bg-surface-hover border border-border rounded-md text-text-secondary hover:text-text-primary transition-all opacity-0 group-hover:opacity-100"
+          className="absolute left-3 top-1/2 -translate-y-1/2 z-30 p-2 bg-surface/90 hover:bg-surface-hover border border-border rounded-md text-text-secondary hover:text-text-primary transition-all opacity-0 group-hover:opacity-100"
           disabled={presentation.currentSlide === 0 && presentation.currentReveal === 0}
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
         <button
           onClick={nextSlide}
-          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-surface/90 hover:bg-surface-hover border border-border rounded-md text-text-secondary hover:text-text-primary transition-all opacity-0 group-hover:opacity-100"
+          className="absolute right-3 top-1/2 -translate-y-1/2 z-30 p-2 bg-surface/90 hover:bg-surface-hover border border-border rounded-md text-text-secondary hover:text-text-primary transition-all opacity-0 group-hover:opacity-100"
           disabled={presentation.currentSlide === totalSlides - 1 && presentation.currentReveal >= currentReveals - 1}
         >
           <ChevronRight className="w-4 h-4" />
