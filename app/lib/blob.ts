@@ -70,7 +70,7 @@ export async function getDeckByPath(blobPath: string): Promise<string | null> {
     const { blobs } = await list({ prefix: blobPath });
     if (blobs.length === 0) return null;
 
-    const response = await fetch(blobs[0].url);
+    const response = await fetch(blobs[0].url, { cache: 'no-store' });
     return await response.text();
   } catch (error) {
     console.error('Error getting deck by path:', error);
@@ -242,7 +242,9 @@ export async function getMetadata(
 
     if (blobs.length === 0) return null;
 
-    const response = await fetch(blobs[0].url);
+    // CRITICAL: Use no-store to bypass CDN cache
+    // Without this, rapid sequential writes can read stale data and lose updates
+    const response = await fetch(blobs[0].url, { cache: 'no-store' });
     const data = await response.json();
 
     // Check if this is v3 format
@@ -462,7 +464,7 @@ export async function getSlideHtmlFromCache(
 
     if (blobs.length === 0) return null;
 
-    const response = await fetch(blobs[0].url);
+    const response = await fetch(blobs[0].url, { cache: 'no-store' });
     return await response.text();
   } catch (error) {
     console.error('Error getting slide HTML from cache:', error);

@@ -139,6 +139,8 @@ export function SlidePreview({
     toggleSpeakerNotes,
     imageStyle,
     setImageStyle,
+    updateManifestEntry,
+    batchUpdateManifestEntries,
   } = useStore();
 
   // Onboarding
@@ -461,7 +463,7 @@ export function SlidePreview({
   // Sweep image generation handlers
   // ============================================
 
-  // Extract all images from the deck
+  // Extract all images from the deck (including grid images)
   const extractDeckImages = useCallback(() => {
     if (!parsedDeck) return [];
 
@@ -472,27 +474,51 @@ export function SlidePreview({
       existingUrl?: string;
     }> = [];
 
+    // Helper to add an image with manifest lookup
+    // Uses fallback pattern: active slot → generated → uploaded → restyled
+    const addImage = (description: string, slideIndex: number) => {
+      const manifestEntry = parsedDeck.imageManifest?.[description];
+      const activeSlot = manifestEntry?.active || 'generated';
+
+      // Get URL from active slot first, then fallback to any available slot
+      let existingUrl = manifestEntry?.[activeSlot];
+      if (!existingUrl) {
+        existingUrl = manifestEntry?.generated || manifestEntry?.uploaded || manifestEntry?.restyled;
+      }
+
+      const hasExisting = !!(
+        manifestEntry?.generated ||
+        manifestEntry?.uploaded ||
+        manifestEntry?.restyled
+      );
+      images.push({
+        description,
+        slideIndex,
+        hasExistingImage: hasExisting,
+        existingUrl,
+      });
+    };
+
     parsedDeck.slides.forEach((slide, slideIndex) => {
-      // Use imageDescriptions from parsed slide
+      // 1. Regular images from imageDescriptions
       if (slide.imageDescriptions) {
         slide.imageDescriptions.forEach((description) => {
-          // Check if image has a real URL in any slot
-          const manifestEntry = parsedDeck.imageManifest?.[description];
-          const activeSlot = manifestEntry?.active || 'generated';
-          const existingUrl = manifestEntry?.[activeSlot];
-          const hasExisting = !!(
-            manifestEntry?.generated ||
-            manifestEntry?.uploaded ||
-            manifestEntry?.restyled
-          );
-          images.push({
-            description,
-            slideIndex,
-            hasExistingImage: hasExisting,
-            existingUrl,
-          });
+          addImage(description, slideIndex);
         });
       }
+
+      // 2. Grid images - scan elements for grids containing images
+      slide.elements.forEach((element) => {
+        if (element.metadata?.isGrid && element.metadata?.gridItems) {
+          element.metadata.gridItems.forEach((gridItem) => {
+            gridItem.rows?.forEach((row) => {
+              if (row.type === 'image' && row.value) {
+                addImage(row.value, slideIndex);
+              }
+            });
+          });
+        }
+      });
     });
 
     return images;
@@ -509,17 +535,40 @@ export function SlidePreview({
     }> = [];
 
     // Build a map of which slide each image description belongs to
+    // Includes both regular images and grid images
     const descriptionToSlide = new Map<string, number>();
     parsedDeck.slides.forEach((slide, slideIndex) => {
+      // Regular images
       slide.imageDescriptions?.forEach((desc) => {
         descriptionToSlide.set(desc, slideIndex);
+      });
+      // Grid images
+      slide.elements.forEach((element) => {
+        if (element.metadata?.isGrid && element.metadata?.gridItems) {
+          element.metadata.gridItems.forEach((gridItem) => {
+            gridItem.rows?.forEach((row) => {
+              if (row.type === 'image' && row.value) {
+                descriptionToSlide.set(row.value, slideIndex);
+              }
+            });
+          });
+        }
       });
     });
 
     // Extract images from manifest that have URLs
+    // IMPORTANT: Check ALL slots, not just active slot, to handle edge cases
+    // where active slot doesn't match the slot with data
     Object.entries(parsedDeck.imageManifest).forEach(([description, entry]) => {
+      // Priority: active slot → generated → uploaded → restyled
       const activeSlot = entry.active || 'generated';
-      const url = entry[activeSlot];
+      let url = entry[activeSlot];
+
+      // Fallback: if active slot has no URL, check other slots
+      if (!url) {
+        url = entry.generated || entry.uploaded || entry.restyled;
+      }
+
       if (url) {
         images.push({
           description,
@@ -550,6 +599,7 @@ export function SlidePreview({
   }, [recordFeatureUse]);
 
   // Generate a single image (used by sweep dialog for real progress)
+  // NOTE: This does NOT save to manifest - batch save happens at end of sweep
   const handleGenerateSingleImage = useCallback(async (
     description: string,
     modifiedPrompt?: string,
@@ -576,23 +626,51 @@ export function SlidePreview({
         return { url: null, error: data.error || 'Generation failed' };
       }
 
-      // Update image manifest with the ORIGINAL description as the key
-      // (since that's how images are referenced in slides)
-      // IMPORTANT: Must await to ensure metadata.images is updated before returning
-      if (data.url && onImageChange) {
-        try {
-          await onImageChange(description, 'generated', data.url);
-        } catch (err) {
-          console.error('Failed to save image to manifest:', err);
-          // Don't fail the generation - image is in cache, just not in manifest
-        }
-      }
-
+      // Return URL only - DO NOT save to manifest here
+      // Batch save happens at the end of sweep generation to avoid race conditions
       return { url: data.url };
     } catch (err) {
       return { url: null, error: String(err) };
     }
-  }, [imageStyle, sceneContext, onImageChange]);
+  }, [imageStyle, sceneContext]);
+
+  // Batch save multiple images to manifest at once (avoids race conditions)
+  const handleBatchSaveImages = useCallback(async (
+    images: Array<{ description: string; url: string }>
+  ): Promise<boolean> => {
+    if (!deckId || images.length === 0) return false;
+
+    try {
+      const response = await fetch(`/api/decks/${encodeURIComponent(deckId)}/images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          images: images.map(img => ({
+            description: img.description,
+            slot: 'generated',
+            url: img.url,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to batch save images');
+      }
+
+      const data = await response.json();
+
+      // Update local manifest with all saved images in a SINGLE set() call
+      // This avoids race conditions that occur when calling updateManifestEntry in a loop
+      if (data.images) {
+        batchUpdateManifestEntries(data.images);
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Failed to batch save images:', err);
+      return false;
+    }
+  }, [deckId, batchUpdateManifestEntries]);
 
   // Refresh user credits
   const handleRefreshCredits = useCallback(async () => {
@@ -1240,6 +1318,7 @@ export function SlidePreview({
         currentStyleId={imageStyle}
         onStyleChange={handleStyleChange}
         onGenerateSingle={handleGenerateSingleImage}
+        onBatchSave={handleBatchSaveImages}
         userCredits={userCredits}
         onRefreshCredits={handleRefreshCredits}
       />

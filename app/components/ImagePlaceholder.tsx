@@ -676,12 +676,10 @@ export function ImagePlaceholder({
 
   // Library picker modal
   const renderLibraryPicker = () => {
-    // Filter out current image and images without URLs
-    const availableImages = deckImages.filter(img =>
-      img.url && img.description !== description
-    );
+    // Show ALL images with URLs (including current one, marked as "Current")
+    const allImages = deckImages.filter(img => img.url);
 
-    if (availableImages.length === 0) return null;
+    if (allImages.length === 0) return null;
 
     return (
       <AnimatePresence>
@@ -715,32 +713,50 @@ export function ImagePlaceholder({
               {/* Image grid */}
               <div className="p-3 overflow-y-auto max-h-[calc(70vh-60px)]">
                 <div className="grid grid-cols-3 gap-2">
-                  {availableImages.map((img, idx) => (
-                    <button
-                      key={`${img.description}-${idx}`}
-                      onClick={() => handleSelectFromLibrary(img)}
-                      className="group/libimg relative aspect-video rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-all"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={img.url}
-                        alt={img.description}
-                        className="w-full h-full object-cover"
-                      />
-                      {/* Hover overlay - uses named group to avoid parent group interference */}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/libimg:opacity-100 transition-opacity flex items-center justify-center">
-                        <span className="text-[10px] text-white font-medium px-2 text-center line-clamp-2">
-                          {img.description}
-                        </span>
-                      </div>
-                      {/* Slide indicator */}
-                      {img.slideIndex !== undefined && (
-                        <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/70 rounded text-[9px] text-white/70">
-                          {img.slideIndex + 1}
+                  {allImages.map((img, idx) => {
+                    const isCurrent = img.description === description;
+                    return (
+                      <button
+                        key={`${img.description}-${idx}`}
+                        onClick={() => !isCurrent && handleSelectFromLibrary(img)}
+                        disabled={isCurrent}
+                        className={`group/libimg relative aspect-video rounded-lg overflow-hidden transition-all ${
+                          isCurrent
+                            ? 'border-2 border-emerald-500/70 opacity-60 cursor-default'
+                            : 'border border-white/10 hover:border-white/30'
+                        }`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img.url}
+                          alt={img.description}
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Current indicator */}
+                        {isCurrent && (
+                          <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-emerald-600/90 rounded text-[9px] text-white font-medium">
+                            Current
+                          </div>
+                        )}
+                        {/* Hover overlay - uses named group to avoid parent group interference */}
+                        <div className={`absolute inset-0 bg-black/60 transition-opacity flex items-center justify-center ${
+                          isCurrent ? 'opacity-0' : 'opacity-0 group-hover/libimg:opacity-100'
+                        }`}>
+                          <span className="text-[10px] text-white font-medium px-2 text-center line-clamp-2">
+                            {img.description}
+                          </span>
                         </div>
-                      )}
-                    </button>
-                  ))}
+                        {/* Slide indicator */}
+                        {img.slideIndex !== undefined && (
+                          <div className={`absolute bottom-1 right-1 px-1.5 py-0.5 bg-black/70 rounded text-[9px] text-white/70 ${
+                            isCurrent ? 'hidden' : ''
+                          }`}>
+                            {img.slideIndex + 1}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </motion.div>
@@ -762,7 +778,8 @@ export function ImagePlaceholder({
 
   // Unified action menu for filled state (uses portal to avoid clipping)
   const renderFilledActionMenu = () => {
-    const hasLibraryImages = deckImages.filter(img => img.url && img.description !== description).length > 0;
+    // Show "From Library" if there are 2+ images (current one will be shown but marked as "Current")
+    const hasLibraryImages = deckImages.filter(img => img.url).length > 1;
 
     const handleToggleMenu = () => {
       if (!showActionMenu) {
@@ -864,7 +881,8 @@ export function ImagePlaceholder({
 
   // Unified action menu for empty state (uses portal to avoid clipping)
   const renderEmptyActionMenu = () => {
-    const hasLibraryImages = deckImages.filter(img => img.url && img.description !== description).length > 0;
+    // Show "From Library" if there are any images with URLs (for empty placeholder, any image is useful)
+    const hasLibraryImages = deckImages.filter(img => img.url).length > 0;
 
     const handleToggleMenu = () => {
       if (!showActionMenu) {

@@ -61,6 +61,7 @@ interface SweepGenerateDialogProps {
     modifiedPrompt?: string,
     slideIndex?: number
   ) => Promise<{ url: string | null; error?: string }>;
+  onBatchSave?: (images: Array<{ description: string; url: string }>) => Promise<boolean>;
   userCredits?: number;
   onRefreshCredits?: () => Promise<void>;
 }
@@ -74,6 +75,7 @@ export function SweepGenerateDialog({
   currentStyleId,
   onStyleChange,
   onGenerateSingle,
+  onBatchSave,
   userCredits = 0,
   onRefreshCredits,
 }: SweepGenerateDialogProps) {
@@ -250,6 +252,9 @@ export function SweepGenerateDialog({
     let successCount = 0;
     let failCount = 0;
 
+    // Collect successful images for batch save at the end
+    const successfulImages: Array<{ description: string; url: string }> = [];
+
     // Reset all selected items to pending
     setImageItems(prev => prev.map(item => ({
       ...item,
@@ -276,6 +281,11 @@ export function SweepGenerateDialog({
 
         if (result.url) {
           successCount++;
+          // Collect for batch save - use ORIGINAL description as manifest key
+          successfulImages.push({
+            description: item.description,
+            url: result.url,
+          });
           setImageItems(prev => prev.map(i =>
             i.id === item.id
               ? { ...i, status: 'completed', resultUrl: result.url!, hasExistingImage: true }
@@ -299,6 +309,16 @@ export function SweepGenerateDialog({
       }
     }
 
+    // BATCH SAVE all successful images at once (avoids race conditions)
+    if (successfulImages.length > 0 && onBatchSave) {
+      try {
+        await onBatchSave(successfulImages);
+      } catch (err) {
+        console.error('Failed to batch save images:', err);
+        // Images are still in blob cache, just not in manifest
+      }
+    }
+
     setIsGenerating(false);
     setGenerationResults({
       success: successCount,
@@ -311,7 +331,7 @@ export function SweepGenerateDialog({
     if (onRefreshCredits) {
       await onRefreshCredits();
     }
-  }, [imageItems, onGenerateSingle, onRefreshCredits]);
+  }, [imageItems, onGenerateSingle, onBatchSave, onRefreshCredits]);
 
   // Handle close
   const handleClose = useCallback(() => {
@@ -791,16 +811,24 @@ export function SweepGenerateDialog({
                   <div className="w-2 h-2 rounded-full bg-emerald-500" />
                   <span className="text-white/50">{completedCount} done</span>
                 </div>
+                {generatingItem && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    <span className="text-amber-400/70">1 in progress</span>
+                  </div>
+                )}
                 {failedCount > 0 && (
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-red-500" />
                     <span className="text-white/50">{failedCount} failed</span>
                   </div>
                 )}
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-white/20" />
-                  <span className="text-white/40">{selectedItems.length - completedCount - failedCount - 1} remaining</span>
-                </div>
+                {selectedItems.length - completedCount - failedCount - (generatingItem ? 1 : 0) > 0 && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-white/20" />
+                    <span className="text-white/40">{selectedItems.length - completedCount - failedCount - (generatingItem ? 1 : 0)} remaining</span>
+                  </div>
+                )}
               </div>
               <p className="text-[10px] text-white/20 text-center mt-2">
                 Please don't refresh the page during generation

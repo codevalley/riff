@@ -339,6 +339,10 @@ function parseAlignment(value: string): SlideAlignment | null {
 /**
  * Parse image with optional position from [image: description, position]
  * Examples: [image: mountain landscape], [image: product screenshot, right]
+ *
+ * If there's a single word after the last comma, it's treated as a position attempt:
+ * - Valid positions (left, right, top, bottom) set the split layout
+ * - Unknown positions are stripped but ignored (no split layout)
  */
 function parseImageWithPosition(value: string): { description: string; position?: ImagePosition } {
   const lastComma = value.lastIndexOf(',');
@@ -347,14 +351,18 @@ function parseImageWithPosition(value: string): { description: string; position?
   }
 
   const afterComma = value.slice(lastComma + 1).trim().toLowerCase();
-  if (VALID_IMAGE_POSITIONS.includes(afterComma as ImagePosition)) {
-    return {
-      description: value.slice(0, lastComma).trim(),
-      position: afterComma as ImagePosition,
-    };
+
+  // Check if it's a single word (likely a position attempt)
+  if (/^[a-z]+$/.test(afterComma)) {
+    const description = value.slice(0, lastComma).trim();
+    if (VALID_IMAGE_POSITIONS.includes(afterComma as ImagePosition)) {
+      return { description, position: afterComma as ImagePosition };
+    }
+    // Unknown position word - strip it, no split layout
+    return { description };
   }
 
-  // Not a position, treat whole thing as description
+  // Not a single word after comma, treat whole thing as description
   return { description: value.trim() };
 }
 

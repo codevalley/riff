@@ -92,6 +92,104 @@ export async function PATCH(
   }
 }
 
+// Batch update multiple images at once (avoids race conditions in sweep generation)
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const deckId = params.id;
+    const body = await request.json();
+
+    // Validate request body - array of images
+    const { images } = body as {
+      images: Array<{
+        description: string;
+        slot: ImageSlot;
+        url: string;
+      }>;
+    };
+
+    if (!images || !Array.isArray(images) || images.length === 0) {
+      return NextResponse.json(
+        { error: 'Missing required field: images (array)' },
+        { status: 400 }
+      );
+    }
+
+    // Validate each image entry
+    for (const img of images) {
+      if (!img.description || !img.slot || !img.url) {
+        return NextResponse.json(
+          { error: 'Each image must have description, slot, and url' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Verify deck ownership
+    const deck = await prisma.deck.findFirst({
+      where: {
+        id: deckId,
+        ownerId: session.user.id,
+      },
+    });
+
+    if (!deck) {
+      return NextResponse.json({ error: 'Deck not found' }, { status: 404 });
+    }
+
+    // Get existing metadata ONCE
+    const existingMetadata = await getMetadata(session.user.id, deckId);
+    const metadata: DeckMetadataV3 = existingMetadata || { v: 3 };
+
+    // Initialize images if not present
+    metadata.images = metadata.images || {};
+
+    // Process all images in one pass
+    const updatedImages: Record<string, ImageManifestEntry> = {};
+    for (const img of images) {
+      // Initialize entry for this description if not present
+      if (!metadata.images[img.description]) {
+        metadata.images[img.description] = { active: img.slot };
+      }
+
+      // Update the slot URL
+      metadata.images[img.description][img.slot] = img.url;
+      // Set as active
+      metadata.images[img.description].active = img.slot;
+
+      updatedImages[img.description] = metadata.images[img.description];
+    }
+
+    // Save metadata ONCE after all updates
+    await saveMetadata(session.user.id, deckId, metadata);
+
+    // Update deck timestamp
+    await prisma.deck.update({
+      where: { id: deckId },
+      data: { updatedAt: new Date() },
+    });
+
+    return NextResponse.json({
+      success: true,
+      images: updatedImages,
+      count: images.length,
+    });
+  } catch (error) {
+    console.error('Error batch updating images:', error);
+    return NextResponse.json(
+      { error: 'Failed to batch update images' },
+      { status: 500 }
+    );
+  }
+}
+
 // Update only the active slot for an image
 export async function PUT(
   request: NextRequest,

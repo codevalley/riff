@@ -58,7 +58,7 @@ export const useStore = create<AppState>((set, get) => ({
       presentation: { ...get().presentation, currentSlide: 0, currentReveal: 0 },
     }),
 
-  setParsedDeck: (deck) => {
+  setParsedDeck: (deck, forceReplaceManifest = false) => {
     if (!deck) {
       set({ parsedDeck: deck });
       return;
@@ -67,16 +67,20 @@ export const useStore = create<AppState>((set, get) => ({
     const { presentation, parsedDeck: existingDeck } = get();
     const maxSlideIndex = deck.slides.length - 1;
 
-    // Preserve existing imageManifest if the new deck has an empty one
-    // This is critical for v3 decks where images are stored in metadata JSON,
-    // not in markdown frontmatter. When components re-parse markdown content,
-    // parseSlideMarkdown() returns empty imageManifest for v3 decks.
-    const newManifestIsEmpty = !deck.imageManifest || Object.keys(deck.imageManifest).length === 0;
-    const existingManifestHasData = existingDeck?.imageManifest && Object.keys(existingDeck.imageManifest).length > 0;
+    // Determine which imageManifest to use:
+    // - If forceReplaceManifest is true (loading a new deck), use the provided manifest
+    // - Otherwise, preserve existing manifest if the new one is empty
+    //   (this handles re-parsing during editing where v3 parser returns empty manifest)
+    let finalImageManifest = deck.imageManifest || {};
 
-    const preservedImageManifest = (newManifestIsEmpty && existingManifestHasData)
-      ? existingDeck.imageManifest
-      : deck.imageManifest;
+    if (!forceReplaceManifest) {
+      const newManifestIsEmpty = Object.keys(finalImageManifest).length === 0;
+      const existingManifestHasData = existingDeck?.imageManifest && Object.keys(existingDeck.imageManifest).length > 0;
+
+      if (newManifestIsEmpty && existingManifestHasData) {
+        finalImageManifest = existingDeck.imageManifest;
+      }
+    }
 
     // Clamp currentSlide if it's now out of bounds (e.g., slides were deleted)
     const newCurrentSlide = Math.min(presentation.currentSlide, Math.max(0, maxSlideIndex));
@@ -84,7 +88,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({
       parsedDeck: {
         ...deck,
-        imageManifest: preservedImageManifest,
+        imageManifest: finalImageManifest,
       },
       presentation: {
         ...presentation,
@@ -230,6 +234,43 @@ export const useStore = create<AppState>((set, get) => ({
       localStorage.setItem('vibe-slides-image-style', style);
     }
     set({ imageStyle: style });
+  },
+
+  // Update a single manifest entry - uses get() to avoid stale closure issues
+  // This is critical for sweep generation where many images are saved in sequence
+  updateManifestEntry: (description, entry) => {
+    const { parsedDeck } = get();
+    if (!parsedDeck) return;
+
+    set({
+      parsedDeck: {
+        ...parsedDeck,
+        imageManifest: {
+          ...parsedDeck.imageManifest,
+          [description]: entry,
+        },
+      },
+    });
+  },
+
+  // Batch update multiple manifest entries in a SINGLE set() call
+  // Critical for batch saves - avoids race conditions between multiple set() calls
+  batchUpdateManifestEntries: (entries) => {
+    const { parsedDeck } = get();
+    if (!parsedDeck) return;
+
+    // Merge all entries into the manifest in one operation
+    const updatedManifest = { ...parsedDeck.imageManifest };
+    Object.entries(entries).forEach(([description, entry]) => {
+      updatedManifest[description] = entry;
+    });
+
+    set({
+      parsedDeck: {
+        ...parsedDeck,
+        imageManifest: updatedManifest,
+      },
+    });
   },
 
   // Slide HTML cache actions

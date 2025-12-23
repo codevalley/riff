@@ -140,7 +140,7 @@ export interface SlideAlignment {
   vertical: VerticalAlign;
 }
 
-// Image position for split layouts (1 image per deck)
+// Image position for split layouts (1 image per slide)
 // left/right = portrait split, top/bottom = landscape split
 export type ImagePosition = 'left' | 'right' | 'top' | 'bottom';
 
@@ -385,7 +385,7 @@ export interface AppState {
   // Actions
   setDecks: (decks: Deck[]) => void;
   setCurrentDeck: (id: string, content: string) => void;
-  setParsedDeck: (deck: ParsedDeck | null) => void;
+  setParsedDeck: (deck: ParsedDeck | null, forceReplaceManifest?: boolean) => void;
   updateDeckContent: (content: string) => void;
 
   nextSlide: () => void;
@@ -401,6 +401,11 @@ export interface AppState {
   cacheImage: (description: string, url: string) => void;
   setGeneratingImage: (description: string, generating: boolean) => void;
   setImageStyle: (style: ImageStyleId) => void;
+
+  // Image manifest update (uses get() to avoid stale closure issues)
+  updateManifestEntry: (description: string, entry: ImageManifestEntry) => void;
+  // Batch update multiple manifest entries in a single set() call
+  batchUpdateManifestEntries: (entries: Record<string, ImageManifestEntry>) => void;
 
   // Slide HTML cache actions
   cacheSlideHtml: (key: string, html: string) => void;

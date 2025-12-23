@@ -67,6 +67,7 @@ function EditorContent() {
     updateDeckContent,
     parsedDeck,
     setParsedDeck,
+    updateManifestEntry,
     isEditorOpen,
     toggleEditor,
     isLoading,
@@ -161,14 +162,9 @@ function EditorContent() {
       setCurrentDeck(data.deck.id, data.content);
       const parsed = parseSlideMarkdown(data.content);
 
-      // Merge images from v3 metadata into parsed deck
-      // Metadata images take precedence over any embedded frontmatter
-      if (data.metadata?.images) {
-        parsed.imageManifest = {
-          ...parsed.imageManifest,
-          ...data.metadata.images,
-        };
-      }
+      // Always set imageManifest from metadata, defaulting to empty
+      // This ensures we don't accidentally keep old deck's images
+      parsed.imageManifest = data.metadata?.images || {};
 
       // Extract scene context from metadata for AI-generated images
       if (data.metadata?.imageContext) {
@@ -177,7 +173,8 @@ function EditorContent() {
         setSceneContext(undefined);
       }
 
-      setParsedDeck(parsed);
+      // Force replace manifest when loading a deck to prevent stale data from previous deck
+      setParsedDeck(parsed, true);
 
       // Set publish status from API response
       if (data.publishStatus) {
@@ -549,6 +546,7 @@ function EditorContent() {
   }, [loadDeck, setDecks, setError]);
 
   // Handle image change from ImagePlaceholder - update metadata JSON (v3)
+  // Uses updateManifestEntry to avoid stale closure issues during sweep generation
   const handleImageChange = useCallback(async (description: string, slot: ImageSlot, url: string) => {
     if (!currentDeckId) return;
 
@@ -571,22 +569,14 @@ function EditorContent() {
 
       const data = await response.json();
 
-      // Update the parsedDeck's imageManifest in-place
-      if (parsedDeck) {
-        const updatedManifest = {
-          ...parsedDeck.imageManifest,
-          [description]: data.image,
-        };
-        setParsedDeck({
-          ...parsedDeck,
-          imageManifest: updatedManifest,
-        });
-      }
+      // Update the parsedDeck's imageManifest using zustand action
+      // This uses get() internally to avoid stale closure issues during sweep
+      updateManifestEntry(description, data.image);
     } catch (err) {
       console.error('Failed to update image:', err);
       setError('Failed to save image');
     }
-  }, [currentDeckId, parsedDeck, setParsedDeck, setError]);
+  }, [currentDeckId, updateManifestEntry, setError]);
 
   // Handle active slot change - update metadata JSON (v3)
   const handleActiveSlotChange = useCallback(async (description: string, slot: ImageSlot) => {
@@ -609,22 +599,13 @@ function EditorContent() {
 
       const data = await response.json();
 
-      // Update the parsedDeck's imageManifest in-place
-      if (parsedDeck) {
-        const updatedManifest = {
-          ...parsedDeck.imageManifest,
-          [description]: data.image,
-        };
-        setParsedDeck({
-          ...parsedDeck,
-          imageManifest: updatedManifest,
-        });
-      }
+      // Update the parsedDeck's imageManifest using zustand action
+      updateManifestEntry(description, data.image);
     } catch (err) {
       console.error('Failed to update active slot:', err);
       setError('Failed to save image preference');
     }
-  }, [currentDeckId, parsedDeck, setParsedDeck, setError]);
+  }, [currentDeckId, updateManifestEntry, setError]);
 
   // Handle scene context change - persist to metadata via theme endpoint
   const handleSceneContextChange = useCallback(async (context: string) => {
