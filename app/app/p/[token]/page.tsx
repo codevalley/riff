@@ -9,7 +9,6 @@ import { prisma } from '@/lib/prisma';
 import { parseSlideMarkdown } from '@/lib/parser';
 import { PresenterClient } from '@/app/present/[id]/client';
 import { RiffBadge } from '@/components/RiffBadge';
-import { ImageUrlHydrator } from '@/components/ImageUrlHydrator';
 import { ViewTracker } from '@/components/ViewTracker';
 
 // Disable caching - always fetch fresh published content
@@ -93,24 +92,26 @@ export default async function SharedPresentationPage({ params, searchParams }: P
   // Parse the published content
   const parsedDeck = parseSlideMarkdown(deck.publishedContent);
 
-  // Parse theme if available
+  // Parse theme and images from published metadata (v3 format)
   let themeCSS: string | undefined;
-  let imageUrls: Record<string, string> = {};
 
   if (deck.publishedTheme) {
     try {
-      const theme = JSON.parse(deck.publishedTheme);
-      themeCSS = theme.css;
-      imageUrls = theme.imageUrls || {};
+      const metadata = JSON.parse(deck.publishedTheme);
+      // v3: theme is nested under metadata.theme
+      themeCSS = metadata.theme?.css;
+      // v3: merge images into parsed deck (same as present mode)
+      if (metadata.images) {
+        parsedDeck.imageManifest = metadata.images;
+      }
     } catch {
-      // Invalid theme JSON, ignore
+      // Invalid metadata JSON, ignore
     }
   }
 
   return (
     <>
       <ViewTracker token={token} />
-      <ImageUrlHydrator imageUrls={imageUrls} />
       <PresenterClient
         deck={parsedDeck}
         deckId={deck.id}
