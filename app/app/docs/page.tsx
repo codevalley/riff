@@ -332,11 +332,34 @@ export default function DocsPage() {
                 </p>
               </motion.div>
 
-              {/* Philosophy callout */}
+              {/* Video Demo */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
+                className="mb-10"
+              >
+                <div className="flex items-center gap-2 mb-4">
+                  <Play className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-sm font-medium text-white/60 uppercase tracking-wider">Watch Demo</h3>
+                </div>
+                <div className="rounded-xl overflow-hidden border border-white/[0.08] bg-black/30">
+                  <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+                    <iframe
+                      src="https://www.loom.com/embed/46fdab1604f24901ac1e99b78ba2de6a"
+                      frameBorder="0"
+                      allowFullScreen
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Philosophy callout */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
                 className="mb-16"
               >
                 <Link

@@ -27,6 +27,7 @@ import {
   Circle,
 } from 'lucide-react';
 import { IMAGE_STYLE_PRESETS, ImageStyleId } from '@/lib/types';
+import { CREDIT_COSTS } from '@/lib/credits-config';
 import { DancingPixels } from './DancingPixels';
 import { useCreditsContext } from '@/hooks/useCredits';
 
@@ -94,7 +95,9 @@ export function SweepGenerateDialog({
   const [generationResults, setGenerationResults] = useState<{
     success: number;
     failed: number;
+    skipped: number;
     total: number;
+    stoppedDueToCredits: boolean;
   } | null>(null);
 
   // Refs
@@ -171,7 +174,7 @@ export function SweepGenerateDialog({
     const pending = imageItems.filter(i => !i.hasExistingImage && i.status !== 'completed');
     const existing = imageItems.filter(i => i.hasExistingImage || i.status === 'completed');
     const selected = imageItems.filter(i => i.selected).length;
-    const cost = selected;
+    const cost = selected * CREDIT_COSTS.IMAGE_GENERATION; // 5 credits per image
     return {
       pendingImages: pending,
       existingImages: existing,
@@ -251,6 +254,7 @@ export function SweepGenerateDialog({
 
     let successCount = 0;
     let failCount = 0;
+    let stoppedDueToCredits = false;
 
     // Collect successful images for batch save at the end
     const successfulImages: Array<{ description: string; url: string }> = [];
@@ -293,19 +297,55 @@ export function SweepGenerateDialog({
           ));
         } else {
           failCount++;
+          const errorMsg = result.error || 'Generation failed';
+
+          // Check if this is a credits error - stop immediately
+          const isCreditsError = errorMsg.toLowerCase().includes('credit') ||
+                                 errorMsg.toLowerCase().includes('insufficient');
+
           setImageItems(prev => prev.map(i =>
             i.id === item.id
-              ? { ...i, status: 'failed', error: result.error || 'Generation failed' }
+              ? { ...i, status: 'failed', error: errorMsg }
               : i
           ));
+
+          if (isCreditsError) {
+            stoppedDueToCredits = true;
+            // Mark remaining items as skipped (not failed)
+            setImageItems(prev => prev.map(i => {
+              if (i.status === 'pending') {
+                return { ...i, status: 'failed', error: 'Skipped: insufficient credits' };
+              }
+              return i;
+            }));
+            break; // Stop the loop
+          }
         }
       } catch (err) {
         failCount++;
+        const errorMsg = String(err);
+
+        // Check if this is a credits error
+        const isCreditsError = errorMsg.toLowerCase().includes('credit') ||
+                               errorMsg.toLowerCase().includes('insufficient');
+
         setImageItems(prev => prev.map(i =>
           i.id === item.id
-            ? { ...i, status: 'failed', error: String(err) }
+            ? { ...i, status: 'failed', error: errorMsg }
             : i
         ));
+
+        if (isCreditsError) {
+          stoppedDueToCredits = true;
+          // Mark remaining items as skipped
+          setImageItems(prev => prev.map(i => {
+            if (i.status === 'pending') {
+              return { ...i, status: 'failed', error: 'Skipped: insufficient credits' };
+            }
+            return i;
+          }));
+          break;
+        }
       }
     }
 
@@ -319,11 +359,18 @@ export function SweepGenerateDialog({
       }
     }
 
+    // Calculate skipped count (items that were pending when we stopped)
+    const skippedCount = stoppedDueToCredits
+      ? itemsToGenerate.length - successCount - failCount
+      : 0;
+
     setIsGenerating(false);
     setGenerationResults({
       success: successCount,
       failed: failCount,
+      skipped: skippedCount,
       total: itemsToGenerate.length,
+      stoppedDueToCredits,
     });
     setShowSuccess(true);
 
@@ -435,7 +482,7 @@ export function SweepGenerateDialog({
 
               {/* Main content */}
               <div className="flex-1 flex flex-col items-center justify-center px-8 py-10 relative">
-                {/* Success icon with ring animation */}
+                {/* Success/Warning icon with ring animation */}
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
@@ -447,15 +494,25 @@ export function SweepGenerateDialog({
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1.5, opacity: 0 }}
                     transition={{ delay: 0.2, duration: 0.8, ease: 'easeOut' }}
-                    className="absolute inset-0 w-20 h-20 rounded-2xl border-2 border-emerald-500"
+                    className={`absolute inset-0 w-20 h-20 rounded-2xl border-2 ${
+                      generationResults.stoppedDueToCredits ? 'border-amber-500' : 'border-emerald-500'
+                    }`}
                   />
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/30 to-emerald-600/20 border border-emerald-500/50 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                  <div className={`w-20 h-20 rounded-2xl flex items-center justify-center shadow-lg ${
+                    generationResults.stoppedDueToCredits
+                      ? 'bg-gradient-to-br from-amber-500/30 to-amber-600/20 border border-amber-500/50 shadow-amber-500/20'
+                      : 'bg-gradient-to-br from-emerald-500/30 to-emerald-600/20 border border-emerald-500/50 shadow-emerald-500/20'
+                  }`}>
                     <motion.div
                       initial={{ scale: 0, rotate: -45 }}
                       animate={{ scale: 1, rotate: 0 }}
                       transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
                     >
-                      <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+                      {generationResults.stoppedDueToCredits ? (
+                        <AlertCircle className="w-10 h-10 text-amber-400" />
+                      ) : (
+                        <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+                      )}
                     </motion.div>
                   </div>
                 </motion.div>
@@ -466,22 +523,41 @@ export function SweepGenerateDialog({
                   transition={{ delay: 0.15 }}
                   className="text-2xl font-semibold text-white mb-2 tracking-tight"
                 >
-                  {generationResults.success === generationResults.total
-                    ? 'All images created!'
-                    : 'Generation complete'}
+                  {generationResults.stoppedDueToCredits
+                    ? 'Ran out of credits'
+                    : generationResults.success === generationResults.total
+                      ? 'All images created!'
+                      : 'Generation complete'}
                 </motion.h3>
 
                 <motion.p
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.2 }}
-                  className="text-sm text-white/50 mb-8 text-center"
+                  className="text-sm text-white/50 mb-4 text-center"
                 >
                   {generationResults.success} of {generationResults.total} images generated successfully
-                  {generationResults.failed > 0 && (
+                  {generationResults.skipped > 0 && (
+                    <span className="text-amber-400/80"> • {generationResults.skipped} skipped</span>
+                  )}
+                  {generationResults.failed > 0 && !generationResults.stoppedDueToCredits && (
                     <span className="text-red-400/80"> • {generationResults.failed} failed</span>
                   )}
                 </motion.p>
+
+                {/* Credits warning message */}
+                {generationResults.stoppedDueToCredits && (
+                  <motion.button
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.25 }}
+                    onClick={() => setShowLedgerModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 mb-4 bg-amber-500/10 border border-amber-500/30 rounded-lg text-sm text-amber-300 hover:bg-amber-500/20 transition-colors"
+                  >
+                    <Zap className="w-4 h-4" />
+                    <span>Add credits to generate remaining images</span>
+                  </motion.button>
+                )}
 
                 {/* Generated images showcase - adaptive layout */}
                 {generationResults.success > 0 && (
