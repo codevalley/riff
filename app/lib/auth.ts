@@ -9,6 +9,7 @@ import GoogleProvider from 'next-auth/providers/google';
 import GitHubProvider from 'next-auth/providers/github';
 import { prisma } from './prisma';
 import { initializeUserCredits } from './credits';
+import { sendWelcomeEmail } from './email';
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as NextAuthOptions['adapter'],
@@ -81,6 +82,11 @@ export const authOptions: NextAuthOptions = {
           // Don't fail user creation if credits init fails - can be lazily initialized later
           console.error('Failed to initialize credits for new user:', error);
         }
+
+        // Send welcome email (fire and forget - don't block on this)
+        sendWelcomeEmail(user.id).catch((err) => {
+          console.error('Failed to send welcome email:', err);
+        });
       }
     },
   },

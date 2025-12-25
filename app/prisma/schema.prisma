@@ -77,6 +77,9 @@ model User {
   credits      UserCredits?
   transactions CreditTransaction[]
 
+  // Email tracking
+  emailLogs EmailLog[]
+
   // Onboarding state (tracks completed tutorials, skipped status)
   onboardingState Json?
 
@@ -212,4 +215,24 @@ model CreditTransaction {
   @@index([userId])
   @@index([createdAt])
   @@index([type])
+}
+
+// ============================================
+// Email Log (tracks sent emails to prevent duplicates)
+// ============================================
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  emailType String   // "welcome", "firstDeck", "firstPublish", "creditPurchase", "tip"
+  sentAt    DateTime @default(now())
+
+  // Optional metadata (e.g., deckId for firstDeck email)
+  metadata  Json?
+
+  @@unique([userId, emailType]) // Prevents duplicate emails of same type
+  @@index([userId])
+  @@index([emailType])
 }

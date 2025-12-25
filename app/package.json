@@ -34,6 +34,7 @@
     "ai": "^5.0.108",
     "clsx": "^2.1.1",
     "dodopayments": "^2.8.2",
+    "dotenv": "^17.2.3",
     "framer-motion": "^11.11.0",
     "js-yaml": "^4.1.1",
     "lucide-react": "^0.561.0",
@@ -44,6 +45,7 @@
     "prisma": "^5.22.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "resend": "^6.6.0",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.0"
   },
