@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyWebhookSignature, parseWebhookPayload } from '@/lib/dodo';
 import { addCredits } from '@/lib/credits';
 import { prisma } from '@/lib/prisma';
+import { sendCreditPurchaseEmail, sendTipEmail } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,6 +57,11 @@ export async function POST(request: NextRequest) {
               },
             });
             console.log('Tip logged for user:', userId);
+
+            // Send thank you email (fire-and-forget, first-time only)
+            sendTipEmail(userId).catch((err) => {
+              console.error('Failed to send tip email:', err);
+            });
           } catch (err) {
             console.error('Failed to log tip:', err);
           }
@@ -111,6 +117,11 @@ export async function POST(request: NextRequest) {
         creditAmount,
         newBalance: result.newBalance,
         transactionId: result.transactionId,
+      });
+
+      // Send thank you email (fire-and-forget, first-time only)
+      sendCreditPurchaseEmail(userId).catch((err) => {
+        console.error('Failed to send credit purchase email:', err);
       });
 
       return NextResponse.json({

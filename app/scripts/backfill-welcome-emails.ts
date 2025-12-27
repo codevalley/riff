@@ -38,8 +38,14 @@ function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function capitalizeName(name: string): string {
+  if (!name) return 'there';
+  const firstName = name.split(' ')[0];
+  return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+}
+
 function getWelcomeEmailContent(userName?: string): { subject: string; html: string } {
-  const name = userName?.split(' ')[0] || 'there';
+  const name = capitalizeName(userName || '');
 
   return {
     subject: 'Welcome to Riff',

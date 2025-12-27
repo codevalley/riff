@@ -88,6 +88,16 @@ async function logEmailSent(userId: string, emailType: EmailType, metadata?: obj
 }
 
 /**
+ * Properly capitalize a name: "john" or "JOHN" → "John"
+ */
+function capitalizeName(name: string): string {
+  if (!name) return 'there';
+  // Take first name only, then capitalize properly
+  const firstName = name.split(' ')[0];
+  return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+}
+
+/**
  * Strip HTML tags for plain text fallback
  */
 function stripHtml(html: string): string {
@@ -197,34 +207,46 @@ export async function sendFirstPublishEmail(userId: string, shareUrl?: string): 
 }
 
 /**
- * Send credit purchase thank you email (checks for duplicates)
+ * Send credit purchase thank you email (checks for duplicates AND purchase history)
  */
-export async function sendCreditPurchaseEmail(userId: string, credits: number): Promise<{ success: boolean; skipped?: boolean; error?: string }> {
+export async function sendCreditPurchaseEmail(userId: string): Promise<{ success: boolean; skipped?: boolean; error?: string }> {
   if (await wasEmailSent(userId, 'creditPurchase')) {
     return { success: true, skipped: true };
   }
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true, name: true },
+    select: {
+      email: true,
+      name: true,
+      transactions: {
+        where: { type: 'purchase' },
+        take: 1,
+      },
+    },
   });
 
   if (!user?.email) {
     return { success: false, error: 'User not found or no email' };
   }
 
-  const { subject, html } = getCreditPurchaseEmailContent(user.name || undefined, credits);
+  // Only send if user has actually made a purchase
+  if (user.transactions.length === 0) {
+    return { success: false, error: 'User has not made any purchases' };
+  }
+
+  const { subject, html } = getCreditPurchaseEmailContent(user.name || undefined);
   const result = await sendEmailRaw({ to: user.email, subject, html });
 
   if (result.success) {
-    await logEmailSent(userId, 'creditPurchase', { credits });
+    await logEmailSent(userId, 'creditPurchase');
   }
 
   return result;
 }
 
 /**
- * Send tip/coffee thank you email (checks for duplicates)
+ * Send tip/coffee thank you email (checks for duplicates AND tip history)
  */
 export async function sendTipEmail(userId: string): Promise<{ success: boolean; skipped?: boolean; error?: string }> {
   if (await wasEmailSent(userId, 'tip')) {
@@ -233,11 +255,23 @@ export async function sendTipEmail(userId: string): Promise<{ success: boolean; 
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true, name: true },
+    select: {
+      email: true,
+      name: true,
+      transactions: {
+        where: { type: 'donation' },
+        take: 1,
+      },
+    },
   });
 
   if (!user?.email) {
     return { success: false, error: 'User not found or no email' };
+  }
+
+  // Only send if user has actually tipped
+  if (user.transactions.length === 0) {
+    return { success: false, error: 'User has not made any tips' };
   }
 
   const { subject, html } = getTipEmailContent(user.name || undefined);
@@ -256,7 +290,7 @@ export async function sendTipEmail(userId: string): Promise<{ success: boolean; 
 // ============================================
 
 function getWelcomeEmailContent(userName?: string): { subject: string; html: string } {
-  const name = userName?.split(' ')[0] || 'there';
+  const name = capitalizeName(userName || '');
 
   return {
     subject: 'Welcome to Riff',
@@ -286,7 +320,7 @@ function getWelcomeEmailContent(userName?: string): { subject: string; html: str
 }
 
 function getFirstDeckEmailContent(userName?: string, deckName?: string): { subject: string; html: string } {
-  const name = userName?.split(' ')[0] || 'there';
+  const name = capitalizeName(userName || '');
 
   return {
     subject: 'Your first deck is ready',
@@ -314,7 +348,7 @@ function getFirstDeckEmailContent(userName?: string, deckName?: string): { subje
 }
 
 function getFirstPublishEmailContent(userName?: string, shareUrl?: string): { subject: string; html: string } {
-  const name = userName?.split(' ')[0] || 'there';
+  const name = capitalizeName(userName || '');
 
   return {
     subject: 'Your deck is live',
@@ -343,8 +377,8 @@ You can unpublish anytime if you change your mind
   };
 }
 
-function getCreditPurchaseEmailContent(userName?: string, credits?: number): { subject: string; html: string } {
-  const name = userName?.split(' ')[0] || 'there';
+function getCreditPurchaseEmailContent(userName?: string): { subject: string; html: string } {
+  const name = capitalizeName(userName || '');
 
   return {
     subject: 'Thanks for the support',
@@ -352,11 +386,15 @@ function getCreditPurchaseEmailContent(userName?: string, credits?: number): { s
 <div style="color: #222; line-height: 1.6;">
 <p>Hey ${name},</p>
 
-<p>Just wanted to say thanks for buying credits. It means a lot.</p>
+<p>Thanks for buying credits.</p>
 
-<p>Riff doesn't have investors or a growth team — it's just me trying to build something useful. Every purchase helps keep this going and motivates me to make it better.</p>
+<p>I want to keep Riff as close to free as possible — credits only exist because AI and servers cost real money. I'd rather you buy small amounts as you need them than load up a big balance.</p>
 
-<p>Your ${credits ?? ''} credits are ready to use. If you ever run into issues or have ideas for improvements, just reply here.</p>
+<p>You'll never see "credits running low!" warnings or any anxiety-inducing nudges from me. We stand by our core <a href="https://riff.im/philosophy">philosophy</a>.</p>
+
+<p>If you ever think I can bring the price down further, I'm curious to hear how — just reply here.</p>
+
+<p>And check out the <a href="https://riff.im/docs">docs</a> to make the most of Riff's capabilities.</p>
 
 <p>Cheers,<br/>
 //Nyn</p>
@@ -366,7 +404,7 @@ function getCreditPurchaseEmailContent(userName?: string, credits?: number): { s
 }
 
 function getTipEmailContent(userName?: string): { subject: string; html: string } {
-  const name = userName?.split(' ')[0] || 'there';
+  const name = capitalizeName(userName || '');
 
   return {
     subject: 'Thank you',
@@ -374,14 +412,17 @@ function getTipEmailContent(userName?: string): { subject: string; html: string 
 <div style="color: #222; line-height: 1.6;">
 <p>Hey ${name},</p>
 
-<p>I just saw your tip come through. Honestly, this made my day.</p>
+<p>I just saw your tip come through.</p>
 
-<p>Building Riff has been a labor of love, and knowing someone values it enough to send a tip is incredibly motivating. Thank you for being part of this.</p>
+<p>Honestly, the gesture means more than the money itself. Someone appreciating my work with no expectation of anything in return — that's the highest form of praise I can receive.</p>
 
-<p>If there's ever anything I can help with, just reply to this email.</p>
+<p>It motivates me to keep putting time into Riff and making it better.</p>
 
-<p>With gratitude,<br/>
-//Nyn</p>
+<p>Thank you for this.</p>
+
+<p>//Nyn</p>
+
+<p>PS: You might enjoy reading the <a href="https://riff.im/philosophy">philosophy</a> behind how Riff is built, or explore the <a href="https://riff.im/docs">docs</a> for tips on getting more from the platform.</p>
 </div>
     `.trim(),
   };
