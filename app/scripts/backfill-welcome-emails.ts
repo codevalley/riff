@@ -51,24 +51,16 @@ function getWelcomeEmailContent(userName?: string): { subject: string; html: str
     subject: 'Welcome to Riff',
     html: `
 <div style="color: #222; line-height: 1.6;">
-<p>Hey ${name},</p>
-
-<p>Thanks for signing up to Riff.</p>
-
-<p>I spend a lot of time making pitches and presentations. The process was always painful — once I had my script, it still took 3-7 days to turn it into something visually engaging. So I built Riff to fix that. What started as scratching my own itch has grown into something I think others will find useful too.</p>
-
-<p>Here are some resources to get started:</p>
-
-<p>
-<a href="https://riff.im/demo">Onboarding Video</a> — A short walkthrough covering the basics<br/>
-<a href="https://riff.im/docs">Documentation</a> — Understand the markdown syntax and get more from the platform<br/>
-<a href="https://riff.im/philosophy">Philosophy</a> — Why Riff exists and how it's built differently
-</p>
-
-<p>I'm excited to hear what's working and what can be improved. Feel free to write back.</p>
-
-<p>Cheers,<br/>
-//Nyn</p>
+Hey ${name},<br><br>
+Thanks for signing up to Riff.<br><br>
+I spend a lot of time making pitches and presentations. The process was always painful — once I had my script, it still took 3-7 days to turn it into something visually engaging. So I built Riff to fix that. What started as scratching my own itch has grown into something I think others will find useful too.<br><br>
+Here are some resources to get started:<br><br>
+<a href="https://riff.im/demo">Onboarding Video</a> — A short walkthrough covering the basics<br>
+<a href="https://riff.im/docs">Documentation</a> — Understand the markdown syntax and get more from the platform<br>
+<a href="https://riff.im/philosophy">Philosophy</a> — Why Riff exists and how it's built differently<br><br>
+I'm excited to hear what's working and what can be improved. Feel free to write back.<br><br>
+Cheers,<br>
+//Nyn
 </div>
     `.trim(),
   };

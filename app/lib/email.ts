@@ -296,24 +296,16 @@ function getWelcomeEmailContent(userName?: string): { subject: string; html: str
     subject: 'Welcome to Riff',
     html: `
 <div style="color: #222; line-height: 1.6;">
-<p>Hey ${name},</p>
-
-<p>Thanks for signing up to Riff.</p>
-
-<p>I spend a lot of time making pitches and presentations. The process was always painful — once I had my script, it still took 3-7 days to turn it into something visually engaging. So I built Riff to fix that. What started as scratching my own itch has grown into something I think others will find useful too.</p>
-
-<p>Here are some resources to get started:</p>
-
-<p>
-<a href="https://riff.im/demo">Onboarding Video</a> — A short walkthrough covering the basics<br/>
-<a href="https://riff.im/docs">Documentation</a> — Understand the markdown syntax and get more from the platform<br/>
-<a href="https://riff.im/philosophy">Philosophy</a> — Why Riff exists and how it's built differently
-</p>
-
-<p>I'm excited to hear what's working and what can be improved. Feel free to write back.</p>
-
-<p>Cheers,<br/>
-//Nyn</p>
+Hey ${name},<br><br>
+Thanks for signing up to Riff.<br><br>
+I spend a lot of time making pitches and presentations. The process was always painful — once I had my script, it still took 3-7 days to turn it into something visually engaging. So I built Riff to fix that. What started as scratching my own itch has grown into something I think others will find useful too.<br><br>
+Here are some resources to get started:<br><br>
+<a href="https://riff.im/demo">Onboarding Video</a> — A short walkthrough covering the basics<br>
+<a href="https://riff.im/docs">Documentation</a> — Understand the markdown syntax and get more from the platform<br>
+<a href="https://riff.im/philosophy">Philosophy</a> — Why Riff exists and how it's built differently<br><br>
+I'm excited to hear what's working and what can be improved. Feel free to write back.<br><br>
+Cheers,<br>
+//Nyn
 </div>
     `.trim(),
   };
@@ -326,22 +318,15 @@ function getFirstDeckEmailContent(userName?: string, deckName?: string): { subje
     subject: 'Your first deck is ready',
     html: `
 <div style="color: #222; line-height: 1.6;">
-<p>Hey ${name},</p>
-
-<p>Nice — you just created your first deck${deckName ? `: "${deckName}"` : ''}!</p>
-
-<p>A few things you might want to try:</p>
-
-<p>
-<b>Generate a theme</b> — Click the palette icon and describe the vibe you want<br/>
-<b>Add images</b> — Use the wand icon on any slide to generate visuals<br/>
-<b>Present or publish</b> — Share with a link or present directly from Riff
-</p>
-
-<p>If anything feels confusing or broken, just reply to this email. I read everything.</p>
-
-<p>Cheers,<br/>
-//Nyn</p>
+Hey ${name},<br><br>
+Nice — you just created your first deck${deckName ? `: "${deckName}"` : ''}!<br><br>
+A few things you might want to try:<br><br>
+<b>Generate a theme</b> — Click the palette icon and describe the vibe you want<br>
+<b>Add images</b> — Use the wand icon on any slide to generate visuals<br>
+<b>Present or publish</b> — Share with a link or present directly from Riff<br><br>
+If anything feels confusing or broken, just reply to this email. I read everything.<br><br>
+Cheers,<br>
+//Nyn
 </div>
     `.trim(),
   };
@@ -354,24 +339,16 @@ function getFirstPublishEmailContent(userName?: string, shareUrl?: string): { su
     subject: 'Your deck is live',
     html: `
 <div style="color: #222; line-height: 1.6;">
-<p>Hey ${name},</p>
-
-<p>Congrats — you just published your first deck! It's now live and anyone with the link can view it.</p>
-
-${shareUrl ? `<p><a href="${shareUrl}">View your published deck →</a></p>` : ''}
-
-<p>A few things to know:</p>
-
-<p>
-You can update and re-publish anytime — the link stays the same<br/>
-View count is tracked on your dashboard<br/>
-You can unpublish anytime if you change your mind
-</p>
-
-<p>Would love to see what you've created. Feel free to share the link!</p>
-
-<p>Cheers,<br/>
-//Nyn</p>
+Hey ${name},<br><br>
+Congrats — you just published your first deck! It's now live and anyone with the link can view it.<br><br>
+${shareUrl ? `<a href="${shareUrl}">View your published deck →</a><br><br>` : ''}
+A few things to know:<br><br>
+You can update and re-publish anytime — the link stays the same<br>
+View count is tracked on your dashboard<br>
+You can unpublish anytime if you change your mind<br><br>
+Would love to see what you've created. Feel free to share the link!<br><br>
+Cheers,<br>
+//Nyn
 </div>
     `.trim(),
   };
@@ -384,20 +361,14 @@ function getCreditPurchaseEmailContent(userName?: string): { subject: string; ht
     subject: 'Thanks for the support',
     html: `
 <div style="color: #222; line-height: 1.6;">
-<p>Hey ${name},</p>
-
-<p>Thanks for buying credits.</p>
-
-<p>I want to keep Riff as close to free as possible — credits only exist because AI and servers cost real money. I'd rather you buy small amounts as you need them than load up a big balance.</p>
-
-<p>You'll never see "credits running low!" warnings or any anxiety-inducing nudges from me. We stand by our core <a href="https://riff.im/philosophy">philosophy</a>.</p>
-
-<p>If you ever think I can bring the price down further, I'm curious to hear how — just reply here.</p>
-
-<p>And check out the <a href="https://riff.im/docs">docs</a> to make the most of Riff's capabilities.</p>
-
-<p>Cheers,<br/>
-//Nyn</p>
+Hey ${name},<br><br>
+Thanks for buying credits.<br><br>
+I want to keep Riff as close to free as possible — credits only exist because AI and servers cost real money. I'd rather you buy small amounts as you need them than load up a big balance.<br><br>
+You'll never see "credits running low!" warnings or any anxiety-inducing nudges from me. We stand by our core <a href="https://riff.im/philosophy">philosophy</a>.<br><br>
+If you ever think I can bring the price down further, I'm curious to hear how — just reply here.<br><br>
+And check out the <a href="https://riff.im/docs">docs</a> to make the most of Riff's capabilities.<br><br>
+Cheers,<br>
+//Nyn
 </div>
     `.trim(),
   };
@@ -410,19 +381,13 @@ function getTipEmailContent(userName?: string): { subject: string; html: string 
     subject: 'Thank you',
     html: `
 <div style="color: #222; line-height: 1.6;">
-<p>Hey ${name},</p>
-
-<p>I just saw your tip come through.</p>
-
-<p>Honestly, the gesture means more than the money itself. Someone appreciating my work with no expectation of anything in return — that's the highest form of praise I can receive.</p>
-
-<p>It motivates me to keep putting time into Riff and making it better.</p>
-
-<p>Thank you for this.</p>
-
-<p>//Nyn</p>
-
-<p>PS: You might enjoy reading the <a href="https://riff.im/philosophy">philosophy</a> behind how Riff is built, or explore the <a href="https://riff.im/docs">docs</a> for tips on getting more from the platform.</p>
+Hey ${name},<br><br>
+I just saw your tip come through.<br><br>
+Honestly, the gesture means more than the money itself. Someone appreciating my work with no expectation of anything in return — that's the highest form of praise I can receive.<br><br>
+It motivates me to keep putting time into Riff and making it better.<br><br>
+Thank you for this.<br><br>
+//Nyn<br><br>
+PS: You might enjoy reading the <a href="https://riff.im/philosophy">philosophy</a> behind how Riff is built, or explore the <a href="https://riff.im/docs">docs</a> for tips on getting more from the platform.
 </div>
     `.trim(),
   };
