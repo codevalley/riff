@@ -343,7 +343,7 @@ export function Landing() {
                 See it in action
               </h2>
               <p className="text-[20px] text-white/50 max-w-md mx-auto" style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
-                This presentation was made with Riff
+                A quick walkthrough of how Riff works
               </p>
             </motion.div>
 
@@ -352,26 +352,18 @@ export function Landing() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
-              className="aspect-video max-w-4xl mx-auto rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50"
+              className="relative max-w-4xl mx-auto rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50"
+              style={{ paddingBottom: '56.16%' }}
             >
               <iframe
-                src={`/embed/${process.env.NEXT_PUBLIC_SHOWCASE_DECK_TOKEN || '8uAo54Y_eFy-'}`}
-                className="w-full h-full bg-[#0a0a0a]"
+                src="https://www.loom.com/embed/46fdab1604f24901ac1e99b78ba2de6a?t=0"
                 frameBorder="0"
                 allowFullScreen
-                title="How Riff Works"
+                allow="fullscreen"
+                className="absolute top-0 left-0 w-full h-full"
+                title="Riff Demo"
               />
             </motion.div>
-
-            <motion.p
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="text-center mt-6 text-sm text-white/30"
-            >
-              Use arrow keys or click to navigate
-            </motion.p>
           </div>
         </section>
 
