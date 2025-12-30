@@ -4,10 +4,11 @@
 // Sends emails to qualifying users who haven't received them
 //
 // Usage:
-//   npx tsx scripts/backfill-emails.ts welcome
-//   npx tsx scripts/backfill-emails.ts credit-purchase
-//   npx tsx scripts/backfill-emails.ts tip
-//   npx tsx scripts/backfill-emails.ts welcome --env=.env.production
+//   npx tsx scripts/emails/backfill.ts welcome
+//   npx tsx scripts/emails/backfill.ts credit-purchase
+//   npx tsx scripts/emails/backfill.ts tip
+//   npx tsx scripts/emails/backfill.ts welcome --env=.env.production
+//   npx tsx scripts/emails/backfill.ts welcome --env=.env.production --dry-run
 // ============================================
 
 import { config } from 'dotenv';
@@ -22,6 +23,12 @@ if (envFile) {
 
 import { PrismaClient } from '@prisma/client';
 import { Resend } from 'resend';
+import {
+  getWelcomeEmailContent,
+  getCreditPurchaseEmailContent,
+  getTipEmailContent,
+  stripHtml,
+} from '../../lib/email';
 
 const prisma = new PrismaClient();
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -32,97 +39,12 @@ const REPLY_TO = process.env.RESEND_REPLY_TO;
 const BCC_EMAIL = process.env.RESEND_BCC_EMAIL;
 
 const DELAY_BETWEEN_EMAILS_MS = 1500;
+const isDryRun = process.argv.includes('--dry-run');
 
 type EmailType = 'welcome' | 'credit-purchase' | 'tip';
 
-// ============================================
-// Helpers
-// ============================================
-
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function capitalizeName(name: string): string {
-  if (!name) return 'there';
-  const firstName = name.split(' ')[0];
-  return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<\/li>/gi, '\n')
-    .replace(/<li[^>]*>/gi, '- ')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&rarr;/g, '→')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-// ============================================
-// Email Templates
-// ============================================
-
-function getWelcomeEmailContent(userName?: string): { subject: string; html: string } {
-  const name = capitalizeName(userName || '');
-  return {
-    subject: 'Welcome to Riff',
-    html: `
-<div style="color: #222; line-height: 1.6;">
-Hey ${name},<br><br>
-Thanks for signing up to Riff.<br><br>
-I spend a lot of time making pitches and presentations. The process was always painful — once I had my script, it still took 3-7 days to turn it into something visually engaging. So I built Riff to fix that. What started as scratching my own itch has grown into something I think others will find useful too.<br><br>
-Here are some resources to get started:<br><br>
-<a href="https://riff.im/demo">Onboarding Video</a> — A short walkthrough covering the basics<br>
-<a href="https://riff.im/docs">Documentation</a> — Understand the markdown syntax and get more from the platform<br>
-<a href="https://riff.im/philosophy">Philosophy</a> — Why Riff exists and how it's built differently<br><br>
-I'm excited to hear what's working and what can be improved. Feel free to write back.<br><br>
-Cheers,<br>
-//Nyn
-</div>
-    `.trim(),
-  };
-}
-
-function getCreditPurchaseEmailContent(userName?: string): { subject: string; html: string } {
-  const name = capitalizeName(userName || '');
-  return {
-    subject: 'Thanks for the support',
-    html: `
-<div style="color: #222; line-height: 1.6;">
-Hey ${name},<br><br>
-Thanks for buying credits.<br><br>
-I want to keep Riff as close to free as possible — credits only exist because AI and servers cost real money. I'd rather you buy small amounts as you need them than load up a big balance.<br><br>
-You'll never see "credits running low!" warnings or any anxiety-inducing nudges from me. We stand by our core <a href="https://riff.im/philosophy">philosophy</a>.<br><br>
-If you ever think I can bring the price down further, I'm curious to hear how — just reply here.<br><br>
-And check out the <a href="https://riff.im/docs">docs</a> to make the most of Riff's capabilities.<br><br>
-Cheers,<br>
-//Nyn
-</div>
-    `.trim(),
-  };
-}
-
-function getTipEmailContent(userName?: string): { subject: string; html: string } {
-  const name = capitalizeName(userName || '');
-  return {
-    subject: 'Thank you',
-    html: `
-<div style="color: #222; line-height: 1.6;">
-Hey ${name},<br><br>
-I just saw your tip come through.<br><br>
-Honestly, the gesture means more than the money itself. Someone appreciating my work with no expectation of anything in return — that's the highest form of praise I can receive.<br><br>
-It motivates me to keep putting time into Riff and making it better.<br><br>
-Thank you for this.<br><br>
-//Nyn<br><br>
-PS: You might enjoy reading the <a href="https://riff.im/philosophy">philosophy</a> behind how Riff is built, or explore the <a href="https://riff.im/docs">docs</a> for tips on getting more from the platform.
-</div>
-    `.trim(),
-  };
 }
 
 function getEmailContent(type: EmailType, userName?: string): { subject: string; html: string } {
@@ -135,10 +57,6 @@ function getEmailContent(type: EmailType, userName?: string): { subject: string;
       return getTipEmailContent(userName);
   }
 }
-
-// ============================================
-// Find Qualifying Users
-// ============================================
 
 async function getQualifyingUsers(emailType: EmailType) {
   const dbEmailType = emailType === 'credit-purchase' ? 'creditPurchase' : emailType;
@@ -181,23 +99,24 @@ async function getQualifyingUsers(emailType: EmailType) {
   }
 }
 
-// ============================================
-// Main
-// ============================================
-
 async function main() {
   const args = process.argv.slice(2).filter(a => !a.startsWith('--'));
   const emailType = args[0] as EmailType;
 
   if (!emailType || !['welcome', 'credit-purchase', 'tip'].includes(emailType)) {
-    console.error('Usage: npx tsx scripts/backfill-emails.ts <type>');
+    console.error('Usage: npx tsx scripts/emails/backfill.ts <type> [--dry-run]');
     console.error('Types: welcome, credit-purchase, tip');
     process.exit(1);
   }
 
-  console.log(`🚀 Starting ${emailType} email backfill...\n`);
+  console.log(`🚀 Starting ${emailType} email backfill...`);
+  if (isDryRun) {
+    console.log('🔍 DRY RUN MODE - No emails will be sent\n');
+  } else {
+    console.log('');
+  }
 
-  if (!process.env.RESEND_API_KEY || !FROM_EMAIL) {
+  if (!isDryRun && (!process.env.RESEND_API_KEY || !FROM_EMAIL)) {
     console.error('❌ RESEND_API_KEY or RESEND_FROM_EMAIL not configured.');
     process.exit(1);
   }
@@ -217,6 +136,12 @@ async function main() {
     console.log(`  ${i + 1}. ${u.email} (${u.name || 'no name'}) - joined ${u.createdAt.toISOString().split('T')[0]}`);
   });
   console.log('');
+
+  if (isDryRun) {
+    console.log('🔍 DRY RUN - Would send to the above users.');
+    console.log('\nTo actually send, run without --dry-run flag.');
+    return;
+  }
 
   let sent = 0;
   let failed = 0;

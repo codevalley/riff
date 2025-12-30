@@ -18,7 +18,7 @@ const REPLY_TO = process.env.RESEND_REPLY_TO;
 const BCC_EMAIL = process.env.RESEND_BCC_EMAIL;
 
 // Email types (must match EmailLog.emailType)
-export type EmailType = 'welcome' | 'firstDeck' | 'firstPublish' | 'creditPurchase' | 'tip';
+export type EmailType = 'welcome' | 'firstDeck' | 'firstPublish' | 'creditPurchase' | 'tip' | 'dormant';
 
 interface SendEmailOptions {
   to: string;
@@ -90,7 +90,7 @@ async function logEmailSent(userId: string, emailType: EmailType, metadata?: obj
 /**
  * Properly capitalize a name: "john" or "JOHN" → "John"
  */
-function capitalizeName(name: string): string {
+export function capitalizeName(name: string): string {
   if (!name) return 'there';
   // Take first name only, then capitalize properly
   const firstName = name.split(' ')[0];
@@ -100,7 +100,7 @@ function capitalizeName(name: string): string {
 /**
  * Strip HTML tags for plain text fallback
  */
-function stripHtml(html: string): string {
+export function stripHtml(html: string): string {
   return html
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n\n')
@@ -284,12 +284,49 @@ export async function sendTipEmail(userId: string): Promise<{ success: boolean; 
   return result;
 }
 
+/**
+ * Send re-engagement email to dormant users (signed up but no decks)
+ */
+export async function sendDormantUserEmail(userId: string): Promise<{ success: boolean; skipped?: boolean; error?: string }> {
+  if (await wasEmailSent(userId, 'dormant')) {
+    return { success: true, skipped: true };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      email: true,
+      name: true,
+      decks: { take: 1 },
+    },
+  });
+
+  if (!user?.email) {
+    return { success: false, error: 'User not found or no email' };
+  }
+
+  // Only send if user has NO decks (truly dormant)
+  if (user.decks.length > 0) {
+    return { success: false, error: 'User has decks - not dormant' };
+  }
+
+  const { subject, html } = getDormantEmailContent(user.name || undefined);
+  const result = await sendEmailRaw({ to: user.email, subject, html });
+
+  if (result.success) {
+    await logEmailSent(userId, 'dormant');
+  }
+
+  return result;
+}
+
 // ============================================
 // Email Templates
 // Human-looking, personal emails
+// Exported for use by scripts
 // ============================================
 
-function getWelcomeEmailContent(userName?: string): { subject: string; html: string } {
+export function getWelcomeEmailContent(userName?: string): { subject: string; html: string } {
   const name = capitalizeName(userName || '');
 
   return {
@@ -311,7 +348,7 @@ Cheers,<br>
   };
 }
 
-function getFirstDeckEmailContent(userName?: string, deckName?: string): { subject: string; html: string } {
+export function getFirstDeckEmailContent(userName?: string, deckName?: string): { subject: string; html: string } {
   const name = capitalizeName(userName || '');
 
   return {
@@ -332,7 +369,7 @@ Cheers,<br>
   };
 }
 
-function getFirstPublishEmailContent(userName?: string, shareUrl?: string): { subject: string; html: string } {
+export function getFirstPublishEmailContent(userName?: string, shareUrl?: string): { subject: string; html: string } {
   const name = capitalizeName(userName || '');
 
   return {
@@ -354,7 +391,7 @@ Cheers,<br>
   };
 }
 
-function getCreditPurchaseEmailContent(userName?: string): { subject: string; html: string } {
+export function getCreditPurchaseEmailContent(userName?: string): { subject: string; html: string } {
   const name = capitalizeName(userName || '');
 
   return {
@@ -374,7 +411,7 @@ Cheers,<br>
   };
 }
 
-function getTipEmailContent(userName?: string): { subject: string; html: string } {
+export function getTipEmailContent(userName?: string): { subject: string; html: string } {
   const name = capitalizeName(userName || '');
 
   return {
@@ -388,6 +425,30 @@ It motivates me to keep putting time into Riff and making it better.<br><br>
 Thank you for this.<br><br>
 //Nyn<br><br>
 PS: You might enjoy reading the <a href="https://riff.im/philosophy">philosophy</a> behind how Riff is built, or explore the <a href="https://riff.im/docs">docs</a> for tips on getting more from the platform.
+</div>
+    `.trim(),
+  };
+}
+
+export function getDormantEmailContent(userName?: string): { subject: string; html: string } {
+  const name = capitalizeName(userName || '');
+
+  return {
+    subject: 'Your first deck is 5 steps away',
+    html: `
+<div style="color: #222; line-height: 1.6;">
+Hey ${name},<br><br>
+Looks like you never created your first <a href="https://riff.im">riff</a> — it takes less than 5 mins:<br><br>
+<b>1.</b> Copy content from anywhere — <a href="https://www.notion.so">Notion</a>, <a href="https://medium.com">Medium</a>, <a href="https://www.wikipedia.org">Wikipedia</a>, <a href="https://confluence.atlassian.com">Confluence</a>, Google Docs, or just your notes<br>
+<b>2.</b> Click "I Have Content" and paste it in — Riff turns it into slides automatically<br>
+<b>3.</b> Use the 🖼️ image button to generate visuals for any slide<br>
+<b>4.</b> Use the 🎨 theme button to set the look and feel<br>
+<b>5.</b> Hit publish — you get a shareable link instantly<br><br>
+Five minutes, and you've got something you can share.<br><br>
+More help: <a href="https://riff.im/demo">walkthrough video</a> or <a href="https://riff.im/docs">docs</a> if you prefer reading.<br><br>
+If you need help getting started, reply here. And if Riff isn't quite what you were looking for, I'd genuinely love to know why.<br><br>
+Cheers,<br>
+//Nyn
 </div>
     `.trim(),
   };
