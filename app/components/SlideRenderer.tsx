@@ -89,9 +89,10 @@ export function SlideRenderer({
     return (
       <div
         className={`
+          slide-container
           relative w-full h-full
           flex flex-col items-center justify-center
-          p-8 md:p-16 lg:p-24
+          p-4 portrait:p-3 md:p-12 lg:p-20
           bg-slide-bg text-slide-text
           overflow-hidden
           ${isPresenting ? 'min-h-screen' : 'min-h-[400px] rounded-lg'}
@@ -158,6 +159,7 @@ export function SlideRenderer({
     return (
       <div
         className={`
+          slide-container
           relative w-full h-full
           bg-slide-bg text-slide-text
           overflow-hidden
@@ -168,17 +170,19 @@ export function SlideRenderer({
 
         <div
           className={`
+            slide-split-layout
             relative z-10 w-full h-full
             flex ${isHorizontalSplit ? 'flex-row' : 'flex-col'}
             ${!imageFirst ? (isHorizontalSplit ? 'flex-row-reverse' : 'flex-col-reverse') : ''}
           `}
         >
-          {/* Image area: 40% for left/right, 60% for top/bottom */}
+          {/* Image area: 40% for left/right, 60% for top/bottom - stacks in portrait */}
           <div
             className={`
+              slide-split-image
               ${isHorizontalSplit ? 'w-[40%] h-full' : 'w-full h-[60%]'}
               flex-shrink-0 flex items-center justify-center
-              p-4 md:p-6 lg:p-8
+              p-4 portrait:p-2 md:p-6 lg:p-8
             `}
           >
             <ImagePlaceholder
@@ -194,12 +198,13 @@ export function SlideRenderer({
             />
           </div>
 
-          {/* Content area: 60% for left/right, 40% for top/bottom */}
+          {/* Content area: 60% for left/right, 40% for top/bottom - grows in portrait */}
           <div
             className={`
+              slide-split-content
               ${isHorizontalSplit ? 'w-[60%] h-full' : 'w-full h-[40%]'}
               flex flex-col ${alignmentClasses}
-              p-8 md:p-12 lg:p-16
+              p-4 portrait:p-3 md:p-8 lg:p-12
             `}
           >
             <div className="w-full max-w-3xl">
@@ -247,9 +252,10 @@ export function SlideRenderer({
   return (
     <div
       className={`
+        slide-container
         relative w-full h-full
         flex flex-col ${alignmentClasses}
-        p-8 md:p-16 lg:p-24
+        p-4 portrait:p-3 md:p-12 lg:p-20
         bg-slide-bg text-slide-text
         overflow-hidden
         ${isPresenting ? 'min-h-screen' : 'min-h-[400px] rounded-lg'}
@@ -351,7 +357,7 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
   const renderContent = () => {
     switch (element.type) {
       case 'title':
-        // Title (#) = 16x base
+        // Title (#) - hardcoded clamp for both modes
         return (
           <h1
             className={`
@@ -361,7 +367,7 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
             style={{
               fontFamily: 'var(--font-title)',
               fontWeight: 'var(--weight-title)',
-              fontSize: isPresenting ? 'clamp(6rem, 16vmin, 12rem)' : 'clamp(3rem, 8vw, 5rem)',
+              fontSize: isPresenting ? 'clamp(3rem, 12vmin, 8rem)' : 'clamp(2rem, 6vw, 4rem)',
             }}
           >
             <FormattedText text={element.content} />
@@ -369,7 +375,7 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
         );
 
       case 'subtitle':
-        // H1 (##) = 8x base
+        // H2 (##) - +10% from original
         return (
           <h2
             className={`
@@ -379,7 +385,7 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
             style={{
               fontFamily: 'var(--font-h1)',
               fontWeight: 'var(--weight-h1)',
-              fontSize: isPresenting ? 'clamp(3rem, 8vmin, 6rem)' : 'clamp(1.75rem, 4vw, 2.5rem)',
+              fontSize: isPresenting ? 'clamp(1.925rem, 6.6vmin, 4.4rem)' : 'clamp(1.65rem, 4.4vw, 2.5rem)',
             }}
           >
             <FormattedText text={element.content} />
@@ -387,7 +393,7 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
         );
 
       case 'text':
-        // H2 (###) = 3x base
+        // H3 (###) - +25% from original
         return (
           <p
             className={`
@@ -397,7 +403,7 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
             style={{
               fontFamily: 'var(--font-h2)',
               fontWeight: 'var(--weight-h2)',
-              fontSize: isPresenting ? 'clamp(2.25rem, 3vmin, 3rem)' : 'clamp(1.5rem, 2.25vw, 1.875rem)',
+              fontSize: isPresenting ? 'clamp(1.25rem, 3vmin, 2.5rem)' : 'clamp(1.4rem, 2.5vw, 1.875rem)',
             }}
           >
             <FormattedText text={element.content} />
@@ -405,7 +411,7 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
         );
 
       case 'body':
-        // Plain text (body) = 1.5x base
+        // Body text - +25% from original
         return (
           <p
             className={`
@@ -415,7 +421,7 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
             style={{
               fontFamily: 'var(--font-body)',
               fontWeight: 'var(--weight-body)',
-              fontSize: isPresenting ? 'clamp(1.5rem, 1.5vmin, 1.875rem)' : 'clamp(1rem, 1.25vw, 1.125rem)',
+              fontSize: isPresenting ? 'clamp(1.1rem, 1.875vmin, 1.5rem)' : 'clamp(1.1rem, 1.5vw, 1.25rem)',
             }}
           >
             <FormattedText text={element.content} />
@@ -481,13 +487,18 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
           const gridItems = element.metadata.gridItems;
           const gridCols = gridItems.length <= 2 ? 2 : gridItems.length <= 3 ? 3 : 4;
 
+          // Responsive grid: single col on small portrait, 2 cols on tablet portrait, full on landscape
           return (
             <div
               className={`
-                grid gap-4 md:gap-6 w-full my-6
-                ${gridCols === 2 ? 'grid-cols-1 sm:grid-cols-2' : ''}
-                ${gridCols === 3 ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3' : ''}
-                ${gridCols === 4 ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-4' : ''}
+                slide-grid
+                ${gridCols === 2 ? 'slide-grid-2' : ''}
+                ${gridCols === 3 ? 'slide-grid-3' : ''}
+                ${gridCols === 4 ? 'slide-grid-4' : ''}
+                grid gap-3 portrait:gap-2 md:gap-4 lg:gap-6 w-full my-4 portrait:my-2
+                ${gridCols === 2 ? 'grid-cols-1 landscape:grid-cols-2' : ''}
+                ${gridCols === 3 ? 'grid-cols-1 landscape:grid-cols-2 lg:grid-cols-3' : ''}
+                ${gridCols === 4 ? 'grid-cols-1 landscape:grid-cols-2 lg:grid-cols-4' : ''}
               `}
             >
               {gridItems.map((item, idx) => (
@@ -521,23 +532,26 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
                 fontSize: isPresenting ? 'clamp(3rem, 4vmin, 4rem)' : 'clamp(1.75rem, 3vw, 2.25rem)',
               };
             case 'h1':
+              // ## in list - +10%
               return {
                 fontFamily: 'var(--font-h1)',
                 fontWeight: 'var(--weight-h1)',
-                fontSize: isPresenting ? 'clamp(2.25rem, 3vmin, 3rem)' : 'clamp(1.5rem, 2.25vw, 1.875rem)',
+                fontSize: isPresenting ? 'clamp(1.925rem, 6.6vmin, 4.4rem)' : 'clamp(1.65rem, 2.5vw, 2.1rem)',
               };
             case 'h2':
+              // ### in list - +25%
               return {
                 fontFamily: 'var(--font-h2)',
                 fontWeight: 'var(--weight-h2)',
-                fontSize: isPresenting ? 'clamp(1.75rem, 2vmin, 2.25rem)' : 'clamp(1.25rem, 1.75vw, 1.5rem)',
+                fontSize: isPresenting ? 'clamp(1.25rem, 3vmin, 2.5rem)' : 'clamp(1.4rem, 2.2vw, 1.875rem)',
               };
             case 'body':
             default:
+              // body in list - +25%
               return {
                 fontFamily: 'var(--font-body)',
                 fontWeight: 'var(--weight-body)',
-                fontSize: isPresenting ? 'clamp(1.5rem, 1.5vmin, 1.875rem)' : 'clamp(1rem, 1.25vw, 1.125rem)',
+                fontSize: isPresenting ? 'clamp(1.1rem, 1.875vmin, 1.5rem)' : 'clamp(1.1rem, 1.5vw, 1.25rem)',
               };
           }
         };
@@ -676,23 +690,26 @@ const SectionElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(
                 fontSize: isPresenting ? 'clamp(3rem, 4vmin, 4rem)' : 'clamp(1.75rem, 3vw, 2.25rem)',
               };
             case 'h1':
+              // ## in list - +10%
               return {
                 fontFamily: 'var(--font-h1)',
                 fontWeight: 'var(--weight-h1)',
-                fontSize: isPresenting ? 'clamp(2.25rem, 3vmin, 3rem)' : 'clamp(1.5rem, 2.25vw, 1.875rem)',
+                fontSize: isPresenting ? 'clamp(1.925rem, 6.6vmin, 4.4rem)' : 'clamp(1.65rem, 2.5vw, 2.1rem)',
               };
             case 'h2':
+              // ### in list - +25%
               return {
                 fontFamily: 'var(--font-h2)',
                 fontWeight: 'var(--weight-h2)',
-                fontSize: isPresenting ? 'clamp(1.75rem, 2vmin, 2.25rem)' : 'clamp(1.25rem, 1.75vw, 1.5rem)',
+                fontSize: isPresenting ? 'clamp(1.25rem, 3vmin, 2.5rem)' : 'clamp(1.4rem, 2.2vw, 1.875rem)',
               };
             case 'body':
             default:
+              // body in list - +25%
               return {
                 fontFamily: 'var(--font-body)',
                 fontWeight: 'var(--weight-body)',
-                fontSize: isPresenting ? 'clamp(1.5rem, 1.5vmin, 1.875rem)' : 'clamp(1rem, 1.25vw, 1.125rem)',
+                fontSize: isPresenting ? 'clamp(1.1rem, 1.875vmin, 1.5rem)' : 'clamp(1.1rem, 1.5vw, 1.25rem)',
               };
           }
         };
@@ -950,28 +967,28 @@ function GridRowRenderer({
         </h3>
       );
     case 'h2':
-      // ## in grid = same as ## Header in main
+      // ## in grid - +10%
       return (
         <h4
           className="text-slide-text leading-normal"
           style={{
             fontFamily: 'var(--font-h1)',
             fontWeight: 'var(--weight-h1)',
-            fontSize: isPresenting ? 'clamp(3rem, 8vmin, 6rem)' : 'clamp(1.75rem, 4vw, 2.5rem)',
+            fontSize: isPresenting ? 'clamp(1.925rem, 6.6vmin, 4.4rem)' : 'clamp(1.65rem, 4.4vw, 2.5rem)',
           }}
         >
           <FormattedText text={row.content} />
         </h4>
       );
     case 'h3':
-      // ### in grid = same as ### text in main
+      // ### in grid - +25%
       return (
         <h5
           className="text-slide-text leading-normal"
           style={{
             fontFamily: 'var(--font-h2)',
             fontWeight: 'var(--weight-h2)',
-            fontSize: isPresenting ? 'clamp(2.25rem, 3vmin, 3rem)' : 'clamp(1.5rem, 2.25vw, 1.875rem)',
+            fontSize: isPresenting ? 'clamp(1.25rem, 3vmin, 2.5rem)' : 'clamp(1.4rem, 2.5vw, 1.875rem)',
           }}
         >
           <FormattedText text={row.content} />
@@ -979,14 +996,14 @@ function GridRowRenderer({
       );
     case 'body':
     default:
-      // Plain text in grid = same as body in main
+      // body in grid - +25%
       return (
         <p
           className="text-slide-text leading-normal"
           style={{
             fontFamily: 'var(--font-body)',
             fontWeight: 'var(--weight-body)',
-            fontSize: isPresenting ? 'clamp(1.5rem, 1.5vmin, 1.875rem)' : 'clamp(1rem, 1.25vw, 1.125rem)',
+            fontSize: isPresenting ? 'clamp(1.1rem, 1.875vmin, 1.5rem)' : 'clamp(1.1rem, 1.5vw, 1.25rem)',
           }}
         >
           <FormattedText text={row.content} />

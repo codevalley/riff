@@ -6,6 +6,25 @@ module.exports = {
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    screens: {
+      // Standard breakpoints
+      'sm': '640px',
+      'md': '768px',
+      'lg': '1024px',
+      'xl': '1280px',
+      '2xl': '1536px',
+      // Mobile-first slide breakpoints (for portrait phones)
+      'slide-sm': { 'raw': '(min-height: 600px) and (orientation: portrait)' },
+      'slide-md': { 'raw': '(min-height: 800px) and (orientation: portrait)' },
+      // Landscape mode (tablets, desktops)
+      'landscape': { 'raw': '(orientation: landscape)' },
+      // Portrait mode (phones, portrait tablets)
+      'portrait': { 'raw': '(orientation: portrait)' },
+      // Specific: small mobile in portrait
+      'mobile-portrait': { 'raw': '(max-width: 480px) and (orientation: portrait)' },
+      // Tablet portrait
+      'tablet-portrait': { 'raw': '(min-width: 481px) and (max-width: 1024px) and (orientation: portrait)' },
+    },
     extend: {
       colors: {
         // Core palette

@@ -441,3 +441,130 @@ body {
 .effect-shake {
   animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
+
+/* ============================================ */
+/* RESPONSIVE SLIDES - Orientation-Aware       */
+/* ============================================ */
+
+/* Slide viewport units - change behavior based on orientation */
+:root {
+  /* Landscape: use height-based scaling (vmin = height, which is smaller) */
+  --slide-unit: 1vmin;
+  --slide-padding: clamp(2rem, 6vmin, 6rem);
+  --slide-content-max: 90vw;
+
+  /* Title scaling: base unit that adapts to orientation */
+  --title-scale: clamp(3rem, 12vmin, 8rem);
+  --subtitle-scale: clamp(1.925rem, 6.6vmin, 4.4rem);  /* +10% */
+  --text-scale: clamp(1.25rem, 3vmin, 2.5rem);         /* +25% */
+  --body-scale: clamp(1.1rem, 1.875vmin, 1.5rem);      /* +25% */
+}
+
+/* Portrait mode: tighter scaling, smaller text */
+@media (orientation: portrait) {
+  :root {
+    /* Portrait: use width-based scaling (vw is smaller) */
+    --slide-unit: 1vw;
+    --slide-padding: clamp(1rem, 4vw, 2rem);
+    --slide-content-max: 95vw;
+
+    /* Reduce title sizes significantly for portrait */
+    --title-scale: clamp(2rem, 8vw, 4rem);
+    --subtitle-scale: clamp(1.375rem, 5.5vw, 2.75rem);  /* +10% */
+    --text-scale: clamp(1.1rem, 3.75vw, 1.875rem);      /* +25% */
+    --body-scale: clamp(0.95rem, 2.5vw, 1.25rem);       /* +25% */
+  }
+}
+
+/* Small mobile portrait: even tighter */
+@media (max-width: 480px) and (orientation: portrait) {
+  :root {
+    --slide-padding: clamp(0.75rem, 3vw, 1.5rem);
+    --title-scale: clamp(1.5rem, 7vw, 2.5rem);
+    --subtitle-scale: clamp(1.1rem, 5vw, 1.925rem);     /* +10% */
+    --text-scale: clamp(0.95rem, 3.125vw, 1.5rem);      /* +25% */
+    --body-scale: clamp(0.8rem, 1.875vw, 1.1rem);       /* +25% */
+  }
+}
+
+/* Split layout reflow - stack vertically in portrait */
+@media (orientation: portrait) {
+  .slide-split-layout {
+    flex-direction: column !important;
+  }
+
+  .slide-split-image,
+  .slide-split-content {
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  .slide-split-image {
+    max-height: 40vh;
+    flex-shrink: 0;
+  }
+
+  .slide-split-content {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+/* Grid layouts - single column on small portrait */
+@media (max-width: 480px) and (orientation: portrait) {
+  .slide-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .slide-grid-2,
+  .slide-grid-3,
+  .slide-grid-4 {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Tablet portrait: 2 columns max */
+@media (min-width: 481px) and (max-width: 768px) and (orientation: portrait) {
+  .slide-grid-3,
+  .slide-grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Presenter controls - adjust for mobile */
+@media (max-width: 640px) {
+  .presenter-controls {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .presenter-controls button {
+    padding: 0.375rem;
+  }
+
+  .presenter-controls .slide-counter {
+    font-size: 0.75rem;
+    padding: 0 0.5rem;
+  }
+}
+
+/* Touch-friendly hit targets on mobile */
+@media (pointer: coarse) {
+  .slide-nav-button {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .presenter-controls button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: max(0px)) {
+  .slide-container {
+    padding-left: max(var(--slide-padding), env(safe-area-inset-left));
+    padding-right: max(var(--slide-padding), env(safe-area-inset-right));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}

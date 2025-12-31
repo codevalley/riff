@@ -195,20 +195,20 @@ export function Presenter({
         />
       </div>
 
-      {/* Controls - always visible */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50">
-        <div className="flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-sm rounded-full">
+      {/* Controls - always visible, responsive for mobile */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-[95vw]">
+        <div className="presenter-controls flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-black/60 backdrop-blur-sm rounded-full">
           <button
             onClick={(e) => {
               e.stopPropagation();
               goPrev();
             }}
-            className="p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
+            className="slide-nav-button p-1.5 sm:p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
-          <span className="text-white/70 text-sm font-mono px-3">
+          <span className="slide-counter text-white/70 text-xs sm:text-sm font-mono px-2 sm:px-3">
             {currentSlide + 1} / {totalSlides}
           </span>
 
@@ -217,40 +217,41 @@ export function Presenter({
               e.stopPropagation();
               goNext();
             }}
-            className="p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
+            className="slide-nav-button p-1.5 sm:p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           {currentSlide > 0 && (
             <>
-              <div className="w-px h-6 bg-white/20 mx-2" />
+              <div className="w-px h-4 sm:h-6 bg-white/20 mx-1 sm:mx-2" />
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   goToSlide(0);
                 }}
-                className="p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
+                className="slide-nav-button p-1.5 sm:p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
                 title="Go to start (Home)"
               >
-                <RotateCcw className="w-5 h-5" />
+                <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </>
           )}
 
-          <div className="w-px h-6 bg-white/20 mx-2" />
+          <div className="w-px h-4 sm:h-6 bg-white/20 mx-1 sm:mx-2" />
 
+          {/* Hide notes button on small screens - space constraint */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               setShowNotes((n) => !n);
             }}
-            className={`p-2 rounded-full transition-colors ${
+            className={`hidden sm:block slide-nav-button p-1.5 sm:p-2 rounded-full transition-colors ${
               showNotes ? 'bg-amber-500/30 text-amber-300' : 'hover:bg-white/10 text-white/70 hover:text-white'
             }`}
             title="Toggle notes (N)"
           >
-            <MessageSquare className="w-5 h-5" />
+            <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
           <button
@@ -258,23 +259,24 @@ export function Presenter({
               e.stopPropagation();
               setShowOverview((o) => !o);
             }}
-            className={`p-2 rounded-full transition-colors ${
+            className={`slide-nav-button p-1.5 sm:p-2 rounded-full transition-colors ${
               showOverview ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70 hover:text-white'
             }`}
             title="Overview (G)"
           >
-            <Grid className="w-5 h-5" />
+            <Grid className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
+          {/* Hide fullscreen button on mobile - usually swipe or browser handles it */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               toggleFullscreen();
             }}
-            className="p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
+            className="hidden sm:block slide-nav-button p-1.5 sm:p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
             title="Fullscreen (F)"
           >
-            {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+            {isFullscreen ? <Minimize className="w-4 h-4 sm:w-5 sm:h-5" /> : <Maximize className="w-4 h-4 sm:w-5 sm:h-5" />}
           </button>
         </div>
       </div>
