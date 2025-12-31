@@ -11,6 +11,21 @@ import { getImageFromCache, saveImageToCache, getMetadata, saveMetadata } from '
 import { ImageGenerationQueue, ImageQueueItem, DeckMetadataV3 } from '@/lib/types';
 import { deductCredits, CREDIT_COSTS, getBalance } from '@/lib/credits';
 import { nanoid } from 'nanoid';
+import sharp from 'sharp';
+
+/**
+ * Convert image buffer to WebP format for better compression
+ */
+async function convertToWebP(imageBuffer: Buffer): Promise<Buffer> {
+  try {
+    return await sharp(imageBuffer)
+      .webp({ quality: 85 })
+      .toBuffer();
+  } catch (error) {
+    console.error('WebP conversion failed, using original:', error);
+    return imageBuffer;
+  }
+}
 
 // Build prompt with scene context (includes both style and scene)
 function buildPrompt(description: string, sceneContext?: string): string {
@@ -206,9 +221,10 @@ export async function POST(request: NextRequest) {
         const { imageData, model } = await generateSingleImage(fullPrompt, apiKey);
 
         if (imageData) {
-          // Save to cache
+          // Convert to WebP and save to cache
           const imageBuffer = Buffer.from(imageData, 'base64');
-          const cachedUrl = await saveImageToCache(cacheKey, imageBuffer);
+          const webpBuffer = await convertToWebP(imageBuffer);
+          const cachedUrl = await saveImageToCache(cacheKey, webpBuffer, 'webp');
 
           // Deduct credits
           await deductCredits(

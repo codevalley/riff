@@ -23,6 +23,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import Image from 'next/image';
 import { useStore } from '@/lib/store';
 import { DancingPixels } from './DancingPixels';
 import { ImageManifestEntry, ImageSlot } from '@/lib/types';
@@ -680,11 +681,13 @@ export function ImagePlaceholder({
                             : 'border border-white/10 hover:border-white/30'
                         }`}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        {/* Library thumbnail - using next/image for optimization */}
+                        <Image
                           src={img.url}
                           alt={img.description}
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
+                          sizes="120px"
                         />
                         {/* Current indicator */}
                         {isCurrent && (
@@ -941,13 +944,14 @@ export function ImagePlaceholder({
             isDragging ? 'ring-2 ring-slide-accent' : ''
           }`}
         >
-          {/* Current image */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          {/* Current image - using next/image for optimization */}
+          <Image
             src={activeImageUrl!}
             alt={description}
-            className="absolute inset-0 w-full h-full object-contain"
-            loading="lazy"
+            fill
+            className="object-contain"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            priority={false}
           />
 
           {/* Restyling overlay with animation */}

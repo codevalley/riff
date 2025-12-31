@@ -6,6 +6,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import crypto from 'crypto';
+import sharp from 'sharp';
+
+/**
+ * Convert image buffer to WebP format for better compression
+ * Skips GIFs to preserve animation
+ */
+async function convertToWebP(imageBuffer: Buffer, mimeType: string): Promise<{ buffer: Buffer; contentType: string; ext: string }> {
+  // Don't convert GIFs (they might be animated)
+  if (mimeType === 'image/gif') {
+    return { buffer: imageBuffer, contentType: 'image/gif', ext: 'gif' };
+  }
+
+  try {
+    const webpBuffer = await sharp(imageBuffer)
+      .webp({ quality: 85 })
+      .toBuffer();
+    return { buffer: webpBuffer, contentType: 'image/webp', ext: 'webp' };
+  } catch (error) {
+    console.error('WebP conversion failed, using original:', error);
+    const ext = mimeType.split('/')[1] || 'png';
+    return { buffer: imageBuffer, contentType: mimeType, ext };
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,15 +61,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Convert to WebP for better compression (except GIFs)
+    const arrayBuffer = await file.arrayBuffer();
+    const imageBuffer = Buffer.from(arrayBuffer);
+    const { buffer: optimizedBuffer, contentType, ext } = await convertToWebP(imageBuffer, file.type);
+
     // Generate unique filename
     const hash = crypto.randomBytes(8).toString('hex');
-    const ext = file.type.split('/')[1] || 'png';
     const filename = `uploads/${hash}.${ext}`;
 
-    // Upload to blob storage
-    const blob = await put(filename, file, {
+    // Upload to blob storage with cache headers
+    const blob = await put(filename, optimizedBuffer, {
       access: 'public',
-      contentType: file.type,
+      contentType,
+      cacheControlMaxAge: 31536000, // 1 year - uploads are content-addressed
     });
 
     return NextResponse.json({

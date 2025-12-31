@@ -9,6 +9,22 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getImageFromCache, saveImageToCache, deleteImageFromCache } from '@/lib/blob';
 import { requireCredits, deductCredits, CREDIT_COSTS } from '@/lib/credits';
+import sharp from 'sharp';
+
+/**
+ * Convert image buffer to WebP format for better compression
+ * Typically reduces file size by 25-35% compared to PNG
+ */
+async function convertToWebP(imageBuffer: Buffer): Promise<Buffer> {
+  try {
+    return await sharp(imageBuffer)
+      .webp({ quality: 85 }) // Good balance of quality vs size
+      .toBuffer();
+  } catch (error) {
+    console.error('WebP conversion failed, using original:', error);
+    return imageBuffer; // Fall back to original if conversion fails
+  }
+}
 
 // Build the image prompt from description, scene context, and optional background color
 function buildImagePrompt(
@@ -135,7 +151,8 @@ export async function POST(request: NextRequest) {
 
       if (imageData) {
         const imageBuffer = Buffer.from(imageData, 'base64');
-        const cachedUrl = await saveImageToCache(cacheKey, imageBuffer);
+        const webpBuffer = await convertToWebP(imageBuffer);
+        const cachedUrl = await saveImageToCache(cacheKey, webpBuffer, 'webp');
 
         // Deduct credits after successful generation
         await deductCredits(
@@ -184,7 +201,8 @@ export async function POST(request: NextRequest) {
 
       if (imageData) {
         const imageBuffer = Buffer.from(imageData, 'base64');
-        const cachedUrl = await saveImageToCache(cacheKey, imageBuffer);
+        const webpBuffer = await convertToWebP(imageBuffer);
+        const cachedUrl = await saveImageToCache(cacheKey, webpBuffer, 'webp');
 
         // Deduct credits after successful generation
         await deductCredits(
@@ -235,7 +253,8 @@ export async function POST(request: NextRequest) {
 
       if (imageData) {
         const imageBuffer = Buffer.from(imageData, 'base64');
-        const cachedUrl = await saveImageToCache(cacheKey, imageBuffer);
+        const webpBuffer = await convertToWebP(imageBuffer);
+        const cachedUrl = await saveImageToCache(cacheKey, webpBuffer, 'webp');
 
         // Deduct credits after successful generation
         await deductCredits(

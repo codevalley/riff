@@ -10,6 +10,21 @@ import { authOptions } from '@/lib/auth';
 import { put } from '@vercel/blob';
 import { requireCredits, deductCredits, CREDIT_COSTS } from '@/lib/credits';
 import crypto from 'crypto';
+import sharp from 'sharp';
+
+/**
+ * Convert image buffer to WebP format for better compression
+ */
+async function convertToWebP(imageBuffer: Buffer): Promise<Buffer> {
+  try {
+    return await sharp(imageBuffer)
+      .webp({ quality: 85 })
+      .toBuffer();
+  } catch (error) {
+    console.error('WebP conversion failed, using original:', error);
+    return imageBuffer;
+  }
+}
 
 // Extract image data from Gemini response
 function extractImageFromResponse(data: any): string | null {
@@ -133,14 +148,16 @@ export async function POST(request: NextRequest) {
       const newImageData = extractImageFromResponse(data);
 
       if (newImageData) {
-        // Save to blob storage
+        // Convert to WebP and save to blob storage
         const hash = crypto.randomBytes(8).toString('hex');
-        const filename = `restyled/${hash}.png`;
+        const filename = `restyled/${hash}.webp`;
         const imageBuffer = Buffer.from(newImageData, 'base64');
+        const webpBuffer = await convertToWebP(imageBuffer);
 
-        const blob = await put(filename, imageBuffer, {
+        const blob = await put(filename, webpBuffer, {
           access: 'public',
-          contentType: 'image/png',
+          contentType: 'image/webp',
+          cacheControlMaxAge: 31536000, // 1 year
         });
 
         // Deduct credits after successful restyle
@@ -197,13 +214,16 @@ export async function POST(request: NextRequest) {
       const newImageData = extractImageFromResponse(data);
 
       if (newImageData) {
+        // Convert to WebP and save to blob storage
         const hash = crypto.randomBytes(8).toString('hex');
-        const filename = `restyled/${hash}.png`;
+        const filename = `restyled/${hash}.webp`;
         const imageBuffer = Buffer.from(newImageData, 'base64');
+        const webpBuffer = await convertToWebP(imageBuffer);
 
-        const blob = await put(filename, imageBuffer, {
+        const blob = await put(filename, webpBuffer, {
           access: 'public',
-          contentType: 'image/png',
+          contentType: 'image/webp',
+          cacheControlMaxAge: 31536000, // 1 year
         });
 
         // Deduct credits after successful restyle

@@ -154,16 +154,26 @@ export async function deleteDeckBlob(blobUrl: string): Promise<boolean> {
 
 /**
  * Check if an image is cached
+ * Checks for both WebP (new) and PNG (legacy) formats
  */
 export async function getImageFromCache(description: string): Promise<string | null> {
   try {
     const hash = hashDescription(description);
-    const pathname = `${IMAGES_PREFIX}${hash}.png`;
-    const { blobs } = await list({ prefix: pathname });
 
-    if (blobs.length > 0) {
-      return blobs[0].url;
+    // Check WebP first (new format)
+    const webpPath = `${IMAGES_PREFIX}${hash}.webp`;
+    const { blobs: webpBlobs } = await list({ prefix: webpPath });
+    if (webpBlobs.length > 0) {
+      return webpBlobs[0].url;
     }
+
+    // Fall back to PNG (legacy format)
+    const pngPath = `${IMAGES_PREFIX}${hash}.png`;
+    const { blobs: pngBlobs } = await list({ prefix: pngPath });
+    if (pngBlobs.length > 0) {
+      return pngBlobs[0].url;
+    }
+
     return null;
   } catch (error) {
     console.error('Error checking image cache:', error);
@@ -173,19 +183,24 @@ export async function getImageFromCache(description: string): Promise<string | n
 
 /**
  * Save an image to cache
+ * Now saves as WebP for better compression and adds long-term cache headers
  */
 export async function saveImageToCache(
   description: string,
-  imageData: ArrayBuffer | Buffer
+  imageData: ArrayBuffer | Buffer,
+  format: 'webp' | 'png' = 'webp'
 ): Promise<string> {
   const hash = hashDescription(description);
-  const pathname = `${IMAGES_PREFIX}${hash}.png`;
+  const extension = format === 'webp' ? 'webp' : 'png';
+  const contentType = format === 'webp' ? 'image/webp' : 'image/png';
+  const pathname = `${IMAGES_PREFIX}${hash}.${extension}`;
 
-  // Delete existing if force regenerating
+  // Delete existing if force regenerating (check both formats for migration)
   try {
-    const existing = await list({ prefix: pathname });
-    if (existing.blobs.length > 0) {
-      await del(existing.blobs[0].url);
+    const existingWebp = await list({ prefix: `${IMAGES_PREFIX}${hash}.webp` });
+    const existingPng = await list({ prefix: `${IMAGES_PREFIX}${hash}.png` });
+    for (const existing of [...existingWebp.blobs, ...existingPng.blobs]) {
+      await del(existing.url);
     }
   } catch {
     // Ignore
@@ -193,8 +208,9 @@ export async function saveImageToCache(
 
   const blob = await put(pathname, imageData, {
     access: 'public',
-    contentType: 'image/png',
+    contentType,
     addRandomSuffix: false, // IMPORTANT: Keep exact pathname for cache lookups
+    cacheControlMaxAge: 31536000, // 1 year - images are content-addressed (hash-based)
   });
 
   return blob.url;
@@ -202,15 +218,21 @@ export async function saveImageToCache(
 
 /**
  * Delete a cached image
+ * Deletes both WebP and PNG formats if they exist
  */
 export async function deleteImageFromCache(description: string): Promise<boolean> {
   try {
     const hash = hashDescription(description);
-    const pathname = `${IMAGES_PREFIX}${hash}.png`;
-    const { blobs } = await list({ prefix: pathname });
 
-    if (blobs.length > 0) {
-      await del(blobs[0].url);
+    // Delete both formats
+    const webpPath = `${IMAGES_PREFIX}${hash}.webp`;
+    const pngPath = `${IMAGES_PREFIX}${hash}.png`;
+
+    const { blobs: webpBlobs } = await list({ prefix: webpPath });
+    const { blobs: pngBlobs } = await list({ prefix: pngPath });
+
+    for (const blob of [...webpBlobs, ...pngBlobs]) {
+      await del(blob.url);
     }
     return true;
   } catch (error) {
