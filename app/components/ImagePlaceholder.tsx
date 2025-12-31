@@ -25,7 +25,7 @@ import {
 import { createPortal } from 'react-dom';
 import { useStore } from '@/lib/store';
 import { DancingPixels } from './DancingPixels';
-import { IMAGE_STYLE_PRESETS, ImageManifestEntry, ImageSlot } from '@/lib/types';
+import { ImageManifestEntry, ImageSlot } from '@/lib/types';
 import { CREDIT_COSTS } from '@/lib/credits-config';
 import { useCreditsContext } from '@/hooks/useCredits';
 import { useOnboarding } from '@/hooks/useOnboarding';
@@ -89,7 +89,6 @@ export function ImagePlaceholder({
   const [showSlotPicker, setShowSlotPicker] = useState(false);
   const [showGenerateDropdown, setShowGenerateDropdown] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
 
   // Scene context editing state (for restyle modal)
   const [editedSceneContext, setEditedSceneContext] = useState('');
@@ -105,7 +104,7 @@ export function ImagePlaceholder({
   const actionMenuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-  const { imageCache, cacheImage, imageStyle } = useStore();
+  const { imageCache, cacheImage } = useStore();
   const { setShowLedgerModal } = useCreditsContext();
   const { recordFeatureUse } = useOnboarding();
 
@@ -115,19 +114,17 @@ export function ImagePlaceholder({
     return getComputedStyle(document.documentElement).getPropertyValue('--slide-bg').trim() || '#0a0a0a';
   };
 
-  // Cache keys for each slot
+  // Cache keys for each slot (simplified - no style prefix)
   const getCacheKey = useCallback((slot: ImageSlot) => {
     switch (slot) {
       case 'generated':
-        return imageStyle && imageStyle !== 'none'
-          ? `gen:${imageStyle}:${description}`
-          : `gen:${description}`;
+        return `gen:${description}`;
       case 'uploaded':
         return `upload:${description}`;
       case 'restyled':
         return `restyle:${description}`;
     }
-  }, [description, imageStyle]);
+  }, [description]);
 
   // Persist uploaded/restyled URLs to localStorage (they use random hashes in blob storage)
   const persistSlotUrl = useCallback((slot: ImageSlot, url: string) => {
@@ -172,31 +169,17 @@ export function ImagePlaceholder({
     cacheChecked.current = true;
 
     const checkAllCaches = async () => {
-      const savedStyle = typeof window !== 'undefined'
-        ? localStorage.getItem('vibe-slides-image-style') || 'none'
-        : 'none';
-
       const newSlots: ImageSlots = {};
 
       // Check each slot's cache (priority: restyled → uploaded → generated)
       const slotOrder: ImageSlot[] = ['restyled', 'uploaded', 'generated'];
 
       for (const slot of slotOrder) {
-        let cacheKey: string;
-
-        switch (slot) {
-          case 'generated':
-            cacheKey = savedStyle && savedStyle !== 'none'
-              ? `gen:${savedStyle}:${description}`
-              : `gen:${description}`;
-            break;
-          case 'uploaded':
-            cacheKey = `upload:${description}`;
-            break;
-          case 'restyled':
-            cacheKey = `restyle:${description}`;
-            break;
-        }
+        const cacheKey = slot === 'generated'
+          ? `gen:${description}`
+          : slot === 'uploaded'
+            ? `upload:${description}`
+            : `restyle:${description}`;
 
         // Check Zustand cache first
         const localCached = imageCache[cacheKey];
@@ -220,7 +203,6 @@ export function ImagePlaceholder({
           try {
             const response = await fetch('/api/image-cache?' + new URLSearchParams({
               description: description,
-              styleId: savedStyle,
             }));
 
             if (response.ok) {
@@ -296,13 +278,11 @@ export function ImagePlaceholder({
   }, [onImageRemove]);
 
   // Generate new image (first-time generation only)
-  const handleGenerate = async (styleOverride?: string) => {
+  const handleGenerate = async () => {
     setIsGenerating(true);
     setError(null);
     setShowGenerateDropdown(false);
     setShowActionMenu(false);
-
-    const styleToUse = styleOverride || imageStyle;
 
     try {
       const response = await fetch('/api/generate-image', {
@@ -310,7 +290,6 @@ export function ImagePlaceholder({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           description,
-          styleId: styleToUse,
           backgroundColor: getBackgroundColor(),
           forceRegenerate: false,
           sceneContext,
@@ -431,10 +410,9 @@ export function ImagePlaceholder({
 
   // Handle restyle - closes modal immediately, shows progress on image
   const handleRestyle = async () => {
-    if (!activeImageUrl || (!selectedPreset && !customPrompt.trim())) return;
+    if (!activeImageUrl || !customPrompt.trim()) return;
 
     // Capture form values before clearing
-    const styleToApply = selectedPreset;
     const promptToApply = customPrompt.trim();
     const contextToApply = editedSceneContext.trim();
 
@@ -446,7 +424,6 @@ export function ImagePlaceholder({
     // Close modal immediately and reset form
     setShowRestyleModal(false);
     setCustomPrompt('');
-    setSelectedPreset(null);
     setError(null);
 
     // Start restyling (DancingPixels overlay will show on the image)
@@ -458,8 +435,7 @@ export function ImagePlaceholder({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageUrl: activeImageUrl,
-          styleId: styleToApply || undefined,
-          customPrompt: promptToApply || undefined,
+          customPrompt: promptToApply,
           backgroundColor: getBackgroundColor(),
           sceneContext: contextToApply || undefined,
         }),
@@ -584,37 +560,12 @@ export function ImagePlaceholder({
             {/* Content - tight spacing */}
             <div className="p-4 space-y-3">
               {/* Description input - single line style */}
-              <input
-                type="text"
+              <textarea
                 value={customPrompt}
                 onChange={(e) => setCustomPrompt(e.target.value)}
-                placeholder="Describe the new style..."
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20"
+                placeholder="Describe the new style... (e.g., 'voxel art style with bright colors', 'minimalist line art', 'retro anime screenshot')"
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white placeholder-white/30 focus:outline-none focus:border-white/20 resize-none h-20"
               />
-
-              {/* Style chips - compact */}
-              <div className="flex flex-wrap gap-1">
-                {IMAGE_STYLE_PRESETS.filter(p => p.id !== 'none').map((preset) => (
-                  <button
-                    key={preset.id}
-                    onClick={() => setSelectedPreset(selectedPreset === preset.id ? null : preset.id)}
-                    className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                      selectedPreset === preset.id
-                        ? 'bg-white/20 text-white'
-                        : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80'
-                    }`}
-                  >
-                    {preset.name}
-                  </button>
-                ))}
-              </div>
-
-              {/* Selected style description */}
-              {selectedPreset && (
-                <p className="text-xs text-white/40">
-                  {IMAGE_STYLE_PRESETS.find(p => p.id === selectedPreset)?.description}
-                </p>
-              )}
 
               {/* Scene context - simple inline expandable */}
               {(sceneContext || editedSceneContext) && (
@@ -661,7 +612,7 @@ export function ImagePlaceholder({
                 </button>
                 <button
                   onClick={handleRestyle}
-                  disabled={!selectedPreset && !customPrompt.trim()}
+                  disabled={!customPrompt.trim()}
                   className="px-4 py-1.5 bg-white text-black text-xs font-medium rounded-lg transition-colors hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Apply

@@ -2,82 +2,6 @@
 // VIBE SLIDES - Type Definitions
 // ============================================
 
-// Image style presets for generation
-export type ImageStyleId =
-  | 'modern'
-  | 'newspaper'
-  | 'voxel'
-  | 'retro'
-  | 'mono-manga'
-  | 'cyberpunk'
-  | 'minimal'
-  | 'vector'
-  | 'none';
-
-export interface ImageStylePreset {
-  id: ImageStyleId;
-  name: string;
-  description: string;
-  promptTemplate: string; // Template with {description} placeholder
-}
-
-export const IMAGE_STYLE_PRESETS: ImageStylePreset[] = [
-  {
-    id: 'none',
-    name: 'Default',
-    description: 'Clean, professional presentation style',
-    promptTemplate: '{description}. Style: professional, high-quality, presentation-style. Create a clean, visually striking image suitable for a presentation slide. No borders or frames. Aspect ratio 16:9.',
-  },
-  {
-    id: 'modern',
-    name: 'Modern',
-    description: 'Mid-Century Modern UPA style with geometric abstraction',
-    promptTemplate: 'Create a Mid-Century Modern UPA style cartoon depicting {description}. Use geometric abstraction, off-register color blocks, and a flat graphic design aesthetic. The perspective should be flattened using a retro palette of mustard yellow, teal, and charcoal gray. No borders or frames. 16:9 aspect ratio.',
-  },
-  {
-    id: 'newspaper',
-    name: 'Editorial',
-    description: 'Satirical editorial caricature with cross-hatching',
-    promptTemplate: 'Create a satirical editorial caricature style drawing of {description}. Use heavily exaggerated features and proportions. Apply cross-hatching ink style typical of political newspaper cartoons. No borders or frames. 16:9 aspect ratio.',
-  },
-  {
-    id: 'voxel',
-    name: 'Voxel',
-    description: '3D voxel art with isometric perspective',
-    promptTemplate: 'Create a voxel art scene depicting {description}. Everything in the image must be constructed entirely out of tiny 3D cubes. The view should be isometric, with vibrant colors and a digital lego-like aesthetic. No borders or frames. 16:9 aspect ratio.',
-  },
-  {
-    id: 'retro',
-    name: 'Retro Anime',
-    description: '90s anime style with VHS grain effect',
-    promptTemplate: 'Create a retro 90s anime style screenshot depicting {description}. Include a subtle VHS film grain effect, hand-painted background textures, and distinct high-contrast white highlights on key elements, using a muted color palette. No borders or frames. 16:9 aspect ratio.',
-  },
-  {
-    id: 'mono-manga',
-    name: 'Manga',
-    description: 'Monochrome manga panel with screen-tone',
-    promptTemplate: 'Create a monochrome manga panel depicting {description}. The image should be strictly black and white ink, utilizing screen-tone dots for shading and gradients. Include dramatic speed lines or effects where appropriate to convey energy. No borders or frames. 16:9 aspect ratio.',
-  },
-  {
-    id: 'cyberpunk',
-    name: 'Cyberpunk',
-    description: 'Futuristic mecha style with neon accents',
-    promptTemplate: 'Create a detailed cyberpunk/mecha style illustration of {description}. Focus on intricate mechanical details, metallic textures, and technological elements. Add glowing neon accents in cyan and magenta, with lens flares to give it a futuristic, high-tech look. No borders or frames. 16:9 aspect ratio.',
-  },
-  {
-    id: 'minimal',
-    name: 'Minimal',
-    description: 'Clean line art with limited color palette',
-    promptTemplate: 'Create a minimal, clean illustration of {description}. Use simple line art with a very limited color palette of 2-3 colors maximum. The style should be modern, geometric, and suitable for a professional presentation with lots of white space. No borders or frames. 16:9 aspect ratio.',
-  },
-  {
-    id: 'vector',
-    name: 'Vector',
-    description: 'Technical diagram with clean isometric lines',
-    promptTemplate: 'Create a minimalist technical illustration in a clean, vector art style showing {description}. Use a balanced isometric or flat view with clean, precise lines and flat color fills, no gradients or complex textures. Use neutral grey for structural elements, electric blue for highlighting active paths and key components. All elements should have thin colored outlines and flat fills. The aesthetic is modern and technical, using simple geometric shapes and recognizable icons. Bright, even lighting with no harsh shadows. No borders or frames. 16:9 aspect ratio.',
-  },
-];
-
 export interface Deck {
   id: string;
   name: string;
@@ -239,8 +163,8 @@ export interface DeckMetadataV3 {
   theme?: ThemeData;
   themeHistory?: ThemeData[]; // Previous themes for quantization
   settings?: DeckSettings;
-  // Image management (new in Session 22)
-  imageContext?: string;      // Scene setting for visual consistency (NOT style, but location/characters/theme)
+  // Image generation context (includes BOTH style and scene)
+  imageContext?: string;      // Comprehensive image context: artistic style + scene elements
   imageQueue?: ImageGenerationQueue; // Batch generation queue (persists across refresh)
 }
 
@@ -369,7 +293,6 @@ export interface AppState {
   customSlideSystemPrompt: string | null; // null = use default
 
   // Image generation
-  imageStyle: ImageStyleId;
   imageCache: Record<string, string>; // description hash -> URL
   generatingImages: Set<string>;
 
@@ -400,7 +323,6 @@ export interface AppState {
 
   cacheImage: (description: string, url: string) => void;
   setGeneratingImage: (description: string, generating: boolean) => void;
-  setImageStyle: (style: ImageStyleId) => void;
 
   // Image manifest update (uses get() to avoid stale closure issues)
   updateManifestEntry: (description: string, entry: ImageManifestEntry) => void;

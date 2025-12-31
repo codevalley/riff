@@ -1,36 +1,35 @@
 // ============================================
 // API: /api/sweep-generate
 // Batch image generation with queue persistence
-// Uses Server-Sent Events for real-time progress
+// Simplified: uses sceneContext (imageContext) for both style and scene
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getImageFromCache, saveImageToCache, deleteImageFromCache, getMetadata, saveMetadata } from '@/lib/blob';
-import { IMAGE_STYLE_PRESETS, ImageStyleId, ImageGenerationQueue, ImageQueueItem, DeckMetadataV3 } from '@/lib/types';
-import { requireCredits, deductCredits, CREDIT_COSTS, getBalance } from '@/lib/credits';
+import { getImageFromCache, saveImageToCache, getMetadata, saveMetadata } from '@/lib/blob';
+import { ImageGenerationQueue, ImageQueueItem, DeckMetadataV3 } from '@/lib/types';
+import { deductCredits, CREDIT_COSTS, getBalance } from '@/lib/credits';
 import { nanoid } from 'nanoid';
 
-// Build prompt with scene context and style
-function buildPrompt(
-  description: string,
-  styleId: ImageStyleId,
-  sceneContext?: string
-): string {
-  const preset = IMAGE_STYLE_PRESETS.find((p) => p.id === styleId);
+// Build prompt with scene context (includes both style and scene)
+function buildPrompt(description: string, sceneContext?: string): string {
+  let prompt = '';
 
-  let prefix = '';
+  // Scene context first - includes BOTH style and scene info
   if (sceneContext && sceneContext.trim()) {
-    prefix += `${sceneContext.trim()}. `;
+    prompt += `${sceneContext.trim()} `;
   }
 
-  if (!preset) {
-    return `${prefix}Subject: ${description}. Style: professional, high-quality, presentation-style. Create a clean, visually striking image suitable for a presentation slide. Aspect ratio 16:9.`;
+  // The subject
+  prompt += `Subject: ${description}.`;
+
+  // Default aspect ratio if not in scene context
+  if (!sceneContext?.includes('Aspect ratio')) {
+    prompt += ' Aspect ratio 16:9.';
   }
 
-  const descriptionWithSubject = sceneContext ? `Subject: ${description}` : description;
-  return prefix + preset.promptTemplate.replace('{description}', descriptionWithSubject);
+  return prompt;
 }
 
 // Extract image data from Gemini response
@@ -113,7 +112,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { deckId, items, contextUsed, styleId } = await request.json() as {
+    const { deckId, items, contextUsed } = await request.json() as {
       deckId: string;
       items: Array<{
         description: string;
@@ -121,7 +120,6 @@ export async function POST(request: NextRequest) {
         slideIndex: number;
       }>;
       contextUsed: string;
-      styleId?: ImageStyleId;
     };
 
     if (!deckId || !items || items.length === 0) {
@@ -199,12 +197,10 @@ export async function POST(request: NextRequest) {
       try {
         // Use modified prompt if available, otherwise use original description
         const promptText = item.modifiedPrompt || item.description;
-        const fullPrompt = buildPrompt(promptText, styleId || 'none', contextUsed);
+        const fullPrompt = buildPrompt(promptText, contextUsed);
 
-        // Create cache key
-        const cacheKey = styleId && styleId !== 'none'
-          ? `${styleId}:${item.description}`
-          : item.description;
+        // Simple cache key (no style prefix)
+        const cacheKey = item.description;
 
         // Generate image
         const { imageData, model } = await generateSingleImage(fullPrompt, apiKey);
@@ -219,7 +215,7 @@ export async function POST(request: NextRequest) {
             session.user.id,
             CREDIT_COSTS.IMAGE_GENERATION,
             'Sweep image generation',
-            { description: item.description, styleId, model }
+            { description: item.description, model }
           );
 
           queueItem.status = 'completed';

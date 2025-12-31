@@ -13,7 +13,6 @@ import {
   AlertCircle,
   Grid3X3,
   Globe2,
-  Paintbrush,
   ChevronDown,
   ChevronUp,
   CheckCircle2,
@@ -23,10 +22,8 @@ import {
   Pencil,
   RotateCcw,
   Zap,
-  Play,
   Circle,
 } from 'lucide-react';
-import { IMAGE_STYLE_PRESETS, ImageStyleId } from '@/lib/types';
 import { CREDIT_COSTS } from '@/lib/credits-config';
 import { DancingPixels } from './DancingPixels';
 import { useCreditsContext } from '@/hooks/useCredits';
@@ -55,8 +52,6 @@ interface SweepGenerateDialogProps {
   }>;
   sceneContext?: string;
   onSceneContextChange?: (context: string) => void;
-  currentStyleId: ImageStyleId;
-  onStyleChange?: (styleId: ImageStyleId) => void;
   onGenerateSingle: (
     description: string,
     modifiedPrompt?: string,
@@ -73,8 +68,6 @@ export function SweepGenerateDialog({
   images,
   sceneContext = '',
   onSceneContextChange,
-  currentStyleId,
-  onStyleChange,
   onGenerateSingle,
   onBatchSave,
   userCredits = 0,
@@ -87,7 +80,6 @@ export function SweepGenerateDialog({
   const [masterContext, setMasterContext] = useState(sceneContext);
   const [imageItems, setImageItems] = useState<ImageItem[]>([]);
   const [showContextEditor, setShowContextEditor] = useState(false);
-  const [showStylePicker, setShowStylePicker] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -395,12 +387,6 @@ export function SweepGenerateDialog({
   const handleAbort = useCallback(() => {
     abortRef.current = true;
   }, []);
-
-  // Get current style
-  const currentStyle = useMemo(() =>
-    IMAGE_STYLE_PRESETS.find(p => p.id === currentStyleId) || IMAGE_STYLE_PRESETS[0],
-    [currentStyleId]
-  );
 
   if (!isOpen) return null;
 
@@ -953,58 +939,6 @@ export function SweepGenerateDialog({
 
             {/* Configuration Row */}
             <div className="flex-shrink-0 px-6 py-3 border-b border-white/[0.06] flex items-center gap-3">
-              {/* Style Selector */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowStylePicker(!showStylePicker)}
-                  className="flex items-center gap-2 px-3 py-2 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] rounded-xl transition-all"
-                >
-                  <Paintbrush className="w-4 h-4 text-violet-400" />
-                  <span className="text-sm text-white/80">{currentStyle.name}</span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-white/40 transition-transform ${showStylePicker ? 'rotate-180' : ''}`} />
-                </button>
-
-                {/* Style Dropdown */}
-                <AnimatePresence>
-                  {showStylePicker && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowStylePicker(false)} />
-                      <motion.div
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        className="absolute top-full left-0 mt-1 z-50 w-72 bg-[#0a0a0a] border border-white/[0.08] rounded-xl shadow-2xl overflow-hidden"
-                      >
-                        <div className="p-1.5 max-h-64 overflow-y-auto">
-                          {IMAGE_STYLE_PRESETS.map((preset) => (
-                            <button
-                              key={preset.id}
-                              onClick={() => {
-                                onStyleChange?.(preset.id);
-                                setShowStylePicker(false);
-                              }}
-                              className={`w-full flex items-start gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                                preset.id === currentStyleId ? 'bg-white/10' : 'hover:bg-white/5'
-                              }`}
-                            >
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-sm ${preset.id === currentStyleId ? 'text-white' : 'text-white/70'}`}>
-                                    {preset.name}
-                                  </span>
-                                  {preset.id === currentStyleId && <Check className="w-3.5 h-3.5 text-amber-400" />}
-                                </div>
-                                <p className="text-xs text-white/40 mt-0.5 line-clamp-1">{preset.description}</p>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
-
               {/* Scene Context Toggle */}
               <button
                 onClick={() => setShowContextEditor(!showContextEditor)}

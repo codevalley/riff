@@ -1,32 +1,15 @@
 // ============================================
 // API: /api/restyle-image
 // Apply style transformations to existing images
+// Simplified: only uses customPrompt (no style presets)
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { put } from '@vercel/blob';
-import { IMAGE_STYLE_PRESETS, ImageStyleId } from '@/lib/types';
 import { requireCredits, deductCredits, CREDIT_COSTS } from '@/lib/credits';
 import crypto from 'crypto';
-
-// Get restyle prompt for a given preset
-function getRestylePrompt(styleId: ImageStyleId): string {
-  const preset = IMAGE_STYLE_PRESETS.find((p) => p.id === styleId);
-
-  if (!preset || styleId === 'none') {
-    return 'Recreate this image in a clean, professional style suitable for presentations.';
-  }
-
-  // Extract style description from the prompt template
-  // Remove the {description} placeholder and focus on the style instructions
-  const styleInstructions = preset.promptTemplate
-    .replace('{description}', 'the subject in this image')
-    .replace(/^Create a |^Create an /i, 'Transform this image into a ');
-
-  return styleInstructions;
-}
 
 // Extract image data from Gemini response
 function extractImageFromResponse(data: any): string | null {
@@ -61,7 +44,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { imageUrl, styleId, customPrompt, backgroundColor } = await request.json();
+    const { imageUrl, customPrompt, backgroundColor, sceneContext } = await request.json();
 
     if (!imageUrl) {
       return NextResponse.json(
@@ -70,9 +53,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!styleId && !customPrompt) {
+    if (!customPrompt) {
       return NextResponse.json(
-        { error: 'Either styleId or customPrompt is required' },
+        { error: 'Style description (customPrompt) is required' },
         { status: 400 }
       );
     }
@@ -96,11 +79,11 @@ export async function POST(request: NextRequest) {
     const { data: imageBase64, mimeType } = await fetchImageAsBase64(imageUrl);
 
     // Build the transformation prompt
-    let transformPrompt: string;
-    if (customPrompt) {
-      transformPrompt = customPrompt;
-    } else {
-      transformPrompt = getRestylePrompt(styleId as ImageStyleId);
+    let transformPrompt = `Transform this image to: ${customPrompt}`;
+
+    // Add scene context if provided
+    if (sceneContext && sceneContext.trim()) {
+      transformPrompt = `${sceneContext.trim()}. ${transformPrompt}`;
     }
 
     // Add background color instruction if provided
@@ -165,14 +148,13 @@ export async function POST(request: NextRequest) {
           session.user.id,
           CREDIT_COSTS.IMAGE_RESTYLE,
           'AI image restyle',
-          { originalUrl: imageUrl, styleId: styleId || 'custom', model: 'gemini-3-pro-image-preview' }
+          { originalUrl: imageUrl, model: 'gemini-3-pro-image-preview' }
         );
 
         return NextResponse.json({
           url: blob.url,
           originalUrl: imageUrl,
-          styleId: styleId || 'custom',
-          customPrompt: customPrompt || null,
+          customPrompt,
           model: 'gemini-3-pro-image-preview',
         });
       }
@@ -229,14 +211,13 @@ export async function POST(request: NextRequest) {
           session.user.id,
           CREDIT_COSTS.IMAGE_RESTYLE,
           'AI image restyle',
-          { originalUrl: imageUrl, styleId: styleId || 'custom', model: 'gemini-2.0-flash-exp' }
+          { originalUrl: imageUrl, model: 'gemini-2.0-flash-exp' }
         );
 
         return NextResponse.json({
           url: blob.url,
           originalUrl: imageUrl,
-          styleId: styleId || 'custom',
-          customPrompt: customPrompt || null,
+          customPrompt,
           model: 'gemini-2.0-flash-exp',
         });
       }

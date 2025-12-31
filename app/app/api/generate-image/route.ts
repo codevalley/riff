@@ -1,50 +1,43 @@
 // ============================================
 // API: /api/generate-image
 // Generate images using Google Gemini 3
+// Simplified: sceneContext (imageContext) controls both style AND scene
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getImageFromCache, saveImageToCache, deleteImageFromCache } from '@/lib/blob';
-import { IMAGE_STYLE_PRESETS, ImageStyleId } from '@/lib/types';
-import { requireCredits, deductCredits, CREDIT_COSTS, isInsufficientCreditsError } from '@/lib/credits';
+import { requireCredits, deductCredits, CREDIT_COSTS } from '@/lib/credits';
 
-// Get the prompt template for a given style, with optional background color and scene context
-function getPromptForStyle(
+// Build the image prompt from description, scene context, and optional background color
+function buildImagePrompt(
   description: string,
-  styleId: ImageStyleId,
-  backgroundColor?: string,
-  sceneContext?: string
+  sceneContext?: string,
+  backgroundColor?: string
 ): string {
-  const preset = IMAGE_STYLE_PRESETS.find((p) => p.id === styleId);
+  let prompt = '';
 
-  // Build prompt prefix in order of priority:
-  // 1. Scene context (location, characters, thematic elements) - highest priority
-  // 2. Background color instruction
-  // 3. Style-specific prompt
-
-  let prefix = '';
-
-  // Scene context first (sets the world/setting for the image)
+  // Scene context first - this includes BOTH artistic style and scene elements
+  // Example: "Clean vector illustration style with flat colors. Set in a modern office environment."
   if (sceneContext && sceneContext.trim()) {
-    prefix += `${sceneContext.trim()}. `;
+    prompt += `${sceneContext.trim()} `;
   }
 
   // Add background color instruction
   if (backgroundColor) {
-    prefix += `IMPORTANT: Use a solid ${backgroundColor} background color. The background MUST be ${backgroundColor}. `;
+    prompt += `IMPORTANT: Use a solid ${backgroundColor} background color. The background MUST be ${backgroundColor}. `;
   }
 
-  if (!preset) {
-    // Fallback to default with scene context
-    return `${prefix}Subject: ${description}. Style: professional, high-quality, presentation-style. Create a clean, visually striking image suitable for a presentation slide. Aspect ratio 16:9.`;
+  // The subject to illustrate
+  prompt += `Subject: ${description}.`;
+
+  // Default technical requirements if not in scene context
+  if (!sceneContext?.includes('Aspect ratio')) {
+    prompt += ' Aspect ratio 16:9.';
   }
 
-  // Prepend prefix to the styled prompt
-  // Note: We add "Subject: " before description to clearly separate context from subject
-  const descriptionWithSubject = sceneContext ? `Subject: ${description}` : description;
-  return prefix + preset.promptTemplate.replace('{description}', descriptionWithSubject);
+  return prompt;
 }
 
 // Extract image data from Gemini response
@@ -64,7 +57,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { description, styleId, forceRegenerate, backgroundColor, sceneContext } = await request.json();
+    const { description, forceRegenerate, backgroundColor, sceneContext } = await request.json();
 
     if (!description || typeof description !== 'string') {
       return NextResponse.json(
@@ -73,11 +66,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create a cache key that includes the style (not bg color - images persist across themes)
-    // User must click "Regenerate" to get new background color
-    const cacheKey = styleId && styleId !== 'none'
-      ? `${styleId}:${description}`
-      : description;
+    // Simple cache key based on description
+    // Note: sceneContext changes don't automatically regenerate - user must click regenerate
+    const cacheKey = description;
 
     // Check cache first (unless force regenerating)
     // Cached images don't cost credits
@@ -88,7 +79,6 @@ export async function POST(request: NextRequest) {
           url: cachedUrl,
           cached: true,
           description,
-          styleId,
         });
       }
     } else {
@@ -102,8 +92,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(creditCheck.error, { status: 402 });
     }
 
-    // Build the prompt using style preset, including background color and scene context
-    const fullPrompt = getPromptForStyle(description, styleId || 'none', backgroundColor, sceneContext);
+    // Build the prompt using scene context (which includes style + scene)
+    const fullPrompt = buildImagePrompt(description, sceneContext, backgroundColor);
 
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     if (!apiKey) {
@@ -152,14 +142,13 @@ export async function POST(request: NextRequest) {
           session.user.id,
           CREDIT_COSTS.IMAGE_GENERATION,
           'AI image generation',
-          { description, styleId, model: 'gemini-3-pro-image-preview' }
+          { description, model: 'gemini-3-pro-image-preview' }
         );
 
         return NextResponse.json({
           url: cachedUrl,
           cached: false,
           description,
-          styleId,
           model: 'gemini-3-pro-image-preview',
         });
       }
@@ -202,14 +191,13 @@ export async function POST(request: NextRequest) {
           session.user.id,
           CREDIT_COSTS.IMAGE_GENERATION,
           'AI image generation',
-          { description, styleId, model: 'imagen-3.0-generate-001' }
+          { description, model: 'imagen-3.0-generate-001' }
         );
 
         return NextResponse.json({
           url: cachedUrl,
           cached: false,
           description,
-          styleId,
           model: 'imagen-3.0-generate-001',
         });
       }
@@ -254,14 +242,13 @@ export async function POST(request: NextRequest) {
           session.user.id,
           CREDIT_COSTS.IMAGE_GENERATION,
           'AI image generation',
-          { description, styleId, model: 'gemini-2.0-flash-exp' }
+          { description, model: 'gemini-2.0-flash-exp' }
         );
 
         return NextResponse.json({
           url: cachedUrl,
           cached: false,
           description,
-          styleId,
           model: 'gemini-2.0-flash-exp',
         });
       }
@@ -275,7 +262,6 @@ export async function POST(request: NextRequest) {
       url: null,
       cached: false,
       description,
-      styleId,
       placeholder: true,
       message: 'Image generation not available. All models failed.',
     });

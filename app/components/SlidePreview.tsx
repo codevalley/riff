@@ -32,7 +32,7 @@ import {
   parseSlideMarkdown,
   stripFrontmatter,
 } from '@/lib/parser';
-import { ImageSlot, IMAGE_STYLE_PRESETS } from '@/lib/types';
+import { ImageSlot } from '@/lib/types';
 import { useOnboarding } from '@/hooks/useOnboarding';
 
 interface SlidePreviewProps {
@@ -137,8 +137,6 @@ export function SlidePreview({
     prevSlide,
     goToSlide,
     toggleSpeakerNotes,
-    imageStyle,
-    setImageStyle,
     updateManifestEntry,
     batchUpdateManifestEntries,
   } = useStore();
@@ -614,7 +612,6 @@ export function SlidePreview({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           description: promptToUse,
-          styleId: imageStyle,
           sceneContext,
           forceRegenerate: true, // Always regenerate for sweep
         }),
@@ -632,7 +629,7 @@ export function SlidePreview({
     } catch (err) {
       return { url: null, error: String(err) };
     }
-  }, [imageStyle, sceneContext]);
+  }, [sceneContext]);
 
   // Batch save multiple images to manifest at once (avoids race conditions)
   const handleBatchSaveImages = useCallback(async (
@@ -684,11 +681,6 @@ export function SlidePreview({
       console.error('Failed to refresh credits:', err);
     }
   }, []);
-
-  // Handle image style change
-  const handleStyleChange = useCallback((styleId: typeof imageStyle) => {
-    setImageStyle(styleId);
-  }, [setImageStyle]);
 
   // ============================================
   // Editable slide counter handlers
@@ -1315,8 +1307,6 @@ export function SlidePreview({
         images={extractDeckImages()}
         sceneContext={sceneContext}
         onSceneContextChange={onSceneContextChange}
-        currentStyleId={imageStyle}
-        onStyleChange={handleStyleChange}
         onGenerateSingle={handleGenerateSingleImage}
         onBatchSave={handleBatchSaveImages}
         userCredits={userCredits}

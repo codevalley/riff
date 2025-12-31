@@ -77,16 +77,7 @@ function EditorContent() {
     themePrompt,
     setThemePrompt,
     setTheme,
-    setImageStyle,
   } = useStore();
-
-  // Hydrate imageStyle from localStorage on mount
-  useEffect(() => {
-    const savedStyle = localStorage.getItem('vibe-slides-image-style');
-    if (savedStyle) {
-      setImageStyle(savedStyle as any);
-    }
-  }, [setImageStyle]);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingTheme, setIsGeneratingTheme] = useState(false);

@@ -471,30 +471,49 @@ $<confidential • Demo deck • 2025>
 
 $<confidential • Demo deck • 2025>`;
 
-export const DECK_METADATA_PROMPT = `You extract title, theme, and image context from presentation content.
+export const DECK_METADATA_PROMPT = `You extract title, theme, and comprehensive image context from presentation content.
 
 Given the deck content, output ONLY a JSON object:
 {
   "title": "Short punchy deck title (3-6 words)",
   "themePrompt": "Theme description for CSS generation (e.g., 'Dark minimal with cyan accents, modern tech feel')",
-  "imageContext": "Scene setting for AI-generated images (location, recurring characters, thematic elements)"
+  "imageContext": "Comprehensive image generation context (see detailed rules below)"
 }
 
 Rules:
-- Title should capture the essence, not be generic
+- Title should capture the essence, not be generic, should have a emoji prefix. '<emoji> title text'
 - Theme should describe: color mood, font style, overall vibe
-- Image context describes the SCENE SETTING (NOT artistic style):
-  - Location/setting: "Set in Turkey", "Modern office", "Medieval castle"
-  - Recurring characters: "A friendly cartoon mascot", "Team of diverse professionals"
-  - Thematic elements: "Turkish patterns", "Sustainability motifs", "Tech aesthetic"
-- Keep imageContext to 1-2 sentences max
-- Output ONLY the JSON, no markdown fences, no explanation
 
-Examples of good imageContext:
-- "Set in Turkey with traditional Turkish architecture and Mediterranean scenery"
-- "Corporate office environment with a diverse team of professionals"
-- "Featuring a friendly robot mascot named Spark in a futuristic lab setting"
-- "Outdoor adventure theme with mountain landscapes and camping gear"`;
+IMPORTANT - imageContext Rules:
+The imageContext controls ALL aspects of AI image generation. Include BOTH artistic style AND scene elements.
+Make it thorough and specific - this is the ONLY instruction the image generator receives.
+
+1. ARTISTIC STYLE (always include):
+   - Art style: Describe the art style which could be most appropriate to represent the theme and mood of the topic. It could be anything, here are a few examples "Clean vector illustration", "Minimalist line art", "Editorial caricature", "XKCD like line art", "Cyberpunk style", "Professional stock photo style", etc.
+   - Color approach: Describe the color tones or style like "Flat colors", "Limited palette of 2-3 colors", "Vibrant neon accents", "Muted earthy tones", "Black and white with red accent", 'charcoal drawing monochrome' etc.
+   - Rendering: Describe the art style "Simple geometric shapes", "Isometric perspective", "Cross-hatching ink style", "Hand-painted textures", "Clean vector lines", etc.
+
+2. SCENE ELEMENTS (when relevant to deck content):
+   - Setting/location: "Set in Turkey with traditional architecture", "Modern corporate office", "Futuristic lab environment"
+   - Recurring characters: "Friendly robot mascot", "Team of diverse professionals", "Cartoon business person"
+   - Thematic elements: "Sustainability motifs", "Tech aesthetic", "Mediterranean scenery"
+
+3. ALWAYS end with: "No borders or frames."
+
+Choose style based on deck tone:
+- Professional/Corporate → Clean vector or minimal illustration
+- Technical/Startup → Modern flat design or isometric
+- Creative/Fun → Voxel art, retro anime, or playful illustration
+- Serious/Editorial → Caricature or ink illustration style
+- Educational → Clear diagrams with simple shapes
+
+Examples of GOOD imageContext:
+- "Clean vector illustration style with flat colors and simple geometric shapes. The illustration should have playful and simplistic drawing style.  Set in a modern tech startup environment with minimalist aesthetics. The startup environment is similar to the typical SOMA tech startup with garage style aesthetics. Professional but friendly tone. No borders or frames."
+- "Voxel art style where everything is constructed from tiny 3D cubes. Isometric perspective with vibrant, playful colors. Set in Turkey with traditional Turkish architecture and Mediterranean scenery visible. No borders or frames. "
+- "Minimalist line art with a limited palette of navy blue and coral accents on white. The art style is a kids' drawings with simple stores and representations. Clean, modern aesthetic suitable for a finance presentation. No borders or frames."
+- "Retro 90s anime screenshot style with subtle VHS grain effect. Hand-painted background textures and muted color palette. Similar to popular cartoons like TMNT or Swat Kats. Features a friendly mascot character, a green lizard which dresses up like a super hero.  No borders or frames."
+
+Output ONLY the JSON, no markdown fences, no explanation.`;
 
 export const DEFAULT_SLIDE_SYSTEM_PROMPT = `You are a presentation designer. Transform slide content into visually compelling HTML layouts.
 

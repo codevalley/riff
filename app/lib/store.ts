@@ -4,17 +4,8 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { AppState, Deck, ParsedDeck, ThemeConfig, ImageStyleId } from './types';
+import { AppState, Deck, ParsedDeck, ThemeConfig } from './types';
 import { countReveals } from './parser';
-
-// Helper to get initial imageStyle from localStorage (for SSR safety)
-const getInitialImageStyle = (): ImageStyleId => {
-  if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem('vibe-slides-image-style');
-    if (saved) return saved as ImageStyleId;
-  }
-  return 'none';
-};
 
 export const useStore = create<AppState>((set, get) => ({
   // Initial state
@@ -37,7 +28,6 @@ export const useStore = create<AppState>((set, get) => ({
   customThemeSystemPrompt: null,
   customSlideSystemPrompt: null,
 
-  imageStyle: 'none' as ImageStyleId, // Will be hydrated from localStorage
   imageCache: {},
   generatingImages: new Set(),
 
@@ -227,14 +217,6 @@ export const useStore = create<AppState>((set, get) => ({
       }
       return { generatingImages: newSet };
     }),
-
-  setImageStyle: (style) => {
-    // Persist to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('vibe-slides-image-style', style);
-    }
-    set({ imageStyle: style });
-  },
 
   // Update a single manifest entry - uses get() to avoid stale closure issues
   // This is critical for sweep generation where many images are saved in sequence
