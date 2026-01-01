@@ -47,9 +47,10 @@ function getAlignmentClasses(slide: Slide): string {
   return `${HORIZONTAL_ALIGN_CLASSES[h]} ${VERTICAL_ALIGN_CLASSES[v]}`;
 }
 
-// Check if slide has a positioned image (triggers split layout)
+// Check if slide has a HORIZONTAL split layout (left/right positioned image)
+// Top/bottom images use standard stacked layout with reordering instead
 function hasSplitLayout(slide: Slide): boolean {
-  return !!slide.imagePosition;
+  return slide.imagePosition === 'left' || slide.imagePosition === 'right';
 }
 
 // Library image for "From Library" picker in ImagePlaceholder
@@ -151,10 +152,9 @@ export function SlideRenderer({
     ? visibleElements.filter(e => e.type !== 'image')
     : visibleElements;
 
-  // Split layout: image + content side by side
+  // Split layout: image + content side by side (LEFT/RIGHT only)
   if (isSplit && imageElement) {
-    const isHorizontalSplit = imagePosition === 'left' || imagePosition === 'right';
-    const imageFirst = imagePosition === 'left' || imagePosition === 'top';
+    const imageOnLeft = imagePosition === 'left';
 
     return (
       <div
@@ -172,18 +172,13 @@ export function SlideRenderer({
           className={`
             slide-split-layout
             relative z-10 w-full h-full
-            flex ${isHorizontalSplit ? 'flex-row' : 'flex-col'}
-            ${!imageFirst ? (isHorizontalSplit ? 'flex-row-reverse' : 'flex-col-reverse') : ''}
+            flex flex-row
+            ${!imageOnLeft ? 'flex-row-reverse' : ''}
           `}
         >
-          {/* Image area: 40% for left/right, 60% for top/bottom - stacks in portrait */}
+          {/* Image area: 40% width */}
           <div
-            className={`
-              slide-split-image
-              ${isHorizontalSplit ? 'w-[40%] h-full' : 'w-full h-[60%]'}
-              flex-shrink-0 flex items-center justify-center
-              p-4 portrait:p-2 md:p-6 lg:p-8
-            `}
+            className="slide-split-image w-[40%] h-full flex-shrink-0 flex items-center justify-center p-4 portrait:p-2 md:p-6 lg:p-8"
           >
             <ImagePlaceholder
               description={imageElement.content}
@@ -198,11 +193,10 @@ export function SlideRenderer({
             />
           </div>
 
-          {/* Content area: 60% for left/right, 40% for top/bottom - grows in portrait */}
+          {/* Content area: 60% width */}
           <div
             className={`
-              slide-split-content
-              ${isHorizontalSplit ? 'w-[60%] h-full' : 'w-full h-[40%]'}
+              slide-split-content w-[60%] h-full
               flex flex-col ${alignmentClasses}
               p-4 portrait:p-3 md:p-8 lg:p-12
             `}
@@ -248,6 +242,27 @@ export function SlideRenderer({
     );
   }
 
+  // For top/bottom image positioning, reorder elements so image is first/last
+  // This keeps everything stacked together and respects [center, center] alignment
+  const hasVerticalImagePosition = imagePosition === 'top' || imagePosition === 'bottom';
+  const orderedElements = (() => {
+    if (!imagePosition || imagePosition === 'left' || imagePosition === 'right') {
+      return visibleElements; // No reordering needed
+    }
+
+    const imageIdx = visibleElements.findIndex(e => e.type === 'image');
+    if (imageIdx === -1) return visibleElements; // No image found
+
+    const image = visibleElements[imageIdx];
+    const others = visibleElements.filter((_, i) => i !== imageIdx);
+
+    if (imagePosition === 'top') {
+      return [image, ...others]; // Image first
+    } else {
+      return [...others, image]; // Image last (bottom)
+    }
+  })();
+
   // Standard layout: vertical stack with alignment
   return (
     <div
@@ -267,7 +282,7 @@ export function SlideRenderer({
       {/* Slide content */}
       <div className="relative z-10 w-full max-w-5xl">
         <AnimatePresence mode="popLayout">
-          {visibleElements.map((element, index) => (
+          {orderedElements.map((element, index) => (
             <ElementRenderer
               key={`${slide.id}-${index}-${element.type}-${element.content.slice(0, 20)}`}
               element={element}
@@ -279,6 +294,7 @@ export function SlideRenderer({
               onActiveSlotChange={onActiveSlotChange}
               sceneContext={sceneContext}
               deckImages={deckImages}
+              constrainImageHeight={hasVerticalImagePosition && element.type === 'image'}
             />
           ))}
         </AnimatePresence>
@@ -319,6 +335,8 @@ interface ElementRendererProps {
   onActiveSlotChange?: (description: string, slot: ImageSlot) => void;
   sceneContext?: string;
   deckImages?: DeckLibraryImage[];
+  // When true, images are constrained to ~35% viewport height (for top/bottom positioned images)
+  constrainImageHeight?: boolean;
 }
 
 const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(function ElementRenderer({
@@ -331,6 +349,7 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
   onActiveSlotChange,
   sceneContext,
   deckImages,
+  constrainImageHeight = false,
 }, ref) {
   // Get effect class from metadata (e.g. "effect-anvil" for [anvil] decorator)
   const effectClass = element.metadata?.effect ? `effect-${element.metadata.effect}` : '';
@@ -430,7 +449,10 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
 
       case 'image':
         return (
-          <div className={`w-full ${isPresenting ? 'max-w-4xl' : 'max-w-2xl'} mx-auto`}>
+          <div
+            className={`w-full ${isPresenting ? 'max-w-4xl' : 'max-w-2xl'} mx-auto`}
+            style={constrainImageHeight ? { maxHeight: '35vh' } : undefined}
+          >
             <ImagePlaceholder
               description={element.content}
               imageUrl={element.metadata?.imageUrl}
@@ -441,6 +463,7 @@ const ElementRenderer = forwardRef<HTMLDivElement, ElementRendererProps>(functio
               onActiveSlotChange={onActiveSlotChange ? (slot) => onActiveSlotChange(element.content, slot) : undefined}
               sceneContext={sceneContext}
               deckImages={deckImages}
+              constrainHeight={constrainImageHeight}
             />
           </div>
         );

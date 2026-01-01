@@ -54,6 +54,8 @@ interface ImagePlaceholderProps {
   deckImages?: LibraryImage[];
   // Callback when image is removed
   onImageRemove?: () => void;
+  // When true, constrain height to 35vh (for top/bottom positioned images)
+  constrainHeight?: boolean;
 }
 
 
@@ -75,6 +77,7 @@ export function ImagePlaceholder({
   onSceneContextChange,
   deckImages = [],
   onImageRemove,
+  constrainHeight = false,
 }: ImagePlaceholderProps) {
   // Image slots - each can have its own URL
   const [slots, setSlots] = useState<ImageSlots>({});
@@ -940,9 +943,10 @@ export function ImagePlaceholder({
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className={`relative w-full aspect-video rounded-xl overflow-hidden group bg-slide-bg ${
-            isDragging ? 'ring-2 ring-slide-accent' : ''
-          }`}
+          className={`relative w-full rounded-xl overflow-hidden group bg-slide-bg ${
+            constrainHeight ? 'max-h-[35vh]' : ''
+          } ${isDragging ? 'ring-2 ring-slide-accent' : ''}`}
+          style={{ aspectRatio: '16/9' }}
         >
           {/* Current image - using next/image for optimization */}
           <Image
@@ -1039,16 +1043,18 @@ export function ImagePlaceholder({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`
-          relative w-full aspect-video rounded-xl
+          relative w-full rounded-xl
           border-2 border-dashed
           flex flex-col items-center justify-center gap-4
           transition-colors duration-150
+          ${constrainHeight ? 'max-h-[35vh]' : ''}
           ${isPresenting ? 'p-8' : 'p-4'}
           ${isDragging
             ? 'bg-slide-accent/20 border-slide-accent'
             : 'bg-slide-surface/30 border-slide-accent/30'
           }
         `}
+        style={{ aspectRatio: '16/9' }}
       >
         {isCheckingCache ? (
           <>

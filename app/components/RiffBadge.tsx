@@ -21,7 +21,8 @@ export function RiffBadge({ className = '' }: RiffBadgeProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 1.5, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
       className={`
-        fixed bottom-5 right-10 z-50
+        fixed z-40
+        bottom-16 right-3 sm:bottom-5 sm:right-10
         group
         ${className}
       `}
@@ -39,8 +40,8 @@ export function RiffBadge({ className = '' }: RiffBadgeProps) {
       {/* Main badge container */}
       <div
         className="
-          relative flex items-center gap-2.5
-          pl-3 pr-4 py-2
+          relative flex items-center gap-1.5 sm:gap-2.5
+          pl-2 pr-3 py-1.5 sm:pl-3 sm:pr-4 sm:py-2
           rounded-full
           transition-all duration-300 ease-out
           group-hover:scale-[1.02]
@@ -72,11 +73,9 @@ export function RiffBadge({ className = '' }: RiffBadgeProps) {
         {/* Riff icon - stacked pages */}
         <div className="relative">
           <svg
-            width="18"
-            height="18"
             viewBox="0 0 512 512"
             fill="none"
-            className="transition-all duration-300"
+            className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px] transition-all duration-300"
           >
             {/* Back page */}
             <path
@@ -94,15 +93,15 @@ export function RiffBadge({ className = '' }: RiffBadgeProps) {
         </div>
 
         {/* Text */}
-        <div className="flex items-baseline gap-1.5">
+        <div className="flex items-baseline gap-1 sm:gap-1.5">
           <span
-            className="text-[11px] tracking-wide text-white/40 group-hover:text-white/50 transition-colors duration-300"
+            className="text-[9px] sm:text-[11px] tracking-wide text-white/40 group-hover:text-white/50 transition-colors duration-300"
             style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}
           >
             made with
           </span>
           <span
-            className="text-[15px] text-white/80 group-hover:text-white transition-colors duration-300 tracking-tight"
+            className="text-[12px] sm:text-[15px] text-white/80 group-hover:text-white transition-colors duration-300 tracking-tight"
             style={{
               fontFamily: "'Playfair Display', Georgia, 'Times New Roman', serif",
               fontWeight: 500,

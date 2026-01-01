@@ -15,6 +15,8 @@ import {
   Maximize,
   Minimize,
   RotateCcw,
+  Play,
+  Pause,
 } from 'lucide-react';
 import { ParsedDeck, ImageSlot } from '@/lib/types';
 import { SlideRenderer } from './SlideRenderer';
@@ -46,6 +48,9 @@ export function Presenter({
   const [showNotes, setShowNotes] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const [autoPlayInterval] = useState(5000); // 5 seconds per slide/reveal
+  const [autoPlayProgress, setAutoPlayProgress] = useState(0); // 0-1 for smooth animation
 
   const slide = deck.slides[currentSlide];
   const totalSlides = deck.slides.length;
@@ -53,6 +58,7 @@ export function Presenter({
 
   // Navigation
   const goNext = useCallback(() => {
+    setAutoPlayProgress(0); // Reset progress immediately to prevent flicker
     if (currentReveal < maxReveals) {
       setCurrentReveal((r) => r + 1);
     } else if (currentSlide < totalSlides - 1) {
@@ -62,6 +68,7 @@ export function Presenter({
   }, [currentReveal, maxReveals, currentSlide, totalSlides]);
 
   const goPrev = useCallback(() => {
+    setAutoPlayProgress(0); // Reset progress immediately to prevent flicker
     if (currentReveal > 0) {
       setCurrentReveal((r) => r - 1);
     } else if (currentSlide > 0) {
@@ -73,6 +80,7 @@ export function Presenter({
   }, [currentReveal, currentSlide, deck.slides]);
 
   const goToSlide = useCallback((index: number) => {
+    setAutoPlayProgress(0); // Reset progress immediately to prevent flicker
     setCurrentSlide(index);
     setCurrentReveal(0);
     setShowOverview(false);
@@ -140,6 +148,11 @@ export function Presenter({
         case 'End':
           goToSlide(totalSlides - 1);
           break;
+        case 'a':
+        case 'p':
+          // Toggle auto-play
+          setIsAutoPlaying((prev) => !prev);
+          break;
       }
     };
 
@@ -156,6 +169,51 @@ export function Presenter({
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // Auto-play with smooth progress animation
+  useEffect(() => {
+    if (!isAutoPlaying) {
+      setAutoPlayProgress(0);
+      return;
+    }
+
+    const startTime = performance.now();
+    let animationFrameId: number;
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / autoPlayInterval, 1);
+      setAutoPlayProgress(progress);
+
+      if (progress >= 1) {
+        // Check if we're at the last slide and last reveal
+        const isLastSlide = currentSlide >= totalSlides - 1;
+        const isLastReveal = currentReveal >= maxReveals;
+
+        if (isLastSlide && isLastReveal) {
+          setIsAutoPlaying(false);
+        } else {
+          goNext();
+        }
+        return;
+      }
+
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [isAutoPlaying, autoPlayInterval, currentSlide, currentReveal, totalSlides, maxReveals, goNext]);
+
+  // Toggle auto-play
+  const toggleAutoPlay = useCallback(() => {
+    setIsAutoPlaying((prev) => !prev);
+  }, []);
+
   return (
     <div className="relative w-full h-screen bg-slide-bg overflow-hidden">
       {/* Inject theme CSS */}
@@ -163,7 +221,7 @@ export function Presenter({
 
       {/* Main slide */}
       <div
-        className="w-full h-full cursor-none"
+        className="w-full h-full"
         onClick={goNext}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -185,99 +243,133 @@ export function Presenter({
 
       {/* Progress bar */}
       <div className="absolute bottom-0 left-0 right-0 h-1 bg-slide-surface/30 z-50">
-        <motion.div
-          className="h-full bg-slide-accent"
-          initial={false}
-          animate={{
-            width: `${((currentSlide + (currentReveal / (maxReveals + 1))) / totalSlides) * 100}%`,
-          }}
-          transition={{ duration: 0.3 }}
-        />
+        {(() => {
+          // Calculate base progress (completed slides + reveals)
+          const baseProgress = (currentSlide + (currentReveal / (maxReveals + 1))) / totalSlides;
+          // Calculate step size (how much one reveal/slide advances the bar)
+          const stepSize = 1 / totalSlides / (maxReveals + 1);
+          // When auto-playing, smoothly fill to the next step
+          const totalProgress = isAutoPlaying
+            ? baseProgress + (stepSize * autoPlayProgress)
+            : baseProgress;
+
+          return (
+            <motion.div
+              className="h-full bg-slide-accent"
+              initial={false}
+              animate={{ width: `${totalProgress * 100}%` }}
+              transition={{ duration: isAutoPlaying ? 0 : 0.3 }}
+            />
+          );
+        })()}
       </div>
 
-      {/* Controls - always visible, responsive for mobile */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-[95vw]">
+      {/* Controls - minimal on mobile, full on desktop */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50">
         <div className="presenter-controls flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-black/60 backdrop-blur-sm rounded-full">
+          {/* Prev button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               goPrev();
             }}
-            className="slide-nav-button p-1.5 sm:p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
+            className="slide-nav-button flex items-center justify-center p-1.5 sm:p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
           >
             <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
-          <span className="slide-counter text-white/70 text-xs sm:text-sm font-mono px-2 sm:px-3">
-            {currentSlide + 1} / {totalSlides}
+          {/* Slide counter - compact, no wrap */}
+          <span className="slide-counter text-white/70 text-[11px] sm:text-sm font-mono px-1 sm:px-3 whitespace-nowrap tabular-nums">
+            {currentSlide + 1}/{totalSlides}
           </span>
 
+          {/* Next button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               goNext();
             }}
-            className="slide-nav-button p-1.5 sm:p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
+            className="slide-nav-button flex items-center justify-center p-1.5 sm:p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
           >
             <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
-          {currentSlide > 0 && (
-            <>
-              <div className="w-px h-4 sm:h-6 bg-white/20 mx-1 sm:mx-2" />
+          {/* Auto-play button - always visible */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleAutoPlay();
+            }}
+            className={`slide-nav-button flex items-center justify-center p-1.5 sm:p-2 rounded-full transition-colors ${
+              isAutoPlaying ? 'bg-emerald-500/30 text-emerald-300' : 'hover:bg-white/10 text-white/70 hover:text-white'
+            }`}
+            title={isAutoPlaying ? "Pause (A)" : "Auto-play (A)"}
+          >
+            {isAutoPlaying ? (
+              <Pause className="w-4 h-4 sm:w-5 sm:h-5" />
+            ) : (
+              <Play className="w-4 h-4 sm:w-5 sm:h-5" />
+            )}
+          </button>
+
+          {/* Desktop-only controls */}
+          <div className="hidden sm:contents">
+            <div className="w-px h-6 bg-white/20 mx-1" />
+
+            {/* Restart button */}
+            {currentSlide > 0 && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   goToSlide(0);
                 }}
-                className="slide-nav-button p-1.5 sm:p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
+                className="slide-nav-button flex items-center justify-center p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
                 title="Go to start (Home)"
               >
-                <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
+                <RotateCcw className="w-5 h-5" />
               </button>
-            </>
-          )}
+            )}
 
-          <div className="w-px h-4 sm:h-6 bg-white/20 mx-1 sm:mx-2" />
+            {/* Notes button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowNotes((n) => !n);
+              }}
+              className={`slide-nav-button flex items-center justify-center p-2 rounded-full transition-colors ${
+                showNotes ? 'bg-amber-500/30 text-amber-300' : 'hover:bg-white/10 text-white/70 hover:text-white'
+              }`}
+              title="Toggle notes (N)"
+            >
+              <MessageSquare className="w-5 h-5" />
+            </button>
 
-          {/* Hide notes button on small screens - space constraint */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowNotes((n) => !n);
-            }}
-            className={`hidden sm:block slide-nav-button p-1.5 sm:p-2 rounded-full transition-colors ${
-              showNotes ? 'bg-amber-500/30 text-amber-300' : 'hover:bg-white/10 text-white/70 hover:text-white'
-            }`}
-            title="Toggle notes (N)"
-          >
-            <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
+            {/* Overview button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowOverview((o) => !o);
+              }}
+              className={`slide-nav-button flex items-center justify-center p-2 rounded-full transition-colors ${
+                showOverview ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70 hover:text-white'
+              }`}
+              title="Overview (G)"
+            >
+              <Grid className="w-5 h-5" />
+            </button>
 
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowOverview((o) => !o);
-            }}
-            className={`slide-nav-button p-1.5 sm:p-2 rounded-full transition-colors ${
-              showOverview ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70 hover:text-white'
-            }`}
-            title="Overview (G)"
-          >
-            <Grid className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-
-          {/* Hide fullscreen button on mobile - usually swipe or browser handles it */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleFullscreen();
-            }}
-            className="hidden sm:block slide-nav-button p-1.5 sm:p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
-            title="Fullscreen (F)"
-          >
-            {isFullscreen ? <Minimize className="w-4 h-4 sm:w-5 sm:h-5" /> : <Maximize className="w-4 h-4 sm:w-5 sm:h-5" />}
-          </button>
+            {/* Fullscreen button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFullscreen();
+              }}
+              className="slide-nav-button flex items-center justify-center p-2 hover:bg-white/10 rounded-full text-white/70 hover:text-white transition-colors"
+              title="Fullscreen (F)"
+            >
+              {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -372,6 +464,7 @@ export function Presenter({
         className="absolute top-4 right-4 text-white/40 text-xs space-y-1 pointer-events-none"
       >
         <div><kbd className="px-1.5 py-0.5 bg-white/10 rounded">Space</kbd> Next</div>
+        <div><kbd className="px-1.5 py-0.5 bg-white/10 rounded">A</kbd> Auto-play</div>
         <div><kbd className="px-1.5 py-0.5 bg-white/10 rounded">Home</kbd> Restart</div>
         <div><kbd className="px-1.5 py-0.5 bg-white/10 rounded">F</kbd> Fullscreen</div>
         <div><kbd className="px-1.5 py-0.5 bg-white/10 rounded">N</kbd> Notes</div>
