@@ -298,7 +298,7 @@ export function Presenter({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               onClick={(e) => { e.stopPropagation(); goPrev(); }}
-              className="sm:hidden absolute left-2 top-1/2 -translate-y-1/2 z-50 p-3 bg-black/40 backdrop-blur-sm rounded-full text-white/70 active:text-white active:bg-black/60"
+              className="sm:hidden fixed left-2 top-1/2 -translate-y-1/2 z-50 p-3 bg-black/40 backdrop-blur-sm rounded-full text-white/70 active:text-white active:bg-black/60"
             >
               <ChevronLeft className="w-6 h-6" />
             </motion.button>
@@ -309,7 +309,7 @@ export function Presenter({
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               onClick={(e) => { e.stopPropagation(); goNext(); }}
-              className="sm:hidden absolute right-2 top-1/2 -translate-y-1/2 z-50 p-3 bg-black/40 backdrop-blur-sm rounded-full text-white/70 active:text-white active:bg-black/60"
+              className="sm:hidden fixed right-2 top-1/2 -translate-y-1/2 z-50 p-3 bg-black/40 backdrop-blur-sm rounded-full text-white/70 active:text-white active:bg-black/60"
             >
               <ChevronRight className="w-6 h-6" />
             </motion.button>
@@ -319,10 +319,10 @@ export function Presenter({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="sm:hidden absolute bottom-4 left-3 right-3 z-50 flex items-center justify-between"
+              className="sm:hidden fixed left-3 right-3 bottom-4 z-50 flex items-center justify-between"
             >
               {/* Left side: Auto-play + counter */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={(e) => { e.stopPropagation(); toggleAutoPlay(); }}
                   className={`p-3 rounded-full backdrop-blur-sm transition-colors ${
@@ -331,7 +331,7 @@ export function Presenter({
                 >
                   {isAutoPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                 </button>
-                <span className="text-white/70 text-sm font-mono tabular-nums">
+                <span className="text-sm font-mono tabular-nums px-2 py-1 rounded bg-black/50 backdrop-blur-sm text-white/80">
                   {currentSlide + 1}/{totalSlides}
                 </span>
               </div>

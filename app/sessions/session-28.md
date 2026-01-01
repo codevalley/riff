@@ -4,31 +4,46 @@
 
 ## Summary
 
-Fixed multiple presentation mode issues and improved slide layout behavior for positioned images.
+Fixed multiple presentation mode issues, redesigned mobile controls, and improved slide layout behavior for positioned images.
 
 ---
 
-## Part 1: Presenter Mode Fixes
+## Part 1: Mobile Presenter Redesign
 
-### Issues Fixed
+### New Mobile UX
 
-1. **Mouse cursor visibility** - Removed `cursor-none` class that was hiding the cursor during presentation
-2. **RiffBadge overlap** - Badge was overlapping navigation controls on mobile; moved to `bottom-16` on mobile, `bottom-5` on desktop
-3. **Auto-play feature** - Added play/pause button with smooth progress bar animation
+Complete redesign of mobile presentation controls:
+
+1. **Tap-to-toggle controls** - Tapping slide shows/hides controls (instead of advancing)
+2. **Edge navigation** - Prev/Next buttons on left/right screen edges
+3. **Bottom bar** - Auto-play + counter (left), Riff badge (right)
+4. **Larger tap targets** - ~44px minimum for comfortable mobile use
 
 ### Auto-Play Implementation
 
-- Added `isAutoPlaying` state with 5-second interval per slide/reveal
+- 3-second interval per slide/reveal
 - Keyboard shortcuts: `A` or `P` to toggle
-- Progress bar animates smoothly using `requestAnimationFrame` instead of jumping
+- Progress bar animates smoothly using `requestAnimationFrame`
 - Auto-stops at the last slide
 
-### Mobile Navigation Simplification
+### Fixed Positioning
 
-- Compact counter format `11/13` with `whitespace-nowrap tabular-nums`
-- Mobile shows only: prev, counter, next, play/pause buttons
-- Desktop shows full controls using `hidden sm:contents` pattern
-- All buttons use `flex items-center justify-center` for proper icon centering
+All mobile controls use `position: fixed` (not `absolute`) to truly float at viewport edges:
+
+```tsx
+// Edge buttons
+className="fixed left-2 top-1/2 -translate-y-1/2"
+
+// Bottom bar
+className="fixed left-3 right-3 bottom-4"
+```
+
+This ensures controls don't go behind browser chrome on mobile browsers.
+
+### RiffBadge
+
+- Hidden on mobile (`hidden sm:block`) - integrated into Presenter bottom bar instead
+- Desktop only at bottom-right
 
 ---
 

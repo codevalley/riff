@@ -172,14 +172,14 @@ export function SlideRenderer({
         <div
           className={`
             slide-split-layout
-            relative z-10 w-full h-full
+            relative z-10 w-full
             flex
-            flex-col portrait:flex-col
-            landscape:flex-row
+            portrait:flex-col portrait:items-center portrait:justify-center portrait:h-full
+            landscape:flex-row landscape:h-full
             ${!imageOnLeft ? 'landscape:flex-row-reverse' : ''}
           `}
         >
-          {/* Image area: 40% on landscape, constrained height on portrait */}
+          {/* Image area: 40% on landscape, constrained on portrait */}
           <div
             className={`
               slide-split-image
@@ -204,14 +204,14 @@ export function SlideRenderer({
             />
           </div>
 
-          {/* Content area: 60% on landscape, flex-1 on portrait */}
+          {/* Content area: 60% on landscape, auto-height on portrait (stacks naturally) */}
           <div
             className={`
               slide-split-content
-              flex flex-col ${alignmentClasses}
+              flex flex-col
               p-3 md:p-8 lg:p-12
-              portrait:flex-1 portrait:w-full
-              landscape:w-[60%] landscape:h-full
+              portrait:w-full portrait:items-center portrait:text-center
+              landscape:w-[60%] landscape:h-full ${alignmentClasses}
             `}
           >
             <div className="w-full max-w-3xl">
