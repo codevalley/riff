@@ -127,7 +127,8 @@ model Deck {
   shares DeckShare[]
 
   // Public sharing & publishing
-  shareToken       String?   @unique // Public share token (nanoid)
+  shareToken       String?   @unique // Public share token (nanoid) - legacy
+  shareSlug        String?   @unique // SEO-friendly slug (title-xxxx)
   publishedContent String?   @db.Text // Markdown snapshot at publish time
   publishedTheme   String?   @db.Text // Theme JSON snapshot at publish time
   publishedAt      DateTime? // Last publish timestamp
@@ -138,6 +139,7 @@ model Deck {
 
   @@index([ownerId])
   @@index([shareToken])
+  @@index([shareSlug])
 }
 
 // ============================================

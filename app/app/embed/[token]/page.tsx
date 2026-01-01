@@ -23,8 +23,13 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const token = params.token;
 
-  const deck = await prisma.deck.findUnique({
-    where: { shareToken: token },
+  const deck = await prisma.deck.findFirst({
+    where: {
+      OR: [
+        { shareSlug: token },
+        { shareToken: token },
+      ],
+    },
     select: { name: true, publishedAt: true },
   });
 
@@ -45,9 +50,14 @@ export default async function EmbedPresentationPage({ params, searchParams }: Pa
   const token = params.token;
   const initialSlide = searchParams.slide ? parseInt(searchParams.slide, 10) : 0;
 
-  // Fetch published deck by share token (no auth required)
-  const deck = await prisma.deck.findUnique({
-    where: { shareToken: token },
+  // Fetch published deck by slug or token (no auth required)
+  const deck = await prisma.deck.findFirst({
+    where: {
+      OR: [
+        { shareSlug: token },
+        { shareToken: token },
+      ],
+    },
     select: {
       id: true,
       name: true,

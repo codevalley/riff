@@ -30,6 +30,7 @@ export interface PublishStatus {
   publishedAt: string | null;
   hasUnpublishedChanges: boolean;
   shareToken: string | null;
+  shareSlug: string | null;  // SEO-friendly URL slug
   views: number;
 }
 
@@ -104,9 +105,10 @@ export function PublishPopover({
   }, [isOpen]);
 
   const getShareUrl = () => {
-    if (!status?.shareToken) return '';
+    const identifier = status?.shareSlug || status?.shareToken;
+    if (!identifier) return '';
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.riff.im';
-    return `${baseUrl}/p/${status.shareToken}`;
+    return `${baseUrl}/p/${identifier}`;
   };
 
   // Collect all image URLs from localStorage for publishing
@@ -151,6 +153,7 @@ export function PublishPopover({
         publishedAt: data.publishedAt,
         hasUnpublishedChanges: false,
         shareToken: data.shareToken,
+        shareSlug: data.shareSlug,
         views: data.views ?? status?.views ?? 0,
       };
 
@@ -175,10 +178,11 @@ export function PublishPopover({
   };
 
   const getEmbedCode = () => {
-    if (!status?.shareToken) return '';
+    const identifier = status?.shareSlug || status?.shareToken;
+    if (!identifier) return '';
     const { width, height } = EMBED_SIZES[embedSize];
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://www.riff.im';
-    return `<iframe src="${baseUrl}/embed/${status.shareToken}" width="${width}" height="${height}" frameborder="0" allowfullscreen style="border-radius: 8px;"></iframe>`;
+    return `<iframe src="${baseUrl}/embed/${identifier}" width="${width}" height="${height}" frameborder="0" allowfullscreen style="border-radius: 8px;"></iframe>`;
   };
 
   const handleCopyEmbed = async () => {
@@ -204,6 +208,7 @@ export function PublishPopover({
         publishedAt: null,
         hasUnpublishedChanges: false,
         shareToken: null,
+        shareSlug: null,
         views: 0,
       };
 
@@ -309,10 +314,10 @@ export function PublishPopover({
                 )}
 
                 {/* URL Section - only show if published */}
-                {status?.isPublished && status.shareToken && (
+                {status?.isPublished && (status.shareSlug || status.shareToken) && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="flex-1 flex items-center gap-2 h-9 px-3 bg-zinc-900 border border-zinc-800 rounded-lg">
+                      <div className="flex-1 min-w-0 flex items-center gap-2 h-9 px-3 bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
                         <Globe className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
                         <span className="text-xs text-zinc-400 truncate font-mono">
                           {getShareUrl().replace('https://', '').replace('http://', '')}

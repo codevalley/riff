@@ -474,7 +474,7 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
             throw new Error('Failed to extract metadata');
           }
 
-          const { title, themePrompt, imageContext } = await metadataResponse.json();
+          const { title, themePrompt, imageContext, description } = await metadataResponse.json();
 
           // ===== STAGE 3: Theming =====
           setConversionStage('theming');
@@ -501,6 +501,7 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
               themeCss: themeCSS,
               themePrompt,
               imageContext,
+              description,
             }),
           });
 
@@ -679,7 +680,7 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
         throw new Error(metadataData.error || 'Failed to extract metadata');
       }
 
-      const { title, themePrompt, imageContext } = metadataData;
+      const { title, themePrompt, imageContext, description } = metadataData;
 
       // ===== STAGE 3: Theming - Generate CSS =====
       setConversionStage('theming');
@@ -709,6 +710,7 @@ export function DocumentUploader({ onClose, onSuccess }: DocumentUploaderProps) 
           themeCss,
           themePrompt,
           imageContext, // Scene setting for AI-generated images
+          description,  // OG description for sharing
         }),
       });
 

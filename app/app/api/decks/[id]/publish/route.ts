@@ -12,6 +12,7 @@ import { getDeckContent, getMetadata, saveMetadata, updateDeckBlob } from '@/lib
 import { nanoid } from 'nanoid';
 import { stripFrontmatter, extractFrontmatterForMigration } from '@/lib/parser';
 import { ImageSlot, DeckMetadataV3 } from '@/lib/types';
+import { generateShareSlug } from '@/lib/utils';
 
 // POST: Publish current deck state
 export async function POST(
@@ -123,10 +124,21 @@ export async function POST(
       });
     }
 
-    // If no share token exists, create one
+    // If no share token exists, create one (legacy, kept for backward compat)
     let shareToken = deck.shareToken;
     if (!shareToken) {
       shareToken = nanoid(12);
+    }
+
+    // Generate SEO-friendly slug if not exists
+    let shareSlug = deck.shareSlug;
+    if (!shareSlug) {
+      shareSlug = generateShareSlug(deck.name);
+      // Handle unlikely collision
+      const existing = await prisma.deck.findUnique({ where: { shareSlug } });
+      if (existing) {
+        shareSlug = generateShareSlug(deck.name); // Regenerate with new ID
+      }
     }
 
     // Update deck with published content
@@ -138,6 +150,7 @@ export async function POST(
       where: { id: deckId },
       data: {
         shareToken,
+        shareSlug,
         publishedContent: normalizedContent,
         publishedTheme: JSON.stringify(metadata), // v3: full metadata
         publishedAt: now,
@@ -146,10 +159,13 @@ export async function POST(
     });
 
     const baseUrl = process.env.NEXTAUTH_URL || 'https://www.riff.im';
+    // Use slug for URL (SEO-friendly), fallback to token for legacy
+    const shareIdentifier = updatedDeck.shareSlug || updatedDeck.shareToken;
     return NextResponse.json({
       success: true,
       shareToken: updatedDeck.shareToken,
-      shareUrl: `${baseUrl}/p/${updatedDeck.shareToken}`,
+      shareSlug: updatedDeck.shareSlug,
+      shareUrl: `${baseUrl}/p/${shareIdentifier}`,
       publishedAt: updatedDeck.publishedAt?.toISOString(),
       views: updatedDeck.views,
     });
@@ -192,6 +208,7 @@ export async function DELETE(
       where: { id: deckId },
       data: {
         shareToken: null,
+        shareSlug: null,
         publishedContent: null,
         publishedTheme: null,
         publishedAt: null,

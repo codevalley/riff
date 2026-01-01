@@ -476,12 +476,17 @@ export const DECK_METADATA_PROMPT = `You extract title, theme, and comprehensive
 Given the deck content, output ONLY a JSON object:
 {
   "title": "Short punchy deck title (3-6 words)",
+  "description": "One compelling sentence summarizing the deck (15-25 words)",
   "themePrompt": "Theme description for CSS generation (e.g., 'Dark minimal with cyan accents, modern tech feel')",
   "imageContext": "Comprehensive image generation context (see detailed rules below)"
 }
 
 Rules:
 - Title should capture the essence, not be generic, should have a emoji prefix. '<emoji> title text'
+- Description: A single sentence that captures the deck's key message or topic.
+  Do NOT mention "Riff", "presentation", "slides", or "deck".
+  Focus on WHAT the content is about, as if describing an article.
+  Example: "Exploring how typography choices reflect political ideologies throughout history."
 - Theme should describe: color mood, font style, overall vibe
 
 IMPORTANT - imageContext Rules:

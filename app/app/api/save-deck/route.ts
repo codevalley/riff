@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { markdown, title, themeCss, themePrompt, imageContext } = await request.json();
+    const { markdown, title, themeCss, themePrompt, imageContext, description } = await request.json();
 
     if (!markdown || typeof markdown !== 'string') {
       return NextResponse.json(
@@ -59,11 +59,12 @@ export async function POST(request: NextRequest) {
       await saveTheme(session.user.id, deckId, themeCss, themePrompt);
     }
 
-    // Save imageContext to metadata if provided
-    if (imageContext && typeof imageContext === 'string') {
+    // Save imageContext and description to metadata if provided
+    if ((imageContext && typeof imageContext === 'string') || (description && typeof description === 'string')) {
       const existingMetadata = await getMetadata(session.user.id, deckId);
       const metadata = existingMetadata || { v: 3 };
-      metadata.imageContext = imageContext;
+      if (imageContext) metadata.imageContext = imageContext;
+      if (description) metadata.description = description;
       await saveMetadata(session.user.id, deckId, metadata);
     }
 

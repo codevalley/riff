@@ -166,6 +166,8 @@ export interface DeckMetadataV3 {
   // Image generation context (includes BOTH style and scene)
   imageContext?: string;      // Comprehensive image context: artistic style + scene elements
   imageQueue?: ImageGenerationQueue; // Batch generation queue (persists across refresh)
+  // Deck description for OG metadata (generated from content)
+  description?: string;
 }
 
 /**

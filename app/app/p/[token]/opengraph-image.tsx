@@ -17,14 +17,26 @@ interface ThemeColors {
   surface: string;
 }
 
-// Extract CSS variable value from theme CSS
+// Extract CSS variable value from theme CSS, resolving var() references
 function extractCSSVar(css: string, varName: string): string | null {
   const regex = new RegExp(`${varName}:\\s*([^;]+)`);
   const match = css.match(regex);
-  if (match) {
-    return match[1].trim();
+  if (!match) return null;
+
+  let value = match[1].trim();
+
+  // Resolve var() references (e.g., var(--color-bg1) → actual value)
+  const varRef = value.match(/var\(--([^)]+)\)/);
+  if (varRef) {
+    const refName = `--${varRef[1]}`;
+    const refRegex = new RegExp(`${refName}:\\s*([^;]+)`);
+    const refMatch = css.match(refRegex);
+    if (refMatch) {
+      value = refMatch[1].trim();
+    }
   }
-  return null;
+
+  return value;
 }
 
 // Parse theme CSS into color object
@@ -84,8 +96,9 @@ export default async function Image({ params }: { params: { token: string } }) {
         deckName = data.title;
       }
       // Extract theme colors if available
-      if (data.theme?.css) {
-        colors = parseThemeColors(data.theme.css);
+      // Note: API returns { theme: { v: 3, theme: { css: "..." }, ... } }
+      if (data.theme?.theme?.css) {
+        colors = parseThemeColors(data.theme.theme.css);
       }
     }
   } catch {

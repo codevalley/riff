@@ -34,12 +34,14 @@ export async function POST(
       return NextResponse.json({ error: 'Deck not found' }, { status: 404 });
     }
 
-    // If already has a share token, return it
+    // If already has a share token, return it (prefer slug URL if available)
     if (deck.shareToken) {
       const baseUrl = process.env.NEXTAUTH_URL || 'https://www.riff.im';
+      const shareIdentifier = deck.shareSlug || deck.shareToken;
       return NextResponse.json({
         shareToken: deck.shareToken,
-        shareUrl: `${baseUrl}/p/${deck.shareToken}`,
+        shareSlug: deck.shareSlug,
+        shareUrl: `${baseUrl}/p/${shareIdentifier}`,
         isPublished: !!deck.publishedAt,
         publishedAt: deck.publishedAt?.toISOString() || null,
         views: deck.views,
@@ -101,6 +103,7 @@ export async function GET(
       return NextResponse.json({
         isShared: false,
         shareToken: null,
+        shareSlug: null,
         shareUrl: null,
         isPublished: false,
         publishedAt: null,
@@ -109,10 +112,12 @@ export async function GET(
     }
 
     const baseUrl = process.env.NEXTAUTH_URL || 'https://www.riff.im';
+    const shareIdentifier = deck.shareSlug || deck.shareToken;
     return NextResponse.json({
       isShared: true,
       shareToken: deck.shareToken,
-      shareUrl: `${baseUrl}/p/${deck.shareToken}`,
+      shareSlug: deck.shareSlug,
+      shareUrl: `${baseUrl}/p/${shareIdentifier}`,
       isPublished: !!deck.publishedAt,
       publishedAt: deck.publishedAt?.toISOString() || null,
       views: deck.views,
@@ -151,11 +156,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'Deck not found' }, { status: 404 });
     }
 
-    // Clear share token and published content
+    // Clear share token, slug, and published content
     await prisma.deck.update({
       where: { id: deckId },
       data: {
         shareToken: null,
+        shareSlug: null,
         publishedContent: null,
         publishedTheme: null,
         publishedAt: null,

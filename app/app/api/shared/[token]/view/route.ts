@@ -14,10 +14,11 @@ export async function POST(
     const { token } = await params;
 
     // Increment view count atomically using raw query to avoid updating updatedAt
+    // Supports both slug and legacy token
     const result = await prisma.$executeRaw`
       UPDATE "Deck"
       SET views = views + 1
-      WHERE "shareToken" = ${token}
+      WHERE ("shareSlug" = ${token} OR "shareToken" = ${token})
       AND "publishedContent" IS NOT NULL
     `;
 

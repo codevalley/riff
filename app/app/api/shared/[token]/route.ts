@@ -21,9 +21,14 @@ export async function GET(
       );
     }
 
-    // Find deck by share token
-    const deck = await prisma.deck.findUnique({
-      where: { shareToken: token },
+    // Find deck by slug or token (slug takes priority)
+    const deck = await prisma.deck.findFirst({
+      where: {
+        OR: [
+          { shareSlug: token },
+          { shareToken: token },
+        ],
+      },
       select: {
         id: true,
         name: true,

@@ -4,7 +4,7 @@
 // ============================================
 
 import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { parseSlideMarkdown } from '@/lib/parser';
 import { PresenterClient } from '@/app/present/[id]/client';
@@ -23,10 +23,15 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const token = params.token;
 
-  // Fetch deck name for metadata
-  const deck = await prisma.deck.findUnique({
-    where: { shareToken: token },
-    select: { name: true, publishedAt: true },
+  // Fetch deck name and metadata for OG tags (supports both slug and legacy token)
+  const deck = await prisma.deck.findFirst({
+    where: {
+      OR: [
+        { shareSlug: token },
+        { shareToken: token },
+      ],
+    },
+    select: { name: true, publishedAt: true, publishedTheme: true },
   });
 
   if (!deck || !deck.publishedAt) {
@@ -35,23 +40,36 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
+  // Extract description from published metadata (fallback to generic)
+  let description = 'A presentation made with Riff';
+  if (deck.publishedTheme) {
+    try {
+      const metadata = JSON.parse(deck.publishedTheme);
+      if (metadata.description) {
+        description = metadata.description;
+      }
+    } catch {
+      // Invalid JSON, use fallback
+    }
+  }
+
   const baseUrl = process.env.NEXTAUTH_URL || 'https://www.riff.im';
   const url = `${baseUrl}/p/${token}`;
 
   return {
     title: `${deck.name} - Riff`,
-    description: `View "${deck.name}" - a presentation shared on Riff`,
+    description,
     openGraph: {
       type: 'article',
       url,
       title: deck.name,
-      description: `View "${deck.name}" - a presentation shared on Riff`,
+      description,
       siteName: 'Riff',
     },
     twitter: {
       card: 'summary_large_image',
       title: deck.name,
-      description: `View "${deck.name}" on Riff`,
+      description,
     },
     alternates: {
       canonical: url,
@@ -63,17 +81,29 @@ export default async function SharedPresentationPage({ params, searchParams }: P
   const token = params.token;
   const initialSlide = searchParams.slide ? parseInt(searchParams.slide, 10) : 0;
 
-  // Fetch published deck by share token (no auth required)
-  const deck = await prisma.deck.findUnique({
-    where: { shareToken: token },
+  // Fetch published deck by slug or token (no auth required)
+  const deck = await prisma.deck.findFirst({
+    where: {
+      OR: [
+        { shareSlug: token },
+        { shareToken: token },
+      ],
+    },
     select: {
       id: true,
       name: true,
       publishedContent: true,
       publishedTheme: true,
       publishedAt: true,
+      shareSlug: true,
+      shareToken: true,
     },
   });
+
+  // 308 permanent redirect from legacy token URL to SEO-friendly slug URL
+  if (deck?.shareSlug && token === deck.shareToken) {
+    permanentRedirect(`/p/${deck.shareSlug}`);
+  }
 
   // Check if deck exists and is published
   if (!deck || !deck.publishedContent || !deck.publishedAt) {
