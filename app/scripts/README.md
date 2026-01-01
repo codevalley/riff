@@ -7,7 +7,8 @@ Utility scripts for analytics and email operations. All scripts support `--env=.
 ```
 scripts/
 ├── analytics/
-│   └── user-metrics.ts    # User performance analytics
+│   ├── user-metrics.ts    # User performance analytics
+│   └── daily-funnel.ts    # Daily funnel snapshot (appends to CSV)
 ├── emails/
 │   ├── test.ts            # Test sending any email type
 │   ├── backfill.ts        # Backfill emails to qualifying users
@@ -38,6 +39,60 @@ npx tsx scripts/analytics/user-metrics.ts --env=.env.production
 - Top performing decks by views
 - Credits & revenue summary
 - Full user list with activity
+
+---
+
+### Daily Funnel Snapshot
+
+Append daily funnel metrics to a CSV file for tracking trends over time.
+
+```bash
+# Local database
+npx tsx scripts/analytics/daily-funnel.ts
+
+# Production database
+npx tsx scripts/analytics/daily-funnel.ts --env=.env.production
+```
+
+**Output:** Saves a row to `data/funnel-metrics.csv` with:
+- date, signups, users_created_deck, users_published
+- total_decks, published_decks, total_views
+- purchasers, tippers
+
+**Idempotent:** Safe to run multiple times per day. If today's row exists, it updates it instead of duplicating.
+
+**Note:** The `data/` directory is gitignored and stored locally only.
+
+---
+
+### Visualizing the CSV
+
+**Quick terminal view:**
+```bash
+# Pretty print with column
+column -s, -t data/funnel-metrics.csv
+
+# Just the funnel columns
+cut -d, -f1-4 data/funnel-metrics.csv | column -s, -t
+```
+
+**Google Sheets (free):**
+1. Upload `data/funnel-metrics.csv` to Google Drive
+2. Open with Google Sheets
+3. Select data → Insert → Chart → Line chart
+
+**Python one-liner:**
+```bash
+# Requires: pip install pandas matplotlib
+python3 -c "
+import pandas as pd
+import matplotlib.pyplot as plt
+df = pd.read_csv('data/funnel-metrics.csv', parse_dates=['date'])
+df.plot(x='date', y=['signups','users_created_deck','users_published'], marker='o')
+plt.savefig('data/funnel.png')
+print('Saved data/funnel.png')
+"
+```
 
 ---
 
