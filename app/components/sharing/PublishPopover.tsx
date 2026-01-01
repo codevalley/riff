@@ -23,6 +23,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { analytics } from '@/lib/analytics';
 
 export interface PublishStatus {
   isPublished: boolean;
@@ -155,6 +156,7 @@ export function PublishPopover({
 
       setStatus(newStatus);
       onPublishStatusChange?.(newStatus);
+      analytics.deckPublished();
     } catch (err) {
       setError('Failed to publish');
       console.error(err);

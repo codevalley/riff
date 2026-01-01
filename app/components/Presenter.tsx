@@ -21,6 +21,7 @@ import {
 import { ParsedDeck, ImageSlot } from '@/lib/types';
 import { SlideRenderer } from './SlideRenderer';
 import { countReveals } from '@/lib/parser';
+import { analytics } from '@/lib/analytics';
 
 interface PresenterProps {
   deck: ParsedDeck;
@@ -56,6 +57,17 @@ export function Presenter({
   const slide = deck.slides[currentSlide];
   const totalSlides = deck.slides.length;
   const maxReveals = slide ? countReveals(slide) - 1 : 0;
+
+  // Track slide views for shared/published decks
+  useEffect(() => {
+    if (isSharedView) {
+      analytics.slideViewed(currentSlide, totalSlides);
+      // Track deck completion when viewer reaches the last slide
+      if (currentSlide === totalSlides - 1) {
+        analytics.deckCompleted();
+      }
+    }
+  }, [currentSlide, totalSlides, isSharedView]);
 
   // Navigation
   const goNext = useCallback(() => {

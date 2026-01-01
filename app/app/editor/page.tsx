@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PanelLeftClose, PanelLeft, X, Loader2, Plus, FileSymlink, Upload, ChevronDown, File, FolderOpen } from 'lucide-react';
 import { RiffIcon } from '@/components/RiffIcon';
 import { SnowTrigger } from '@/components/SnowfallEffect';
+import { analytics } from '@/lib/analytics';
 import { useSearchParams } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { parseSlideMarkdown, isLegacyDeck } from '@/lib/parser';
@@ -213,6 +214,7 @@ function EditorContent() {
     // Check for tip success and show thank you modal
     const tipStatus = searchParams.get('tip');
     if (tipStatus === 'success') {
+      analytics.tipSent();
       setShowTipThankYou(true);
       // Clean up URL
       window.history.replaceState({}, '', '/editor');
@@ -289,6 +291,7 @@ function EditorContent() {
 
       const data = await response.json();
       if (data.deck) {
+        analytics.deckCreated('scratch');
         const listResponse = await fetch('/api/decks');
         const listData = await listResponse.json();
         setDecks(listData.decks || []);
@@ -403,6 +406,7 @@ function EditorContent() {
 
       // Load the imported deck
       if (data.deck?.id) {
+        analytics.deckCreated('import');
         await loadDeck(data.deck.id);
       }
     } catch (err) {
@@ -453,6 +457,7 @@ function EditorContent() {
       }
 
       if (data.css) {
+        analytics.themeGenerated();
         console.log('Theme generated successfully, CSS length:', data.css.length);
         console.log('Generated CSS:', data.css);
         setThemeCSS(data.css);
@@ -524,6 +529,7 @@ function EditorContent() {
 
   // Handle successful document upload from DocumentUploader
   const handleUploadSuccess = useCallback(async (deckId: string) => {
+    analytics.deckCreated('content');
     // Refresh deck list and load the new deck
     try {
       const listResponse = await fetch('/api/decks');
@@ -620,6 +626,7 @@ function EditorContent() {
   const handleRevamp = useCallback(async (instructions: string) => {
     if (!currentDeckId || !currentDeckContent) return;
 
+    analytics.revampUsed();
     setIsRevamping(true);
     try {
       const response = await fetch('/api/revamp-deck', {

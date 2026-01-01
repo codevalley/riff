@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useCreditsContext } from '@/hooks/useCredits';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { analytics } from '@/lib/analytics';
 
 type ExportFormat = 'riff' | 'pdf' | 'pptx';
 
@@ -188,6 +189,9 @@ export function ExportDropdown({ deckId, deckName }: ExportDropdownProps) {
           console.warn('Failed to deduct credits:', err);
         }
       }
+
+      // Track successful export
+      analytics.deckExported(format);
 
       // Show completion state briefly
       setCompleted(format);

@@ -28,6 +28,7 @@ import { useStore } from '@/lib/store';
 import { DancingPixels } from './DancingPixels';
 import { ImageManifestEntry, ImageSlot } from '@/lib/types';
 import { CREDIT_COSTS } from '@/lib/credits-config';
+import { analytics } from '@/lib/analytics';
 import { useCreditsContext } from '@/hooks/useCredits';
 import { useOnboarding } from '@/hooks/useOnboarding';
 
@@ -307,6 +308,7 @@ export function ImagePlaceholder({
       }
 
       if (data.url) {
+        analytics.imageGenerated();
         const cacheKey = getCacheKey('generated');
         setSlots(prev => ({ ...prev, generated: data.url }));
         setActiveSlot('generated');
