@@ -153,6 +153,7 @@ export function SlideRenderer({
     : visibleElements;
 
   // Split layout: image + content side by side (LEFT/RIGHT only)
+  // On portrait/mobile: stacks vertically with image on top, content below
   if (isSplit && imageElement) {
     const imageOnLeft = imagePosition === 'left';
 
@@ -172,13 +173,22 @@ export function SlideRenderer({
           className={`
             slide-split-layout
             relative z-10 w-full h-full
-            flex flex-row
-            ${!imageOnLeft ? 'flex-row-reverse' : ''}
+            flex
+            flex-col portrait:flex-col
+            landscape:flex-row
+            ${!imageOnLeft ? 'landscape:flex-row-reverse' : ''}
           `}
         >
-          {/* Image area: 40% width */}
+          {/* Image area: 40% on landscape, constrained height on portrait */}
           <div
-            className="slide-split-image w-[40%] h-full flex-shrink-0 flex items-center justify-center p-4 portrait:p-2 md:p-6 lg:p-8"
+            className={`
+              slide-split-image
+              flex-shrink-0 flex items-center justify-center
+              p-3 md:p-6 lg:p-8
+              portrait:w-full portrait:max-h-[35vh]
+              landscape:w-[40%] landscape:h-full
+            `}
+            style={{ aspectRatio: '16/9' }}
           >
             <ImagePlaceholder
               description={imageElement.content}
@@ -190,15 +200,18 @@ export function SlideRenderer({
               onActiveSlotChange={onActiveSlotChange ? (slot) => onActiveSlotChange(imageElement.content, slot) : undefined}
               sceneContext={sceneContext}
               deckImages={deckImages}
+              constrainHeight={true}
             />
           </div>
 
-          {/* Content area: 60% width */}
+          {/* Content area: 60% on landscape, flex-1 on portrait */}
           <div
             className={`
-              slide-split-content w-[60%] h-full
+              slide-split-content
               flex flex-col ${alignmentClasses}
-              p-4 portrait:p-3 md:p-8 lg:p-12
+              p-3 md:p-8 lg:p-12
+              portrait:flex-1 portrait:w-full
+              landscape:w-[60%] landscape:h-full
             `}
           >
             <div className="w-full max-w-3xl">

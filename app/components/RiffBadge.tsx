@@ -22,7 +22,8 @@ export function RiffBadge({ className = '' }: RiffBadgeProps) {
       transition={{ delay: 1.5, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
       className={`
         fixed z-40
-        bottom-16 right-3 sm:bottom-5 sm:right-10
+        hidden sm:block
+        sm:bottom-5 sm:right-10
         group
         ${className}
       `}
