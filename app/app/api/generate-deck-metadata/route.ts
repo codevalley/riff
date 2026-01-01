@@ -38,12 +38,13 @@ export async function POST(request: NextRequest) {
     const { text: metadataOutput } = await generateText({
       model: gateway(modelId),
       system: DECK_METADATA_PROMPT,
-      prompt: `Extract title, theme, and image context from this deck:\n\n${markdown.slice(0, 3000)}`,
+      prompt: `Extract title, description, theme, and image context from this deck:\n\n${markdown.slice(0, 3000)}`,
       maxOutputTokens: 512,
     });
 
     // Parse JSON response
     let title: string | null = null;
+    let description: string | null = null;
     let themePrompt: string | null = null;
     let imageContext: string | null = null;
 
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
       try {
         const metadata = JSON.parse(jsonMatch[0]);
         title = metadata.title || null;
+        description = metadata.description || null;
         themePrompt = metadata.themePrompt || null;
         imageContext = metadata.imageContext || null;
       } catch {
@@ -79,6 +81,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       title: title || 'Untitled Presentation',
+      description,
       themePrompt,
       imageContext,
     });
