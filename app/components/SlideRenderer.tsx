@@ -164,31 +164,31 @@ export function SlideRenderer({
           relative w-full h-full
           bg-slide-bg text-slide-text
           overflow-hidden
+          portrait:flex portrait:flex-col ${alignmentClasses}
+          portrait:p-3
           ${isPresenting ? 'min-h-screen' : 'min-h-[400px] rounded-lg'}
         `}
       >
         {slide.background && <SlideBackground effect={slide.background} />}
 
+        {/* LANDSCAPE: Side-by-side split layout */}
         <div
           className={`
             slide-split-layout
-            relative z-10 w-full
-            flex
-            portrait:flex-col portrait:items-center portrait:justify-center portrait:h-full
-            landscape:flex-row landscape:h-full
+            relative z-10 w-full h-full
+            portrait:hidden
+            landscape:flex landscape:flex-row
             ${!imageOnLeft ? 'landscape:flex-row-reverse' : ''}
           `}
         >
-          {/* Image area: 40% on landscape, constrained on portrait */}
+          {/* Image area: 40% width */}
           <div
             className={`
               slide-split-image
-              flex-shrink-0 flex items-center justify-center
+              w-[40%] h-full flex-shrink-0
+              flex items-center justify-center
               p-3 md:p-6 lg:p-8
-              portrait:w-full portrait:max-h-[35vh]
-              landscape:w-[40%] landscape:h-full
             `}
-            style={{ aspectRatio: '16/9' }}
           >
             <ImagePlaceholder
               description={imageElement.content}
@@ -204,14 +204,13 @@ export function SlideRenderer({
             />
           </div>
 
-          {/* Content area: 60% on landscape, auto-height on portrait (stacks naturally) */}
+          {/* Content area: 60% width */}
           <div
             className={`
               slide-split-content
-              flex flex-col
+              w-[60%] h-full
+              flex flex-col ${alignmentClasses}
               p-3 md:p-8 lg:p-12
-              portrait:w-full portrait:items-center portrait:text-center
-              landscape:w-[60%] landscape:h-full ${alignmentClasses}
             `}
           >
             <div className="w-full max-w-3xl">
@@ -233,6 +232,45 @@ export function SlideRenderer({
               </AnimatePresence>
             </div>
           </div>
+        </div>
+
+        {/* PORTRAIT: Stacked layout (same as top/bottom) - image treated as "top" position */}
+        <div
+          className={`
+            relative z-10 w-full max-w-5xl
+            landscape:hidden
+          `}
+        >
+          <AnimatePresence mode="popLayout">
+            {/* Image first (like top position), then content */}
+            <ElementRenderer
+              key={`${slide.id}-split-image-${imageElement.content.slice(0, 20)}`}
+              element={imageElement}
+              index={0}
+              isPresenting={isPresenting}
+              revealStep={revealStep}
+              imageManifest={imageManifest}
+              onImageChange={onImageChange}
+              onActiveSlotChange={onActiveSlotChange}
+              sceneContext={sceneContext}
+              deckImages={deckImages}
+              constrainImageHeight={true}
+            />
+            {contentElements.map((element, index) => (
+              <ElementRenderer
+                key={`${slide.id}-${index + 1}-${element.type}-${element.content.slice(0, 20)}`}
+                element={element}
+                index={index + 1}
+                isPresenting={isPresenting}
+                revealStep={revealStep}
+                imageManifest={imageManifest}
+                onImageChange={onImageChange}
+                onActiveSlotChange={onActiveSlotChange}
+                sceneContext={sceneContext}
+                deckImages={deckImages}
+              />
+            ))}
+          </AnimatePresence>
         </div>
 
         {/* Footer - follows slide alignment */}

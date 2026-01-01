@@ -142,17 +142,20 @@ export function EmbedClient({
 
       <div
         ref={containerRef}
-        className="relative w-full h-screen bg-slide-bg overflow-hidden"
+        className="relative w-full h-dvh bg-slide-bg overflow-hidden"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
         {/* Inject theme CSS */}
         {themeCSS && <style dangerouslySetInnerHTML={{ __html: themeCSS }} />}
 
-        {/* Override min-h-screen for embed context */}
+        {/* Override min-h-screen for embed context + dvh fallback + safe areas */}
         <style dangerouslySetInnerHTML={{ __html: `
           .embed-slide-container .min-h-screen { min-height: 100% !important; }
           .embed-slide-container { width: 100%; height: 100%; }
+          @supports not (height: 100dvh) {
+            .h-dvh { height: 100vh; }
+          }
         `}} />
 
         {/* Main slide - scaled to fit, click to advance */}
@@ -188,7 +191,10 @@ export function EmbedClient({
         {/* Controls overlay - always visible, on top of content */}
         <div className="absolute inset-0 pointer-events-none z-50">
           {/* Progress bar */}
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-slide-surface/30">
+          <div
+            className="absolute left-0 right-0 h-1 bg-slide-surface/30"
+            style={{ bottom: 'env(safe-area-inset-bottom, 0px)' }}
+          >
             <motion.div
               className="h-full bg-slide-accent"
               initial={false}
@@ -225,7 +231,10 @@ export function EmbedClient({
           )}
 
           {/* Slide counter with reset button */}
-          <div className="absolute bottom-3 right-3 flex items-center gap-2">
+          <div
+            className="absolute right-3 flex items-center gap-2"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
+          >
             {currentSlide > 0 && (
               <button
                 onClick={(e) => {
@@ -248,7 +257,8 @@ export function EmbedClient({
             href="https://www.riff.im"
             target="_blank"
             rel="noopener noreferrer"
-            className="pointer-events-auto absolute bottom-3 left-8 flex items-center gap-1.5 px-2 py-1 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded text-white/60 hover:text-white transition-all"
+            className="pointer-events-auto absolute left-8 flex items-center gap-1.5 px-2 py-1 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded text-white/60 hover:text-white transition-all"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
           >
             <RiffIcon size={14} primaryColor="currentColor" secondaryColor="currentColor" />
             <span className="text-xs" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>Riff</span>

@@ -84,15 +84,20 @@ export default async function EmbedPresentationPage({ params, searchParams }: Pa
   // Parse the published content
   const parsedDeck = parseSlideMarkdown(deck.publishedContent);
 
-  // Parse theme if available
+  // Parse theme if available (v3: nested under theme.theme)
   let themeCSS: string | undefined;
   let imageUrls: Record<string, string> = {};
 
   if (deck.publishedTheme) {
     try {
-      const theme = JSON.parse(deck.publishedTheme);
-      themeCSS = theme.css;
-      imageUrls = theme.imageUrls || {};
+      const metadata = JSON.parse(deck.publishedTheme);
+      // v3 structure: { v: 3, theme: { css: "..." }, images: {...} }
+      themeCSS = metadata.theme?.css;
+      // Also hydrate image manifest for the parsed deck
+      if (metadata.images) {
+        parsedDeck.imageManifest = metadata.images;
+      }
+      imageUrls = metadata.imageUrls || {};
     } catch {
       // Invalid theme JSON, ignore
     }

@@ -53,10 +53,12 @@ export function Presenter({
   const [autoPlayInterval] = useState(3000); // 3 seconds per slide/reveal
   const [autoPlayProgress, setAutoPlayProgress] = useState(0); // 0-1 for smooth animation
   const [showMobileControls, setShowMobileControls] = useState(true); // Tap to show/hide on mobile
+  const [controlsAutoHideTimer, setControlsAutoHideTimer] = useState<NodeJS.Timeout | null>(null);
 
   const slide = deck.slides[currentSlide];
   const totalSlides = deck.slides.length;
   const maxReveals = slide ? countReveals(slide) - 1 : 0;
+  const isAtEnd = currentSlide >= totalSlides - 1 && currentReveal >= maxReveals;
 
   // Track slide views for shared/published decks
   useEffect(() => {
@@ -227,6 +229,47 @@ export function Presenter({
     setIsAutoPlaying((prev) => !prev);
   }, []);
 
+  // Auto-hide controls after 2 seconds on mobile (but not during autoplay)
+  const scheduleControlsHide = useCallback(() => {
+    // Clear existing timer
+    if (controlsAutoHideTimer) {
+      clearTimeout(controlsAutoHideTimer);
+    }
+    // Don't auto-hide during autoplay - user needs access to pause button
+    if (isAutoPlaying) {
+      return;
+    }
+    // Set new timer to hide controls after 2 seconds
+    const timer = setTimeout(() => {
+      setShowMobileControls(false);
+    }, 2000);
+    setControlsAutoHideTimer(timer);
+  }, [controlsAutoHideTimer, isAutoPlaying]);
+
+  // Show controls initially, then auto-hide
+  useEffect(() => {
+    if (showMobileControls) {
+      scheduleControlsHide();
+    }
+    return () => {
+      if (controlsAutoHideTimer) {
+        clearTimeout(controlsAutoHideTimer);
+      }
+    };
+  }, [showMobileControls]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When autoplay starts, ensure controls are visible and cancel any pending hide timer
+  useEffect(() => {
+    if (isAutoPlaying) {
+      setShowMobileControls(true);
+      // Cancel any pending auto-hide timer immediately
+      if (controlsAutoHideTimer) {
+        clearTimeout(controlsAutoHideTimer);
+        setControlsAutoHideTimer(null);
+      }
+    }
+  }, [isAutoPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Handle slide tap - on mobile toggle controls, on desktop advance slide
   const handleSlideTap = useCallback((e: React.MouseEvent) => {
     // Check if we're on mobile (portrait or small screen)
@@ -239,9 +282,16 @@ export function Presenter({
   }, [goNext]);
 
   return (
-    <div className="relative w-full h-screen bg-slide-bg overflow-hidden">
+    <div className="relative w-full h-dvh bg-slide-bg overflow-hidden">
       {/* Inject theme CSS */}
       {themeCSS && <style dangerouslySetInnerHTML={{ __html: themeCSS }} />}
+
+      {/* Safe area and dvh fallback for older browsers */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @supports not (height: 100dvh) {
+          .h-dvh { height: 100vh; }
+        }
+      `}} />
 
       {/* Main slide */}
       <div
@@ -265,8 +315,8 @@ export function Presenter({
         )}
       </div>
 
-      {/* Progress bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-slide-surface/30 z-50">
+      {/* Progress bar - positioned above safe area */}
+      <div className="absolute left-0 right-0 h-1 bg-slide-surface/30 z-50" style={{ bottom: 'env(safe-area-inset-bottom, 0px)' }}>
         {(() => {
           // Calculate base progress (completed slides + reveals)
           const baseProgress = (currentSlide + (currentReveal / (maxReveals + 1))) / totalSlides;
@@ -292,44 +342,62 @@ export function Presenter({
       <AnimatePresence>
         {showMobileControls && (
           <>
-            {/* Left edge - Prev button */}
-            <motion.button
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              onClick={(e) => { e.stopPropagation(); goPrev(); }}
-              className="sm:hidden fixed left-2 top-1/2 -translate-y-1/2 z-50 p-3 bg-black/40 backdrop-blur-sm rounded-full text-white/70 active:text-white active:bg-black/60"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </motion.button>
+            {/* Left edge - Prev button (hidden during autoplay) */}
+            {!isAutoPlaying && (
+              <motion.button
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                onClick={(e) => { e.stopPropagation(); goPrev(); }}
+                className="sm:hidden fixed left-2 top-1/2 -translate-y-1/2 z-50 p-3 bg-black/40 backdrop-blur-sm rounded-full text-white/70 active:text-white active:bg-black/60"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </motion.button>
+            )}
 
-            {/* Right edge - Next button */}
-            <motion.button
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              onClick={(e) => { e.stopPropagation(); goNext(); }}
-              className="sm:hidden fixed right-2 top-1/2 -translate-y-1/2 z-50 p-3 bg-black/40 backdrop-blur-sm rounded-full text-white/70 active:text-white active:bg-black/60"
-            >
-              <ChevronRight className="w-6 h-6" />
-            </motion.button>
+            {/* Right edge - Next button (hidden during autoplay) */}
+            {!isAutoPlaying && (
+              <motion.button
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                onClick={(e) => { e.stopPropagation(); goNext(); }}
+                className="sm:hidden fixed right-2 top-1/2 -translate-y-1/2 z-50 p-3 bg-black/40 backdrop-blur-sm rounded-full text-white/70 active:text-white active:bg-black/60"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </motion.button>
+            )}
 
             {/* Bottom bar - Auto-play + counter (left) and Riff badge (right) */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="sm:hidden fixed left-3 right-3 bottom-4 z-50 flex items-center justify-between"
+              className="sm:hidden fixed left-3 right-3 z-50 flex items-center justify-between"
+              style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
             >
-              {/* Left side: Auto-play + counter */}
+              {/* Left side: Auto-play/Reset + counter */}
               <div className="flex items-center gap-2">
                 <button
-                  onClick={(e) => { e.stopPropagation(); toggleAutoPlay(); }}
-                  className={`p-3 rounded-full backdrop-blur-sm transition-colors ${
-                    isAutoPlaying ? 'bg-emerald-500/40 text-emerald-300' : 'bg-black/50 text-white/80'
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isAtEnd && !isAutoPlaying) {
+                      goToSlide(0);
+                    } else {
+                      toggleAutoPlay();
+                    }
+                  }}
+                  className={`p-3 rounded-full backdrop-blur-sm transition-colors bg-black/50 ${
+                    isAutoPlaying ? 'text-emerald-400' : 'text-white/80'
                   }`}
                 >
-                  {isAutoPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                  {isAutoPlaying ? (
+                    <Pause className="w-5 h-5" />
+                  ) : isAtEnd ? (
+                    <RotateCcw className="w-5 h-5" />
+                  ) : (
+                    <Play className="w-5 h-5" />
+                  )}
                 </button>
                 <span className="text-sm font-mono tabular-nums px-2 py-1 rounded bg-black/50 backdrop-blur-sm text-white/80">
                   {currentSlide + 1}/{totalSlides}
@@ -379,15 +447,28 @@ export function Presenter({
             <ChevronRight className="w-5 h-5" />
           </button>
 
-          {/* Auto-play button */}
+          {/* Auto-play / Reset button */}
           <button
-            onClick={(e) => { e.stopPropagation(); toggleAutoPlay(); }}
-            className={`slide-nav-button flex items-center justify-center p-2 rounded-full transition-colors ${
-              isAutoPlaying ? 'bg-emerald-500/30 text-emerald-300' : 'hover:bg-white/10 text-white/70 hover:text-white'
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isAtEnd && !isAutoPlaying) {
+                goToSlide(0);
+              } else {
+                toggleAutoPlay();
+              }
+            }}
+            className={`slide-nav-button flex items-center justify-center p-2 rounded-full transition-colors hover:bg-white/10 ${
+              isAutoPlaying ? 'text-emerald-400' : 'text-white/70 hover:text-white'
             }`}
-            title={isAutoPlaying ? "Pause (A)" : "Auto-play (A)"}
+            title={isAutoPlaying ? "Pause (A)" : isAtEnd ? "Restart (Home)" : "Auto-play (A)"}
           >
-            {isAutoPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+            {isAutoPlaying ? (
+              <Pause className="w-5 h-5" />
+            ) : isAtEnd ? (
+              <RotateCcw className="w-5 h-5" />
+            ) : (
+              <Play className="w-5 h-5" />
+            )}
           </button>
 
           <div className="w-px h-6 bg-white/20 mx-1" />
