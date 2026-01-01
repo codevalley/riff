@@ -49,7 +49,7 @@ export function Presenter({
   const [showOverview, setShowOverview] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
-  const [autoPlayInterval] = useState(5000); // 5 seconds per slide/reveal
+  const [autoPlayInterval] = useState(3000); // 3 seconds per slide/reveal
   const [autoPlayProgress, setAutoPlayProgress] = useState(0); // 0-1 for smooth animation
 
   const slide = deck.slides[currentSlide];
