@@ -21,6 +21,7 @@ import {
   CloudCheck,
   CloudBackup,
   BarChart3,
+  AlertTriangle,
 } from 'lucide-react';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { analytics } from '@/lib/analytics';
@@ -64,6 +65,8 @@ export function PublishPopover({
   const [embedSize, setEmbedSize] = useState<EmbedSize>('medium');
   const [embedCopied, setEmbedCopied] = useState(false);
   const [unpublishing, setUnpublishing] = useState(false);
+  const [showUnpublishConfirm, setShowUnpublishConfirm] = useState(false);
+  const [clearSlugOnUnpublish, setClearSlugOnUnpublish] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const { recordFeatureUse } = useOnboarding();
 
@@ -204,22 +207,26 @@ export function PublishPopover({
 
       const res = await fetch(`/api/decks/${deckId}/publish`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clearSlug: clearSlugOnUnpublish }),
       });
 
       if (!res.ok) throw new Error('Failed to unpublish');
 
+      // Preserve or clear shareToken/shareSlug based on user choice
       const newStatus: PublishStatus = {
         isPublished: false,
         publishedAt: null,
         hasUnpublishedChanges: false,
-        shareToken: null,
-        shareSlug: null,
-        views: 0,
+        shareToken: clearSlugOnUnpublish ? null : (status?.shareToken || null),
+        shareSlug: clearSlugOnUnpublish ? null : (status?.shareSlug || null),
+        views: clearSlugOnUnpublish ? 0 : (status?.views || 0),
       };
 
       setStatus(newStatus);
       onPublishStatusChange?.(newStatus);
       setShowEmbed(false);
+      setClearSlugOnUnpublish(false); // Reset for next time
     } catch (err) {
       setError('Failed to unpublish');
       console.error(err);
@@ -481,18 +488,82 @@ export function PublishPopover({
                 {/* Unpublish Button - only show if published */}
                 {status?.isPublished && (
                   <div className="pt-2 border-t border-zinc-800/50">
-                    <button
-                      onClick={handleUnpublish}
-                      disabled={unpublishing}
-                      className="flex items-center gap-2 w-full py-2 text-xs text-zinc-500 hover:text-red-400 transition-colors disabled:opacity-50"
-                    >
-                      {unpublishing ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <AnimatePresence mode="wait">
+                      {showUnpublishConfirm ? (
+                        <motion.div
+                          key="confirm"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="space-y-3 py-2"
+                        >
+                          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                            <div className="text-xs text-amber-300">
+                              <p className="font-medium">Shared links will stop working</p>
+                              <p className="text-amber-400/70 mt-0.5">Republish anytime to make them live again.</p>
+                            </div>
+                          </div>
+
+                          {/* Option to generate new URL */}
+                          <label className="flex items-start gap-2.5 p-2.5 rounded-lg bg-zinc-800/50 border border-zinc-700/50 cursor-pointer hover:bg-zinc-800 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={clearSlugOnUnpublish}
+                              onChange={(e) => setClearSlugOnUnpublish(e.target.checked)}
+                              className="mt-0.5 w-3.5 h-3.5 rounded border-zinc-600 bg-zinc-900 text-red-500 focus:ring-red-500/20 focus:ring-offset-0"
+                            />
+                            <div className="text-xs">
+                              <p className="font-medium text-zinc-300">Permanently delete this link</p>
+                              <p className="text-zinc-500 mt-0.5">Republishing will create a new URL. View count resets.</p>
+                            </div>
+                          </label>
+
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setShowUnpublishConfirm(false);
+                                setClearSlugOnUnpublish(false);
+                              }}
+                              className="flex-1 h-8 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors text-zinc-300"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowUnpublishConfirm(false);
+                                handleUnpublish();
+                              }}
+                              disabled={unpublishing}
+                              className={`flex-1 h-8 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 ${
+                                clearSlugOnUnpublish
+                                  ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400'
+                                  : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-400'
+                              }`}
+                            >
+                              {unpublishing ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <CloudOff className="w-3 h-3" />
+                              )}
+                              <span>Unpublish</span>
+                            </button>
+                          </div>
+                        </motion.div>
                       ) : (
-                        <CloudOff className="w-3.5 h-3.5" />
+                        <motion.button
+                          key="trigger"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          onClick={() => setShowUnpublishConfirm(true)}
+                          className="flex items-center gap-2 w-full py-2 text-xs text-zinc-500 hover:text-red-400 transition-colors"
+                        >
+                          <CloudOff className="w-3.5 h-3.5" />
+                          <span>Unpublish</span>
+                        </motion.button>
                       )}
-                      <span>{unpublishing ? 'Unpublishing...' : 'Unpublish'}</span>
-                    </button>
+                    </AnimatePresence>
                   </div>
                 )}
               </div>

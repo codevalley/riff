@@ -179,6 +179,8 @@ export async function POST(
 }
 
 // DELETE: Unpublish deck (remove from public access)
+// By default preserves shareToken/shareSlug for URL continuity
+// Pass { clearSlug: true } to generate a new URL on republish
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -190,6 +192,15 @@ export async function DELETE(
     }
 
     const deckId = params.id;
+
+    // Parse request body for clearSlug option
+    let clearSlug = false;
+    try {
+      const body = await request.json();
+      clearSlug = body.clearSlug === true;
+    } catch {
+      // No body or invalid JSON - default to preserving slug
+    }
 
     // Get deck with ownership check
     const deck = await prisma.deck.findFirst({
@@ -203,15 +214,20 @@ export async function DELETE(
       return NextResponse.json({ error: 'Deck not found' }, { status: 404 });
     }
 
-    // Clear published data
+    // Clear published content
+    // Optionally clear slug/token if user wants a fresh start
     await prisma.deck.update({
       where: { id: deckId },
       data: {
-        shareToken: null,
-        shareSlug: null,
         publishedContent: null,
         publishedTheme: null,
         publishedAt: null,
+        // Only clear these if user explicitly requested fresh URL
+        ...(clearSlug && {
+          shareToken: null,
+          shareSlug: null,
+          views: 0,
+        }),
       },
     });
 
