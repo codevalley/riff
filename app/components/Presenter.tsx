@@ -71,6 +71,14 @@ export function Presenter({
     }
   }, [currentSlide, totalSlides, isSharedView]);
 
+  // Auto-start autoplay on mobile
+  useEffect(() => {
+    const isMobile = window.matchMedia('(max-width: 640px), (orientation: portrait)').matches;
+    if (isMobile) {
+      setIsAutoPlaying(true);
+    }
+  }, []); // Only on mount
+
   // Navigation
   const goNext = useCallback(() => {
     setAutoPlayProgress(0); // Reset progress immediately to prevent flicker
@@ -239,10 +247,10 @@ export function Presenter({
     if (isAutoPlaying) {
       return;
     }
-    // Set new timer to hide controls after 2 seconds
+    // Set new timer to hide controls after 4 seconds
     const timer = setTimeout(() => {
       setShowMobileControls(false);
-    }, 2000);
+    }, 4000);
     setControlsAutoHideTimer(timer);
   }, [controlsAutoHideTimer, isAutoPlaying]);
 
