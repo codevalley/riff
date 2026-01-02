@@ -231,7 +231,6 @@ OUTPUT FORMAT (strict)
 --------------------------------------------
 - Output exactly one deck in a single \`\`\`text\`\`\` code block.
 - No additional commentary before or after.
-- Include a final version marker: \`---\\nv: 2\\n---\` at the end.
 - If the template includes footers like $<...>, include them consistently.
 
 --------------------------------------------
@@ -980,7 +979,6 @@ OUTPUT FORMAT (strict)
 --------------------------------------------
 - Output exactly one deck in a single \`\`\`text\`\`\` code block.
 - No additional commentary before or after.
-- Include a final version marker: \`---\\nv: 2\\n---\` at the end.
 - Preserve any existing images: block from the original frontmatter.
 
 --------------------------------------------

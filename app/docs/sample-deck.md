@@ -156,7 +156,3 @@ $<confidential • Demo deck • 2025>
 # THANK YOU
 
 $<confidential • Demo deck • 2025>
-
----
-v: 2
----
