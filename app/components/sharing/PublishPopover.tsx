@@ -133,6 +133,7 @@ export function PublishPopover({
   };
 
   const handlePublish = async () => {
+    const isFirstPublish = !status?.isPublished;
     try {
       setPublishing(true);
       setError(null);
@@ -160,6 +161,10 @@ export function PublishPopover({
       setStatus(newStatus);
       onPublishStatusChange?.(newStatus);
       analytics.deckPublished();
+      // Track first publish of this deck (milestone)
+      if (isFirstPublish) {
+        analytics.firstDeckPublished();
+      }
     } catch (err) {
       setError('Failed to publish');
       console.error(err);

@@ -115,6 +115,7 @@ function EditorContent() {
   // Refs
   const riffInputRef = useRef<HTMLInputElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const wasFirstDeckRef = useRef<boolean>(false);
 
   // Close more menu when clicking outside
   useEffect(() => {
@@ -266,6 +267,7 @@ function EditorContent() {
         // Show DocumentUploader if there's a pending document from pre-auth upload
         // The uploader will detect the pending document and auto-start conversion
         if (hasPendingDocument) {
+          wasFirstDeckRef.current = (data.decks || []).length === 0;
           setShowUploader(true);
         }
       } catch (err) {
@@ -282,6 +284,7 @@ function EditorContent() {
   }, []);
 
   const createDeck = async (name: string) => {
+    const isFirstDeck = decks.length === 0;
     try {
       const response = await fetch('/api/decks', {
         method: 'POST',
@@ -292,6 +295,9 @@ function EditorContent() {
       const data = await response.json();
       if (data.deck) {
         analytics.deckCreated('scratch');
+        if (isFirstDeck) {
+          analytics.firstDeckCreated();
+        }
         const listResponse = await fetch('/api/decks');
         const listData = await listResponse.json();
         setDecks(listData.decks || []);
@@ -376,6 +382,7 @@ function EditorContent() {
 
   // Import .riff file
   const importRiff = async (file: File) => {
+    const isFirstDeck = decks.length === 0;
     setIsImportingRiff(true);
     setLoadingMessage('Importing deck...');
     setLoading(true);
@@ -407,6 +414,9 @@ function EditorContent() {
       // Load the imported deck
       if (data.deck?.id) {
         analytics.deckCreated('import');
+        if (isFirstDeck) {
+          analytics.firstDeckCreated();
+        }
         await loadDeck(data.deck.id);
       }
     } catch (err) {
@@ -530,6 +540,10 @@ function EditorContent() {
   // Handle successful document upload from DocumentUploader
   const handleUploadSuccess = useCallback(async (deckId: string) => {
     analytics.deckCreated('content');
+    if (wasFirstDeckRef.current) {
+      analytics.firstDeckCreated();
+      wasFirstDeckRef.current = false;
+    }
     // Refresh deck list and load the new deck
     try {
       const listResponse = await fetch('/api/decks');
@@ -745,6 +759,7 @@ function EditorContent() {
                     </button>
                     <button
                       onClick={() => {
+                        wasFirstDeckRef.current = decks.length === 0;
                         setShowUploader(true);
                         setShowMoreMenu(false);
                       }}

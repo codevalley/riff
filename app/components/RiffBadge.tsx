@@ -6,6 +6,7 @@
 // ============================================
 
 import { motion } from 'framer-motion';
+import { analytics } from '@/lib/analytics';
 
 interface RiffBadgeProps {
   className?: string;
@@ -17,6 +18,7 @@ export function RiffBadge({ className = '' }: RiffBadgeProps) {
       href="https://www.riff.im"
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => analytics.badgeClicked()}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 1.5, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}

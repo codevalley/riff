@@ -18,6 +18,7 @@ import { DocumentUploader } from './DocumentUploader';
 import { RiffIcon } from './RiffIcon';
 import { SnowTrigger } from './SnowfallEffect';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { analytics } from '@/lib/analytics';
 
 // Demo content for the animated preview
 const demoMarkdown = `# Quarterly Review
@@ -50,9 +51,16 @@ export function Landing() {
   const { recordFeatureUse } = useOnboarding();
 
   // Trigger creating tour when user starts creating
-  const handleShowUploader = () => {
+  const handleShowUploader = (location: 'hero' | 'footer') => {
     recordFeatureUse('creating-click');
+    analytics.ctaClicked(location, 'content');
     setShowUploader(true);
+  };
+
+  // Track "Empty deck" CTA clicks
+  const handleEmptyDeckClick = (location: 'hero' | 'footer') => {
+    recordFeatureUse('creating-click');
+    analytics.ctaClicked(location, 'empty');
   };
 
   // Ensure we're mounted before running animations
@@ -221,7 +229,7 @@ export function Landing() {
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-16">
                 <button
-                  onClick={handleShowUploader}
+                  onClick={() => handleShowUploader('hero')}
                   className="inline-flex items-center gap-2.5 px-6 py-3 bg-white text-black rounded-xl font-medium text-[14px] hover:bg-white/90 transition-all duration-200"
                 >
                   <FileSymlink className="w-4 h-4" />
@@ -230,7 +238,7 @@ export function Landing() {
 
                 <Link
                   href="/editor"
-                  onClick={() => recordFeatureUse('creating-click')}
+                  onClick={() => handleEmptyDeckClick('hero')}
                   className="inline-flex items-center gap-2.5 px-6 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white/70 text-[14px] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-200"
                 >
                   <Plus className="w-4 h-4" />
@@ -595,7 +603,7 @@ export function Landing() {
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
-                  onClick={handleShowUploader}
+                  onClick={() => handleShowUploader('footer')}
                   className="inline-flex items-center gap-2.5 px-6 py-3 bg-white text-black rounded-xl font-medium text-[14px] hover:bg-white/90 transition-all duration-200"
                 >
                   <FileSymlink className="w-4 h-4" />
@@ -603,7 +611,7 @@ export function Landing() {
                 </button>
                 <Link
                   href="/editor"
-                  onClick={() => recordFeatureUse('creating-click')}
+                  onClick={() => handleEmptyDeckClick('footer')}
                   className="inline-flex items-center gap-2.5 px-6 py-3 bg-white/[0.03] border border-white/[0.08] rounded-xl text-white/70 text-[14px] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-200"
                 >
                   <Plus className="w-4 h-4" />

@@ -88,4 +88,37 @@ export const analytics = {
   deckCompleted: () => {
     track('deck_completed');
   },
+
+  // ============================================
+  // Acquisition Events
+  // ============================================
+
+  /** Track when a user clicks the "Made with Riff" badge on shared decks */
+  badgeClicked: () => {
+    track('badge_clicked');
+  },
+
+  /** Track when a user clicks a CTA on the landing page */
+  ctaClicked: (location: 'hero' | 'footer', type: 'content' | 'empty') => {
+    track('cta_clicked', { location, type });
+  },
+
+  // ============================================
+  // Milestone Events
+  // ============================================
+
+  /** Track when a user creates their first deck ever */
+  firstDeckCreated: () => {
+    track('first_deck_created');
+  },
+
+  /** Track when a user publishes their first deck ever */
+  firstDeckPublished: () => {
+    track('first_deck_published');
+  },
+
+  /** Track when a new user completes signup */
+  signupCompleted: (provider: string) => {
+    track('signup_completed', { provider });
+  },
 };

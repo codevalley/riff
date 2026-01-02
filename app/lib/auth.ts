@@ -7,6 +7,7 @@ import { NextAuthOptions } from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import GoogleProvider from 'next-auth/providers/google';
 import GitHubProvider from 'next-auth/providers/github';
+import { track } from '@vercel/analytics/server';
 import { prisma } from './prisma';
 import { initializeUserCredits } from './credits';
 import { sendWelcomeEmail } from './email';
@@ -88,6 +89,16 @@ export const authOptions: NextAuthOptions = {
           console.error('Failed to send welcome email:', err);
         });
       }
+
+      // Track signup completion (fire and forget)
+      // Determine provider from user's account - fallback to 'unknown'
+      const account = await prisma.account.findFirst({
+        where: { userId: user.id },
+        select: { provider: true },
+      });
+      track('signup_completed', { provider: account?.provider || 'unknown' }).catch(() => {
+        // Silently fail - analytics should not block user creation
+      });
     },
   },
 };
