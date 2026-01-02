@@ -65,13 +65,13 @@ async function main() {
   const header = [
     'date',
     'signups',
-    'users_created_deck',
-    'users_published',
-    'total_decks',
-    'published_decks',
-    'total_views',
-    'purchasers',
-    'tippers',
+    'created',
+    'published',
+    'decks',
+    'live',
+    'views',
+    'paid',
+    'tipped',
   ].join(',');
 
   // Idempotent: read existing, update or append today's row
